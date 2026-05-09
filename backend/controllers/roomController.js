@@ -1,0 +1,684 @@
+const supabase = require('../config/supabaseClient');
+
+/**
+ * @desc  Get all approved rooms (public) — with advanced filters
+ * @route GET /api/rooms
+ */
+const getApprovedRooms = async (req, res) => {
+  try {
+    const {
+      price_min, price_max, city, search,
+      area_min, area_max,
+      amenities: amenityFilter,  // comma-separated amenity names
+      sort = 'newest',
+      has_slots,  // "true" = chỉ phòng còn chỗ ở ghép
+      page = 1, limit = 12,
+    } = req.query;
+
+    const from = (page - 1) * limit;
+    const to   = page * limit - 1;
+
+    let query = supabase
+      .from('rooms')
+      .select(`
+        *,
+        users (id, full_name, avatar_url, phone),
+        room_images (image_url, is_primary),
+        room_amenities (amenities (id, name, icon))
+      `, { count: 'exact' })
+      .eq('status', 'approved')
+      .eq('is_hidden', false)
+      .range(from, to);
+
+    if (sort === 'price_asc') {
+      query = query.order('price', { ascending: true });
+    } else if (sort === 'price_desc') {
+      query = query.order('price', { ascending: false });
+    } else {
+      query = query.order('created_at', { ascending: false });
+    }
+
+    if (price_min) query = query.gte('price', Number(price_min));
+    if (price_max) query = query.lte('price', Number(price_max));
+    if (area_min)  query = query.gte('area', Number(area_min));
+    if (area_max)  query = query.lte('area', Number(area_max));
+    if (city)      query = query.ilike('city', `%${city}%`);
+    if (search)    query = query.or(`title.ilike.%${search}%,address.ilike.%${search}%`);
+    if (has_slots === 'true') query = query.gt('available_slots', 0);
+
+    const { data, error, count } = await query;
+    if (error) return res.status(500).json({ error: error.message });
+
+    // Post-filter by amenities (Supabase doesn't support filtering on nested joins easily)
+    let filteredData = data;
+    if (amenityFilter) {
+      const wantedAmenities = amenityFilter.split(',').map(s => s.trim().toLowerCase());
+      filteredData = data.filter(room => {
+        const roomAmenityNames = (room.room_amenities || [])
+          .map(ra => ra.amenities?.name?.toLowerCase())
+          .filter(Boolean);
+        return wantedAmenities.every(wa => roomAmenityNames.includes(wa));
+      });
+    }
+
+    return res.status(200).json({
+      rooms: filteredData,
+      total: amenityFilter ? filteredData.length : (count ?? data.length),
+      page: Number(page),
+      limit: Number(limit),
+    });
+  } catch (err) {
+    return res.status(500).json({ error: err.message });
+  }
+};
+
+/**
+ * @desc  Get single room by ID (public)
+ * @route GET /api/rooms/:id
+ */
+const getRoomById = async (req, res) => {
+  try {
+    const { data, error } = await supabase
+      .from('rooms')
+      .select(`
+        *,
+        users (id, full_name, avatar_url, phone, is_verified, created_at),
+        room_images (id, image_url, is_primary),
+        room_amenities (amenities (id, name, icon)),
+        reviews (id, user_id, rating, comment, created_at, updated_at, users (full_name, avatar_url))
+      `)
+      .eq('id', req.params.id)
+      .single();
+
+    if (error) return res.status(404).json({ error: 'Không tìm thấy phòng.' });
+    const isPublic = data.status === 'approved' && data.is_hidden !== true;
+    const canViewPrivate = req.user && (req.user.role === 'admin' || req.user.id === data.host_id);
+    if (!isPublic && !canViewPrivate) {
+      return res.status(404).json({ error: 'Room not found.' });
+    }
+
+    return res.status(200).json(data);
+  } catch (err) {
+    return res.status(500).json({ error: err.message });
+  }
+};
+
+/**
+ * @desc  Get similar rooms (rule-based)
+ * @route GET /api/rooms/:id/similar
+ */
+const getSimilarRooms = async (req, res) => {
+  try {
+    // Get current room info
+    const { data: room, error: roomErr } = await supabase
+      .from('rooms')
+      .select('id, city, price, room_amenities (amenities (id, name))')
+      .eq('id', req.params.id)
+      .single();
+
+    if (roomErr || !room) return res.status(404).json({ error: 'Phòng không tồn tại.' });
+
+    const priceRange = 0.3; // ±30% price
+    const minPrice = Math.floor(room.price * (1 - priceRange));
+    const maxPrice = Math.ceil(room.price * (1 + priceRange));
+
+    const { data: similar, error } = await supabase
+      .from('rooms')
+      .select(`
+        id, title, price, address, city, area, available_slots,
+        room_images (image_url, is_primary),
+        room_amenities (amenities (id, name, icon))
+      `)
+      .eq('status', 'approved')
+      .eq('is_hidden', false)
+      .neq('id', room.id)
+      .eq('city', room.city)
+      .gte('price', minPrice)
+      .lte('price', maxPrice)
+      .limit(6)
+      .order('created_at', { ascending: false });
+
+    if (error) return res.status(500).json({ error: error.message });
+    return res.status(200).json(similar || []);
+  } catch (err) {
+    return res.status(500).json({ error: err.message });
+  }
+};
+
+/**
+ * @desc  Create a new room (Landlord only - status: pending)
+ * @route POST /api/rooms
+ */
+const createRoom = async (req, res) => {
+  try {
+    const { title, description, price, address, city, area, available_slots = 1, amenity_ids } = req.body;
+
+    const { data: room, error } = await supabase
+      .from('rooms')
+      .insert({
+        host_id: req.user.id,
+        title,
+        description,
+        price,
+        address,
+        city,
+        area,
+        available_slots: Number(available_slots) || 1,
+        status: 'pending', // Default: cần Admin duyệt
+      })
+      .select()
+      .single();
+
+    if (error) return res.status(400).json({ error: error.message });
+
+    // Insert amenities if provided
+    if (amenity_ids && amenity_ids.length > 0) {
+      const amenityLinks = amenity_ids.map((amenityId) => ({
+        room_id: room.id,
+        amenity_id: amenityId,
+      }));
+      await supabase.from('room_amenities').insert(amenityLinks);
+    }
+
+    return res.status(201).json({ message: 'Đăng tin thành công! Đang chờ Admin duyệt.', room });
+  } catch (err) {
+    return res.status(500).json({ error: err.message });
+  }
+};
+
+/**
+ * @desc  Update room (Landlord - own room only)
+ * @route PUT /api/rooms/:id
+ */
+const updateRoom = async (req, res) => {
+  try {
+    const { data: existing } = await supabase
+      .from('rooms').select('host_id').eq('id', req.params.id).single();
+
+    if (!existing || existing.host_id !== req.user.id) {
+      return res.status(403).json({ error: 'Bạn không có quyền chỉnh sửa phòng này.' });
+    }
+
+    // Extract amenity_ids separately
+    const { amenity_ids, ...roomFields } = req.body;
+
+    const { data, error } = await supabase
+      .from('rooms')
+      .update({ ...roomFields, status: 'pending', updated_at: new Date() })
+      .eq('id', req.params.id)
+      .select()
+      .single();
+
+    if (error) return res.status(400).json({ error: error.message });
+
+    // Update amenities if provided
+    if (amenity_ids && Array.isArray(amenity_ids)) {
+      // Delete old amenities
+      await supabase.from('room_amenities').delete().eq('room_id', req.params.id);
+      // Insert new
+      if (amenity_ids.length > 0) {
+        const amenityLinks = amenity_ids.map((amenityId) => ({
+          room_id: req.params.id,
+          amenity_id: amenityId,
+        }));
+        await supabase.from('room_amenities').insert(amenityLinks);
+      }
+    }
+
+    return res.status(200).json({ message: 'Cập nhật thành công. Đang chờ duyệt lại.', room: data });
+  } catch (err) {
+    return res.status(500).json({ error: err.message });
+  }
+};
+
+/**
+ * @desc  Toggle room visibility (Landlord - own room)
+ * @route PATCH /api/rooms/:id/toggle-hidden
+ */
+const toggleRoomHidden = async (req, res) => {
+  try {
+    const { data: existing } = await supabase
+      .from('rooms').select('host_id, is_hidden').eq('id', req.params.id).single();
+
+    if (!existing || existing.host_id !== req.user.id) {
+      return res.status(403).json({ error: 'Bạn không có quyền thay đổi phòng này.' });
+    }
+
+    const newHidden = !existing.is_hidden;
+    const { data, error } = await supabase
+      .from('rooms')
+      .update({ is_hidden: newHidden })
+      .eq('id', req.params.id)
+      .select()
+      .single();
+
+    if (error) return res.status(400).json({ error: error.message });
+    return res.status(200).json({
+      message: newHidden ? 'Đã ẩn phòng.' : 'Đã hiện phòng.',
+      room: data,
+    });
+  } catch (err) {
+    return res.status(500).json({ error: err.message });
+  }
+};
+
+/**
+ * @desc  Toggle room availability (Landlord - own room)
+ * @route PATCH /api/rooms/:id/toggle-available
+ */
+const toggleRoomAvailable = async (req, res) => {
+  try {
+    const { data: existing } = await supabase
+      .from('rooms').select('host_id, is_available').eq('id', req.params.id).single();
+
+    if (!existing || existing.host_id !== req.user.id) {
+      return res.status(403).json({ error: 'Bạn không có quyền thay đổi phòng này.' });
+    }
+
+    const newAvail = !existing.is_available;
+    const { data, error } = await supabase
+      .from('rooms')
+      .update({ is_available: newAvail })
+      .eq('id', req.params.id)
+      .select()
+      .single();
+
+    if (error) return res.status(400).json({ error: error.message });
+    return res.status(200).json({
+      message: newAvail ? 'Đã mở nhận khách.' : 'Đã đánh dấu hết phòng.',
+      room: data,
+    });
+  } catch (err) {
+    return res.status(500).json({ error: err.message });
+  }
+};
+
+/**
+ * @desc  Delete room
+ * @route DELETE /api/rooms/:id
+ */
+const deleteRoom = async (req, res) => {
+  try {
+    const { data: existing, error: fetchError } = await supabase
+      .from('rooms')
+      .select('host_id')
+      .eq('id', req.params.id)
+      .single();
+
+    if (fetchError || !existing) {
+      return res.status(404).json({ error: 'Room not found.' });
+    }
+
+    if (req.user.role !== 'admin' && existing.host_id !== req.user.id) {
+      return res.status(403).json({ error: 'You do not have permission to delete this room.' });
+    }
+
+    const { error } = await supabase.from('rooms').delete().eq('id', req.params.id);
+    if (error) return res.status(400).json({ error: error.message });
+    return res.status(200).json({ message: 'Xóa phòng thành công.' });
+  } catch (err) {
+    return res.status(500).json({ error: err.message });
+  }
+};
+
+/**
+ * @desc  Get landlord's own rooms
+ * @route GET /api/rooms/my/listings
+ */
+const getMyRooms = async (req, res) => {
+  try {
+    const { data, error } = await supabase
+      .from('rooms')
+      .select('*, room_images (image_url, is_primary)')
+      .eq('host_id', req.user.id)
+      .order('created_at', { ascending: false });
+
+    if (error) return res.status(500).json({ error: error.message });
+    return res.status(200).json(data);
+  } catch (err) {
+    return res.status(500).json({ error: err.message });
+  }
+};
+
+/**
+ * @desc  Admin: Approve or Reject a room
+ * @route PATCH /api/rooms/:id/status
+ */
+const updateRoomStatus = async (req, res) => {
+  try {
+    const { status, rejection_reason } = req.body;
+    if (!['approved', 'rejected', 'pending'].includes(status)) {
+      return res.status(400).json({ error: 'Status không hợp lệ.' });
+    }
+
+    const { data, error } = await supabase
+      .from('rooms')
+      .update({ status, rejection_reason: status === 'rejected' ? rejection_reason : null })
+      .eq('id', req.params.id)
+      .select()
+      .single();
+
+    if (error) return res.status(400).json({ error: error.message });
+    return res.status(200).json({ message: `Đã cập nhật trạng thái phòng thành: ${status}`, room: data });
+  } catch (err) {
+    return res.status(500).json({ error: err.message });
+  }
+};
+
+/**
+ * Helper: Check if a tenant is eligible to review a room
+ * (must have completed appointment OR accepted roommate request)
+ */
+const checkReviewEligibility = async (userId, roomId) => {
+  // Check for completed appointment
+  const { count: apptCount } = await supabase
+    .from('appointments')
+    .select('*', { count: 'exact', head: true })
+    .eq('tenant_id', userId)
+    .eq('room_id', roomId)
+    .eq('status', 'completed');
+
+  if (apptCount && apptCount > 0) return true;
+
+  // Check for accepted roommate request
+  const { count: reqCount } = await supabase
+    .from('roommate_requests')
+    .select('*', { count: 'exact', head: true })
+    .eq('tenant_id', userId)
+    .eq('room_id', roomId)
+    .eq('status', 'accepted');
+
+  if (reqCount && reqCount > 0) return true;
+
+  return false;
+};
+
+/**
+ * @desc  Check review eligibility for current user
+ * @route GET /api/rooms/:id/reviews/eligibility
+ */
+const getReviewEligibility = async (req, res) => {
+  try {
+    const eligible = await checkReviewEligibility(req.user.id, req.params.id);
+
+    // Also check if user already reviewed
+    const { data: existing } = await supabase
+      .from('reviews')
+      .select('id')
+      .eq('room_id', req.params.id)
+      .eq('user_id', req.user.id)
+      .maybeSingle();
+
+    return res.status(200).json({
+      eligible,
+      already_reviewed: !!existing,
+      review_id: existing?.id || null,
+    });
+  } catch (err) {
+    return res.status(500).json({ error: err.message });
+  }
+};
+
+/**
+ * @desc  Create a review for a room (Tenant)
+ * @route POST /api/rooms/:id/reviews
+ */
+const createReview = async (req, res) => {
+  try {
+    const { rating, comment } = req.body;
+    if (!rating || rating < 1 || rating > 5) {
+      return res.status(400).json({ error: 'Rating phải từ 1 đến 5.' });
+    }
+
+    const { data: room, error: roomError } = await supabase
+      .from('rooms')
+      .select('id, status, is_hidden')
+      .eq('id', req.params.id)
+      .single();
+
+    if (roomError || !room) {
+      return res.status(404).json({ error: 'Room not found.' });
+    }
+    if (room.status !== 'approved' || room.is_hidden === true) {
+      return res.status(400).json({ error: 'Only visible approved rooms can be reviewed.' });
+    }
+
+    // Check eligibility: must have completed appointment OR accepted roommate request
+    const eligible = await checkReviewEligibility(req.user.id, req.params.id);
+    if (!eligible) {
+      return res.status(403).json({
+        error: 'Bạn cần có lịch hẹn hoàn thành hoặc yêu cầu ở ghép được chấp nhận để đánh giá phòng này.',
+      });
+    }
+
+    const { data, error } = await supabase
+      .from('reviews')
+      .insert({
+        room_id: req.params.id,
+        user_id: req.user.id,
+        rating: Number(rating),
+        comment,
+      })
+      .select()
+      .single();
+
+    if (error) {
+      if (error.code === '23505') {
+        return res.status(409).json({ error: 'Bạn đã đánh giá phòng này rồi.' });
+      }
+      return res.status(400).json({ error: error.message });
+    }
+
+    return res.status(201).json({ message: 'Đánh giá thành công!', review: data });
+  } catch (err) {
+    return res.status(500).json({ error: err.message });
+  }
+};
+
+/**
+ * @desc  Update own review
+ * @route PUT /api/rooms/:id/reviews/:reviewId
+ */
+const updateReview = async (req, res) => {
+  try {
+    const { rating, comment } = req.body;
+    if (rating !== undefined && (rating < 1 || rating > 5)) {
+      return res.status(400).json({ error: 'Rating phải từ 1 đến 5.' });
+    }
+
+    // Verify the review exists and belongs to this user
+    const { data: existing, error: fetchErr } = await supabase
+      .from('reviews')
+      .select('id, user_id')
+      .eq('id', req.params.reviewId)
+      .eq('room_id', req.params.id)
+      .single();
+
+    if (fetchErr || !existing) {
+      return res.status(404).json({ error: 'Không tìm thấy đánh giá.' });
+    }
+    if (existing.user_id !== req.user.id) {
+      return res.status(403).json({ error: 'Bạn không có quyền sửa đánh giá này.' });
+    }
+
+    const updateFields = {};
+    if (rating !== undefined) updateFields.rating = Number(rating);
+    if (comment !== undefined) updateFields.comment = comment;
+
+    const { data, error } = await supabase
+      .from('reviews')
+      .update(updateFields)
+      .eq('id', req.params.reviewId)
+      .select()
+      .single();
+
+    if (error) return res.status(400).json({ error: error.message });
+    return res.status(200).json({ message: 'Đã cập nhật đánh giá.', review: data });
+  } catch (err) {
+    return res.status(500).json({ error: err.message });
+  }
+};
+
+/**
+ * @desc  Delete own review
+ * @route DELETE /api/rooms/:id/reviews/:reviewId
+ */
+const deleteReview = async (req, res) => {
+  try {
+    // Verify the review exists and belongs to this user
+    const { data: existing, error: fetchErr } = await supabase
+      .from('reviews')
+      .select('id, user_id')
+      .eq('id', req.params.reviewId)
+      .eq('room_id', req.params.id)
+      .single();
+
+    if (fetchErr || !existing) {
+      return res.status(404).json({ error: 'Không tìm thấy đánh giá.' });
+    }
+    if (existing.user_id !== req.user.id && req.user.role !== 'admin') {
+      return res.status(403).json({ error: 'Bạn không có quyền xóa đánh giá này.' });
+    }
+
+    const { error } = await supabase
+      .from('reviews')
+      .delete()
+      .eq('id', req.params.reviewId);
+
+    if (error) return res.status(400).json({ error: error.message });
+    return res.status(200).json({ message: 'Đã xóa đánh giá.' });
+  } catch (err) {
+    return res.status(500).json({ error: err.message });
+  }
+};
+
+/**
+ * @desc  Get landlord public profile
+ * @route GET /api/rooms/landlord/:id/profile
+ */
+const getLandlordProfile = async (req, res) => {
+  try {
+    const landlordId = req.params.id;
+
+    // Get landlord info
+    const { data: landlord, error: userErr } = await supabase
+      .from('users')
+      .select('id, full_name, avatar_url, phone, is_verified, created_at')
+      .eq('id', landlordId)
+      .eq('role', 'landlord')
+      .single();
+
+    if (userErr || !landlord) {
+      return res.status(404).json({ error: 'Không tìm thấy chủ nhà.' });
+    }
+
+    // Get landlord's approved rooms
+    const { data: rooms, error: roomErr } = await supabase
+      .from('rooms')
+      .select(`
+        id, title, price, address, city, area, status, available_slots, is_available, created_at,
+        room_images (image_url, is_primary),
+        room_amenities (amenities (id, name, icon))
+      `)
+      .eq('host_id', landlordId)
+      .eq('status', 'approved')
+      .eq('is_hidden', false)
+      .order('created_at', { ascending: false });
+
+    if (roomErr) return res.status(500).json({ error: roomErr.message });
+
+    // Count stats
+    const { count: totalRooms } = await supabase
+      .from('rooms')
+      .select('*', { count: 'exact', head: true })
+      .eq('host_id', landlordId);
+
+    const { count: approvedRooms } = await supabase
+      .from('rooms')
+      .select('*', { count: 'exact', head: true })
+      .eq('host_id', landlordId)
+      .eq('status', 'approved');
+
+    return res.status(200).json({
+      landlord,
+      rooms: rooms || [],
+      stats: {
+        totalRooms: totalRooms || 0,
+        approvedRooms: approvedRooms || 0,
+      },
+    });
+  } catch (err) {
+    return res.status(500).json({ error: err.message });
+  }
+};
+
+/**
+ * @desc  Delete room image (Landlord - own room)
+ * @route DELETE /api/rooms/:roomId/images/:imageId
+ */
+const deleteRoomImage = async (req, res) => {
+  try {
+    const { roomId, imageId } = req.params;
+
+    // Verify ownership
+    const { data: room } = await supabase
+      .from('rooms').select('host_id').eq('id', roomId).single();
+
+    if (!room || room.host_id !== req.user.id) {
+      return res.status(403).json({ error: 'Bạn không có quyền xóa ảnh này.' });
+    }
+
+    const { error } = await supabase
+      .from('room_images')
+      .delete()
+      .eq('id', imageId)
+      .eq('room_id', roomId);
+
+    if (error) return res.status(400).json({ error: error.message });
+    return res.status(200).json({ message: 'Đã xóa ảnh.' });
+  } catch (err) {
+    return res.status(500).json({ error: err.message });
+  }
+};
+
+/**
+ * @desc  Set primary image (Landlord - own room)
+ * @route PATCH /api/rooms/:roomId/images/:imageId/primary
+ */
+const setPrimaryImage = async (req, res) => {
+  try {
+    const { roomId, imageId } = req.params;
+
+    // Verify ownership
+    const { data: room } = await supabase
+      .from('rooms').select('host_id').eq('id', roomId).single();
+
+    if (!room || room.host_id !== req.user.id) {
+      return res.status(403).json({ error: 'Bạn không có quyền thay đổi ảnh này.' });
+    }
+
+    // Unset all primary
+    await supabase.from('room_images').update({ is_primary: false }).eq('room_id', roomId);
+    // Set new primary
+    const { error } = await supabase
+      .from('room_images')
+      .update({ is_primary: true })
+      .eq('id', imageId)
+      .eq('room_id', roomId);
+
+    if (error) return res.status(400).json({ error: error.message });
+    return res.status(200).json({ message: 'Đã đặt ảnh đại diện.' });
+  } catch (err) {
+    return res.status(500).json({ error: err.message });
+  }
+};
+
+module.exports = {
+  getApprovedRooms, getRoomById, getSimilarRooms,
+  createRoom, updateRoom, deleteRoom,
+  getMyRooms, updateRoomStatus,
+  createReview, updateReview, deleteReview, getReviewEligibility,
+  toggleRoomHidden, toggleRoomAvailable,
+  getLandlordProfile,
+  deleteRoomImage, setPrimaryImage,
+};
