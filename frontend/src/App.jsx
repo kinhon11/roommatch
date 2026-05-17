@@ -15,6 +15,7 @@ const RoomsPage = lazy(() => import('./pages/Tenant/RoomsPage'));
 const RoomDetail = lazy(() => import('./pages/Tenant/RoomDetail'));
 const FavoritesPage = lazy(() => import('./pages/Tenant/FavoritesPage'));
 const AppointmentsPage = lazy(() => import('./pages/Tenant/AppointmentsPage'));
+const DepositsPage = lazy(() => import('./pages/Tenant/DepositsPage'));
 const MyRequestsPage = lazy(() => import('./pages/Tenant/MyRequestsPage'));
 
 const ChatPage = lazy(() => import('./pages/Chat/ChatPage'));
@@ -90,6 +91,14 @@ const App = () => {
               element={
                 <ProtectedRoute allowedRoles={['tenant', 'landlord']}>
                   <AppointmentsPage />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/deposits"
+              element={
+                <ProtectedRoute allowedRoles={['tenant', 'landlord', 'admin']}>
+                  <DepositsPage />
                 </ProtectedRoute>
               }
             />

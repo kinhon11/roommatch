@@ -13,6 +13,7 @@ const chatRoutes     = require('./routes/chatRoutes');
 const roommateRequestRoutes = require('./routes/roommateRequestRoutes');
 const appointmentRoutes = require('./routes/appointmentRoutes');
 const notificationRoutes = require('./routes/notificationRoutes');
+const depositRoutes = require('./routes/depositRoutes');
 
 const app = express();
 const PORT = process.env.PORT || 5000;
@@ -61,6 +62,7 @@ app.use('/api/chat',      chatRoutes);
 app.use('/api/roommate-requests', roommateRequestRoutes);
 app.use('/api/appointments', appointmentRoutes);
 app.use('/api/notifications', notificationRoutes);
+app.use('/api/deposits', depositRoutes);
 
 // ─── 404 Handler
 app.use((req, res) => {

@@ -1,5 +1,7 @@
 const supabase = require('../config/supabaseClient');
 
+const AUTO_HIDE_REPORT_THRESHOLD = 3;
+
 /**
  * @desc  Tạo báo cáo vi phạm
  * @route POST /api/reports
@@ -25,6 +27,26 @@ const createReport = async (req, res) => {
       .single();
 
     if (error) return res.status(400).json({ error: error.message });
+
+    if (room_id) {
+      const { count } = await supabase
+        .from('reports')
+        .select('*', { count: 'exact', head: true })
+        .eq('room_id', room_id);
+
+      if ((count || 0) >= AUTO_HIDE_REPORT_THRESHOLD) {
+        await supabase
+          .from('rooms')
+          .update({
+            is_hidden: true,
+            auto_hidden_reason: `Tu dong an do co ${count} bao cao vi pham.`,
+            hidden_by_report_count: count,
+            hidden_at: new Date().toISOString(),
+          })
+          .eq('id', room_id);
+      }
+    }
+
     return res.status(201).json({ message: 'Báo cáo đã được gửi. Chúng tôi sẽ xem xét sớm nhất!', report: data });
   } catch (err) {
     return res.status(500).json({ error: err.message });

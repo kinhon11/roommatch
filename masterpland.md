@@ -32,7 +32,7 @@
 ### Dữ liệu (bảng/cột) ✅
 - **rooms**: cột `available_slots INT` — theo dõi số chỗ ở ghép còn trống
 - **roommate_requests**: `id`, `room_id`, `tenant_id`, `status (pending/accepted/rejected)`, `created_at`, `updated_at`
-- **appointments**: `id`, `room_id`, `tenant_id`, `landlord_id`, `scheduled_at`, `status (scheduled/completed/cancelled)`, `created_at`
+- **appointments**: `id`, `room_id`, `tenant_id`, `landlord_id`, `scheduled_at`, `status (pending/confirmed/completed/cancelled/no_show)`, `cancellation_reason`, `rescheduled_at`, `created_at`
 - **notifications**: `id`, `user_id`, `type (request/appointment/message)`, `payload JSONB`, `read BOOLEAN`, `created_at`
 
 ### API Endpoints ✅

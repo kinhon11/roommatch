@@ -29,5 +29,7 @@ router.get('/:id/reviews/eligibility', protect, restrictTo('tenant'), roomContro
 router.post('/:id/reviews', protect, restrictTo('tenant'), roomController.createReview);
 router.put('/:id/reviews/:reviewId', protect, restrictTo('tenant'), roomController.updateReview);
 router.delete('/:id/reviews/:reviewId', protect, restrictTo('tenant', 'admin'), roomController.deleteReview);
+router.patch('/:id/reviews/:reviewId/moderation', protect, restrictTo('admin'), roomController.moderateReview);
+router.patch('/:id/reviews/:reviewId/response', protect, restrictTo('landlord'), roomController.respondToReview);
 
 module.exports = router;

@@ -27,7 +27,7 @@ const EditRoom = () => {
         supabase.from('amenities').select('*').order('name'),
       ]);
       setForm({
-        title: roomRes.title, price: roomRes.price, area: roomRes.area || '',
+        title: roomRes.title, price: roomRes.price, area: roomRes.area || '', available_slots: roomRes.available_slots ?? 1,
         address: roomRes.address, city: roomRes.city, description: roomRes.description || '',
       });
       setSelectedAmenities(roomRes.room_amenities?.map(ra => ra.amenities?.id).filter(Boolean) || []);
@@ -66,7 +66,7 @@ const EditRoom = () => {
 
     setSaving(true); setApiError('');
     try {
-      await roomService.updateRoom(id, { ...form, price: +form.price, area: form.area ? +form.area : null, amenity_ids: selectedAmenities });
+      await roomService.updateRoom(id, { ...form, price: +form.price, area: form.area ? +form.area : null, available_slots: +form.available_slots, amenity_ids: selectedAmenities });
       setSuccess('✅ Cập nhật thành công! Bài đang chờ duyệt lại.');
       setTimeout(() => navigate('/landlord/my-rooms'), 1500);
     } catch (err) {
@@ -108,6 +108,10 @@ const EditRoom = () => {
                     <label className="form-label">Diện tích (m²)</label>
                     <input name="area" type="number" value={form.area} onChange={handleChange} className="form-input" />
                   </div>
+                </div>
+                <div className="form-group">
+                  <label className="form-label">Số slot còn trống *</label>
+                  <input name="available_slots" type="number" min="0" value={form.available_slots} onChange={handleChange} className="form-input" />
                 </div>
                 <div className="form-group">
                   <label className="form-label">Địa chỉ *</label>

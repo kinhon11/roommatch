@@ -1,5 +1,16 @@
 const supabase = require('../config/supabaseClient');
 
+const APPROVAL_HISTORY_SELECT = `
+  id, from_status, to_status, reason, created_at,
+  admin:users!room_approval_history_admin_id_fkey (id, full_name, email)
+`;
+
+const normalizeSlots = (value, fallback = 1) => {
+  const slots = Number(value);
+  if (!Number.isInteger(slots) || slots < 0) return fallback;
+  return slots;
+};
+
 /**
  * @desc  Get all approved rooms (public) — with advanced filters
  * @route GET /api/rooms
@@ -85,7 +96,7 @@ const getRoomById = async (req, res) => {
         users (id, full_name, avatar_url, phone, is_verified, created_at),
         room_images (id, image_url, is_primary),
         room_amenities (amenities (id, name, icon)),
-        reviews (id, user_id, rating, comment, created_at, updated_at, users (full_name, avatar_url))
+        reviews (id, user_id, rating, comment, is_hidden, landlord_response, landlord_responded_at, created_at, updated_at, users (full_name, avatar_url))
       `)
       .eq('id', req.params.id)
       .single();
@@ -97,6 +108,7 @@ const getRoomById = async (req, res) => {
       return res.status(404).json({ error: 'Room not found.' });
     }
 
+    data.reviews = (data.reviews || []).filter(review => review.is_hidden !== true);
     return res.status(200).json(data);
   } catch (err) {
     return res.status(500).json({ error: err.message });
@@ -152,6 +164,7 @@ const getSimilarRooms = async (req, res) => {
 const createRoom = async (req, res) => {
   try {
     const { title, description, price, address, city, area, available_slots = 1, amenity_ids } = req.body;
+    const slots = normalizeSlots(available_slots, 1);
 
     const { data: room, error } = await supabase
       .from('rooms')
@@ -163,7 +176,8 @@ const createRoom = async (req, res) => {
         address,
         city,
         area,
-        available_slots: Number(available_slots) || 1,
+        available_slots: slots,
+        is_available: slots > 0,
         status: 'pending', // Default: cần Admin duyệt
       })
       .select()
@@ -193,7 +207,7 @@ const createRoom = async (req, res) => {
 const updateRoom = async (req, res) => {
   try {
     const { data: existing } = await supabase
-      .from('rooms').select('host_id').eq('id', req.params.id).single();
+      .from('rooms').select('host_id, available_slots').eq('id', req.params.id).single();
 
     if (!existing || existing.host_id !== req.user.id) {
       return res.status(403).json({ error: 'Bạn không có quyền chỉnh sửa phòng này.' });
@@ -201,6 +215,11 @@ const updateRoom = async (req, res) => {
 
     // Extract amenity_ids separately
     const { amenity_ids, ...roomFields } = req.body;
+    if (roomFields.available_slots !== undefined) {
+      const slots = normalizeSlots(roomFields.available_slots, existing.available_slots || 0);
+      roomFields.available_slots = slots;
+      roomFields.is_available = slots > 0;
+    }
 
     const { data, error } = await supabase
       .from('rooms')
@@ -269,16 +288,33 @@ const toggleRoomHidden = async (req, res) => {
 const toggleRoomAvailable = async (req, res) => {
   try {
     const { data: existing } = await supabase
-      .from('rooms').select('host_id, is_available').eq('id', req.params.id).single();
+      .from('rooms').select('host_id, is_available, available_slots, last_available_slots').eq('id', req.params.id).single();
 
     if (!existing || existing.host_id !== req.user.id) {
       return res.status(403).json({ error: 'Bạn không có quyền thay đổi phòng này.' });
     }
 
+    const { available_slots } = req.body;
     const newAvail = !existing.is_available;
+    const updateFields = {};
+
+    if (newAvail) {
+      const slots = normalizeSlots(available_slots, existing.last_available_slots || existing.available_slots || 0);
+      if (slots <= 0) {
+        return res.status(400).json({ error: 'Can nhap so slot moi lon hon 0 khi mo lai phong.' });
+      }
+      updateFields.is_available = true;
+      updateFields.available_slots = slots;
+      updateFields.last_available_slots = slots;
+    } else {
+      updateFields.is_available = false;
+      updateFields.last_available_slots = existing.available_slots > 0 ? existing.available_slots : existing.last_available_slots;
+      updateFields.available_slots = 0;
+    }
+
     const { data, error } = await supabase
       .from('rooms')
-      .update({ is_available: newAvail })
+      .update(updateFields)
       .eq('id', req.params.id)
       .select()
       .single();
@@ -329,9 +365,10 @@ const getMyRooms = async (req, res) => {
   try {
     const { data, error } = await supabase
       .from('rooms')
-      .select('*, room_images (image_url, is_primary)')
+      .select(`*, room_images (image_url, is_primary), room_approval_history (${APPROVAL_HISTORY_SELECT})`)
       .eq('host_id', req.user.id)
-      .order('created_at', { ascending: false });
+      .order('created_at', { ascending: false })
+      .order('created_at', { foreignTable: 'room_approval_history', ascending: false });
 
     if (error) return res.status(500).json({ error: error.message });
     return res.status(200).json(data);
@@ -351,14 +388,42 @@ const updateRoomStatus = async (req, res) => {
       return res.status(400).json({ error: 'Status không hợp lệ.' });
     }
 
+    const reason = rejection_reason?.trim();
+    if (status === 'rejected' && !reason) {
+      return res.status(400).json({ error: 'Ly do tu choi la bat buoc.' });
+    }
+
+    const { data: existing, error: existingError } = await supabase
+      .from('rooms')
+      .select('status')
+      .eq('id', req.params.id)
+      .single();
+
+    if (existingError || !existing) {
+      return res.status(404).json({ error: 'Room not found.' });
+    }
+
     const { data, error } = await supabase
       .from('rooms')
-      .update({ status, rejection_reason: status === 'rejected' ? rejection_reason : null })
+      .update({
+        status,
+        rejection_reason: status === 'rejected' ? reason : null,
+        is_hidden: status === 'approved' ? false : true,
+        updated_at: new Date().toISOString(),
+      })
       .eq('id', req.params.id)
       .select()
       .single();
 
     if (error) return res.status(400).json({ error: error.message });
+    await supabase.from('room_approval_history').insert({
+      room_id: req.params.id,
+      admin_id: req.user.id,
+      from_status: existing.status,
+      to_status: status,
+      reason: status === 'rejected' ? reason : null,
+    });
+
     return res.status(200).json({ message: `Đã cập nhật trạng thái phòng thành: ${status}`, room: data });
   } catch (err) {
     return res.status(500).json({ error: err.message });
@@ -457,7 +522,7 @@ const createReview = async (req, res) => {
         room_id: req.params.id,
         user_id: req.user.id,
         rating: Number(rating),
-        comment,
+        comment: comment?.trim() || null,
       })
       .select()
       .single();
@@ -503,7 +568,7 @@ const updateReview = async (req, res) => {
 
     const updateFields = {};
     if (rating !== undefined) updateFields.rating = Number(rating);
-    if (comment !== undefined) updateFields.comment = comment;
+    if (comment !== undefined) updateFields.comment = comment?.trim() || null;
 
     const { data, error } = await supabase
       .from('reviews')
@@ -547,6 +612,77 @@ const deleteReview = async (req, res) => {
 
     if (error) return res.status(400).json({ error: error.message });
     return res.status(200).json({ message: 'Đã xóa đánh giá.' });
+  } catch (err) {
+    return res.status(500).json({ error: err.message });
+  }
+};
+
+/**
+ * @desc  Admin hides or shows a review
+ * @route PATCH /api/rooms/:id/reviews/:reviewId/moderation
+ */
+const moderateReview = async (req, res) => {
+  try {
+    const { is_hidden, hidden_reason } = req.body;
+    const hide = is_hidden === true;
+    const reason = hidden_reason?.trim();
+
+    if (hide && !reason) {
+      return res.status(400).json({ error: 'Ly do an review la bat buoc.' });
+    }
+
+    const { data, error } = await supabase
+      .from('reviews')
+      .update({
+        is_hidden: hide,
+        hidden_reason: hide ? reason : null,
+        hidden_at: hide ? new Date().toISOString() : null,
+        hidden_by: hide ? req.user.id : null,
+      })
+      .eq('id', req.params.reviewId)
+      .eq('room_id', req.params.id)
+      .select()
+      .single();
+
+    if (error) return res.status(400).json({ error: error.message });
+    return res.status(200).json({ message: hide ? 'Da an review.' : 'Da hien review.', review: data });
+  } catch (err) {
+    return res.status(500).json({ error: err.message });
+  }
+};
+
+/**
+ * @desc  Landlord responds to a review on own room
+ * @route PATCH /api/rooms/:id/reviews/:reviewId/response
+ */
+const respondToReview = async (req, res) => {
+  try {
+    const response = req.body.response?.trim();
+    if (!response) return res.status(400).json({ error: 'Noi dung phan hoi la bat buoc.' });
+
+    const { data: room } = await supabase
+      .from('rooms')
+      .select('host_id')
+      .eq('id', req.params.id)
+      .single();
+
+    if (!room || room.host_id !== req.user.id) {
+      return res.status(403).json({ error: 'Ban khong co quyen phan hoi review nay.' });
+    }
+
+    const { data, error } = await supabase
+      .from('reviews')
+      .update({
+        landlord_response: response,
+        landlord_responded_at: new Date().toISOString(),
+      })
+      .eq('id', req.params.reviewId)
+      .eq('room_id', req.params.id)
+      .select()
+      .single();
+
+    if (error) return res.status(400).json({ error: error.message });
+    return res.status(200).json({ message: 'Da phan hoi review.', review: data });
   } catch (err) {
     return res.status(500).json({ error: err.message });
   }
@@ -677,7 +813,7 @@ module.exports = {
   getApprovedRooms, getRoomById, getSimilarRooms,
   createRoom, updateRoom, deleteRoom,
   getMyRooms, updateRoomStatus,
-  createReview, updateReview, deleteReview, getReviewEligibility,
+  createReview, updateReview, deleteReview, getReviewEligibility, moderateReview, respondToReview,
   toggleRoomHidden, toggleRoomAvailable,
   getLandlordProfile,
   deleteRoomImage, setPrimaryImage,

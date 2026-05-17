@@ -74,7 +74,7 @@ const LandlordRequests = () => {
             <h1 className="lr-title">🤝 Yêu cầu ở ghép</h1>
             <p className="lr-sub">Quản lý yêu cầu ở ghép từ người thuê</p>
           </div>
-          <Link to="/landlord" className="btn btn-ghost">← Dashboard</Link>
+          <Link to="/landlord/dashboard" className="btn btn-ghost">← Dashboard</Link>
         </div>
 
         {/* Tabs */}

@@ -164,6 +164,13 @@ const updateRoommateRequestStatus = async (req, res) => {
       .single();
     if (error) return res.status(400).json({ error: error.message });
 
+    if (status === 'accepted' && Number(room.available_slots) <= 1) {
+      await supabase
+        .from('rooms')
+        .update({ is_available: false, available_slots: 0 })
+        .eq('id', request.room_id);
+    }
+
     // Thông báo cho tenant
     const statusText = status === 'accepted' ? 'chấp nhận ✅' : 'từ chối ❌';
     await createNotification(request.tenant_id, 'request', {

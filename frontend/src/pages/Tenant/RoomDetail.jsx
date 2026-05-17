@@ -8,6 +8,7 @@ import { favoriteService } from '../../services/favoriteService';
 import { reportService } from '../../services/reportService';
 import { roommateRequestService } from '../../services/roommateRequestService';
 import { appointmentService } from '../../services/appointmentService';
+import { depositService } from '../../services/depositService';
 import { formatCurrency } from '../../utils/format';
 
 const RoomDetail = () => {
@@ -48,6 +49,11 @@ const RoomDetail = () => {
   const [showAppt, setShowAppt] = useState(false);
   const [apptDate, setApptDate] = useState('');
   const [apptState, setApptState] = useState({ loading: false, error: null, success: false });
+
+  // Deposit form state
+  const [showDeposit, setShowDeposit] = useState(false);
+  const [depositForm, setDepositForm] = useState({ amount: '', note: '' });
+  const [depositState, setDepositState] = useState({ loading: false, error: null, success: false });
 
   // Similar rooms
   const [similarRooms, setSimilarRooms] = useState([]);
@@ -160,6 +166,31 @@ const RoomDetail = () => {
     }
   };
 
+  const handleLandlordResponse = async (rev) => {
+    const response = window.prompt('Nhap phan hoi cua chu nha:', rev.landlord_response || '');
+    if (!response?.trim()) return;
+    try {
+      await apiClient.patch(`/rooms/${id}/reviews/${rev.id}/response`, { response: response.trim() });
+      setRoom(prev => ({
+        ...prev,
+        reviews: prev.reviews.map(r => r.id === rev.id ? { ...r, landlord_response: response.trim(), landlord_responded_at: new Date().toISOString() } : r),
+      }));
+    } catch (err) {
+      alert(err.response?.data?.error || 'Khong the phan hoi review.');
+    }
+  };
+
+  const handleHideReview = async (rev) => {
+    const reason = window.prompt('Nhap ly do an review:');
+    if (!reason?.trim()) return;
+    try {
+      await apiClient.patch(`/rooms/${id}/reviews/${rev.id}/moderation`, { is_hidden: true, hidden_reason: reason.trim() });
+      setRoom(prev => ({ ...prev, reviews: prev.reviews.filter(r => r.id !== rev.id) }));
+    } catch (err) {
+      alert(err.response?.data?.error || 'Khong the an review.');
+    }
+  };
+
   const handleCancelReview = () => {
     setReviewing(false);
     setEditingReviewId(null);
@@ -219,6 +250,27 @@ const RoomDetail = () => {
       setTimeout(() => { setShowAppt(false); setApptDate(''); setApptState({ loading: false, error: null, success: false }); }, 2000);
     } catch (err) {
       setApptState({ loading: false, error: err.response?.data?.error || 'Đặt lịch thất bại.', success: false });
+    }
+  };
+
+  const handleDepositSubmit = async (e) => {
+    e.preventDefault();
+    if (!isAuthenticated) { navigate('/login'); return; }
+    setDepositState({ loading: true, error: null, success: false });
+    try {
+      await depositService.create({
+        room_id: id,
+        amount: Number(depositForm.amount),
+        note: depositForm.note,
+      });
+      setDepositState({ loading: false, error: null, success: true });
+      setTimeout(() => {
+        setShowDeposit(false);
+        setDepositForm({ amount: '', note: '' });
+        setDepositState({ loading: false, error: null, success: false });
+      }, 1800);
+    } catch (err) {
+      setDepositState({ loading: false, error: err.response?.data?.error || 'Gui yeu cau coc that bai.', success: false });
     }
   };
 
@@ -497,7 +549,7 @@ const RoomDetail = () => {
         )}
 
         {/* ── Roommate Request ── */}
-        {isAuthenticated && user?.role === 'tenant' && room.status === 'approved' && (
+        {isAuthenticated && user?.role === 'tenant' && room.status === 'approved' && room.is_hidden !== true && (
           <section className="room-section animate-fadeIn">
             <h2 className="room-section__title">🤝 Yêu cầu ở ghép</h2>
             <div className="roommate-box">
@@ -623,7 +675,7 @@ const RoomDetail = () => {
         )}
 
         {/* ── Appointment Booking ── */}
-        {isAuthenticated && user?.role === 'tenant' && room.status === 'approved' && (
+        {isAuthenticated && user?.role === 'tenant' && room.status === 'approved' && room.is_hidden !== true && room.is_available !== false && (
           <section className="room-section animate-fadeIn">
             <h2 className="room-section__title">📅 Đặt lịch xem phòng</h2>
             {!showAppt ? (
@@ -662,11 +714,57 @@ const RoomDetail = () => {
         )}
 
         {/* ── Reviews ── */}
+        {isAuthenticated && user?.role === 'tenant' && room.status === 'approved' && room.is_hidden !== true && room.is_available !== false && (
+          <section className="room-section animate-fadeIn">
+            <h2 className="room-section__title">Coc / giu phong</h2>
+            <div className="deposit-box">
+              <div>
+                <p className="deposit-box__title">Coc / giu phong</p>
+                <p className="deposit-box__desc">Chi tenant co request accepted hoac lich hen hop le moi duoc gui yeu cau coc.</p>
+              </div>
+              {!showDeposit ? (
+                <button className="btn btn-primary" onClick={() => {
+                  setDepositForm(f => ({ ...f, amount: f.amount || room.price || '' }));
+                  setShowDeposit(true);
+                }}>
+                  Gui yeu cau coc
+                </button>
+              ) : (
+                <form className="deposit-inline-form" onSubmit={handleDepositSubmit}>
+                  <input
+                    type="number"
+                    className="form-input"
+                    min={1}
+                    value={depositForm.amount}
+                    onChange={e => setDepositForm(f => ({ ...f, amount: e.target.value }))}
+                    required
+                    placeholder="So tien coc"
+                  />
+                  <input
+                    className="form-input"
+                    value={depositForm.note}
+                    onChange={e => setDepositForm(f => ({ ...f, note: e.target.value }))}
+                    placeholder="Ghi chu"
+                  />
+                  {depositState.error && <p className="form-error">{depositState.error}</p>}
+                  {depositState.success && <p style={{color:'var(--success)', fontSize:14}}>Da gui yeu cau coc phong.</p>}
+                  <div style={{display:'flex', gap:8}}>
+                    <button type="submit" className="btn btn-primary btn-sm" disabled={depositState.loading}>
+                      {depositState.loading ? 'Dang gui...' : 'Gui coc'}
+                    </button>
+                    <button type="button" className="btn btn-ghost btn-sm" onClick={() => setShowDeposit(false)}>Huy</button>
+                  </div>
+                </form>
+              )}
+            </div>
+          </section>
+        )}
+
         <section className="room-section animate-fadeIn">
           <h2 className="room-section__title">
             ⭐ Đánh giá {reviews.length > 0 && `(${reviews.length})`}
           </h2>
-          {reviews.length === 0 ? (
+            {reviews.length === 0 ? (
             <div className="reviews-empty">
               <p>Chưa có đánh giá nào.{reviewEligibility.eligible ? ' Hãy là người đầu tiên!' : ''}</p>
             </div>
@@ -718,6 +816,22 @@ const RoomDetail = () => {
                       </div>
                     </div>
                     {rev.comment && <p className="review-comment">{rev.comment}</p>}
+                    {rev.landlord_response && (
+                      <div className="review-landlord-response">
+                        <strong>Phản hồi của chủ nhà:</strong>
+                        <p>{rev.landlord_response}</p>
+                      </div>
+                    )}
+                    {isAuthenticated && user?.role === 'landlord' && room.host_id === user.id && (
+                      <button type="button" className="review-action-btn review-action-btn--edit" onClick={() => handleLandlordResponse(rev)}>
+                        {rev.landlord_response ? 'Sửa phản hồi' : 'Phản hồi'}
+                      </button>
+                    )}
+                    {isAuthenticated && user?.role === 'admin' && (
+                      <button type="button" className="review-action-btn review-action-btn--delete" onClick={() => handleHideReview(rev)}>
+                        Ẩn review
+                      </button>
+                    )}
 
                     {/* Delete confirmation */}
                     {deleteConfirmId === rev.id && (
@@ -1037,6 +1151,8 @@ const styles = `
   .review-date { font-size: 12px; color: var(--text-muted); margin-top: 2px; }
   .review-edited { font-style: italic; color: var(--text-muted); font-size: 11px; }
   .review-comment { color: var(--text-secondary); font-size: 14px; line-height: 1.7; }
+  .review-landlord-response { margin-top:10px; padding:10px 12px; border-left:3px solid var(--primary); background:var(--bg-surface); border-radius:var(--radius-sm); font-size:13px; color:var(--text-secondary); }
+  .review-landlord-response strong { display:block; color:var(--text-primary); margin-bottom:4px; }
 
   /* Review own badge */
   .review-own-badge {
@@ -1128,6 +1244,20 @@ const styles = `
     background: var(--bg-warm); border: 1px solid var(--border);
     border-radius: var(--radius-lg); padding: 24px;
     display: flex; flex-direction: column; gap: 16px;
+  }
+  .deposit-box {
+    background: var(--bg-warm); border: 1px solid var(--border);
+    border-radius: var(--radius-lg); padding: 18px;
+    display: flex; align-items: center; justify-content: space-between;
+    gap: 16px; margin-bottom: 18px;
+  }
+  .deposit-box__title { font-size: 15px; font-weight: 700; color: var(--text-primary); margin-bottom: 4px; }
+  .deposit-box__desc { font-size: 13px; color: var(--text-secondary); line-height: 1.5; }
+  .deposit-inline-form { display: grid; grid-template-columns: 140px 1fr auto; align-items: center; gap: 8px; width: 100%; }
+  .deposit-inline-form .form-error { grid-column: 1 / -1; }
+  @media(max-width:700px) {
+    .deposit-box { flex-direction: column; align-items: stretch; }
+    .deposit-inline-form { grid-template-columns: 1fr; }
   }
 
   /* Favorite & Report buttons */

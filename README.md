@@ -42,6 +42,10 @@ DOAN/
     ├── migration_v2_fixes.sql       # RLS fixes, trigger improvements (chạy sau expand)
     ├── migration_v3_marketplace.sql # is_hidden, is_locked, is_verified + admin RLS
     ├── migration_v4_roommate_upgrade.sql # request message, move_in_date, occupants, rejection_reason
+    ├── migration_v5_review_upgrade.sql # review updated_at + owner update/delete
+    ├── migration_v5_room_approval_workflow.sql # approval history + auto-hide report metadata
+    ├── migration_v6_slots_appointments_reviews.sql # slots, appointment workflow, review moderation
+    ├── migration_v7_deposits.sql # manual deposit/hold workflow
     ├── storage_setup.sql
     └── seed_data.sql
 ```
@@ -61,6 +65,10 @@ DOAN/
    4. database/migration_v2_fixes.sql    ← Bắt buộc chạy để có đầy đủ RLS
    5. database/migration_v3_marketplace.sql
    6. database/migration_v4_roommate_upgrade.sql
+   7. database/migration_v5_review_upgrade.sql
+   8. database/migration_v5_room_approval_workflow.sql
+   9. database/migration_v6_slots_appointments_reviews.sql
+   10. database/migration_v7_deposits.sql
    ```
 3. (Tùy chọn) Chạy `database/seed_data.sql` để có dữ liệu mẫu
 
@@ -142,6 +150,10 @@ DELETE /api/rooms/:id                 — Xóa phòng (Landlord/Admin)
 GET    /api/rooms/my/listings         — Phòng của tôi (Landlord)
 PATCH  /api/rooms/:id/status          — Duyệt/Từ chối (Admin)
 POST   /api/rooms/:id/reviews         — Đánh giá (Tenant)
+PUT    /api/rooms/:id/reviews/:reviewId — Sửa đánh giá của chính mình
+DELETE /api/rooms/:id/reviews/:reviewId — Xóa đánh giá của chính mình/Admin
+PATCH  /api/rooms/:id/reviews/:reviewId/moderation — Admin ẩn/hiện review
+PATCH  /api/rooms/:id/reviews/:reviewId/response — Landlord phản hồi review
 ```
 
 ### Roommate Requests
@@ -157,8 +169,15 @@ DELETE /api/roommate-requests/:id     — Hủy request pending (Tenant)
 ```
 POST   /api/appointments              — Đặt lịch (Tenant) — body: {room_id, scheduled_at}
 GET    /api/appointments              — Danh sách theo role
-PATCH  /api/appointments/:id          — Cập nhật trạng thái — body: {status: "completed"|"cancelled"}
-                                        (Landlord: completed/cancelled; Tenant: cancelled only)
+PATCH  /api/appointments/:id          — Cập nhật trạng thái — body: {status: "confirmed"|"completed"|"cancelled"|"no_show", cancellation_reason?}
+PATCH  /api/appointments/:id/reschedule — Đổi lịch — body: {scheduled_at}
+```
+
+### Deposits
+```
+POST   /api/deposits                  — Tenant gửi yêu cầu cọc thủ công
+GET    /api/deposits                  — Danh sách cọc theo role
+PATCH  /api/deposits/:id/status       — Cập nhật: paid, cancelled, refunded
 ```
 
 ### Notifications
@@ -213,8 +232,9 @@ PUT    /api/profile                   — Cập nhật hồ sơ
 
 ### Luồng đặt lịch
 1. Tenant vào chi tiết phòng → "Đặt lịch hẹn" → chọn ngày giờ
-2. Landlord nhận notification → vào `/appointments` → Hoàn thành / Hủy
-3. Tenant cũng có thể tự hủy lịch
+2. Landlord nhận notification → vào `/appointments` → Xác nhận hoặc từ chối
+3. Lịch đã xác nhận có thể đánh dấu hoàn thành, không đến, hoặc hủy kèm lý do
+4. Tenant và landlord có thể đổi lịch; tenant đổi lịch sẽ chuyển lại về chờ xác nhận
 
 ### Realtime Notifications
 - Supabase Realtime subscription theo `user_id`

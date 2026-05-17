@@ -1,5 +1,10 @@
 const supabase = require('../config/supabaseClient');
 
+const APPROVAL_HISTORY_SELECT = `
+  id, from_status, to_status, reason, created_at,
+  admin:users!room_approval_history_admin_id_fkey (id, full_name, email)
+`;
+
 /**
  * @desc Admin: Get dashboard statistics (enhanced)
  * @route GET /api/admin/stats
@@ -141,9 +146,10 @@ const getPendingRooms = async (req, res) => {
   try {
     const { data, error } = await supabase
       .from('rooms')
-      .select('*, users (full_name, email), room_images (image_url, is_primary)')
+      .select(`*, users (full_name, email), room_images (image_url, is_primary), room_approval_history (${APPROVAL_HISTORY_SELECT})`)
       .eq('status', 'pending')
-      .order('created_at', { ascending: true });
+      .order('created_at', { ascending: true })
+      .order('created_at', { foreignTable: 'room_approval_history', ascending: false });
 
     if (error) return res.status(500).json({ error: error.message });
     return res.status(200).json(data);
@@ -164,9 +170,10 @@ const getAllRooms = async (req, res) => {
 
     let query = supabase
       .from('rooms')
-      .select('*, users (full_name, email, avatar_url), room_images (image_url, is_primary)', { count: 'exact' })
+      .select(`*, users (full_name, email, avatar_url), room_images (image_url, is_primary), room_approval_history (${APPROVAL_HISTORY_SELECT})`, { count: 'exact' })
       .order('created_at', { ascending: false })
-      .range(from, to);
+      .range(from, to)
+      .order('created_at', { foreignTable: 'room_approval_history', ascending: false });
 
     if (status && ['pending', 'approved', 'rejected'].includes(status)) {
       query = query.eq('status', status);

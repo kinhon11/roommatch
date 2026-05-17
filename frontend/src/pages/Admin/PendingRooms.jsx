@@ -37,9 +37,13 @@ const AdminPendingRooms = () => {
   const handleReject = async () => {
     if (!rejectModal) return;
     const { roomId, reason } = rejectModal;
+    if (!reason.trim()) {
+      setRejectModal(m => ({ ...m, error: 'Vui long nhap ly do tu choi.' }));
+      return;
+    }
     setActionState(s => ({ ...s, [roomId]: { loading: true } }));
     try {
-      await roomService.updateRoomStatus(roomId, 'rejected', reason);
+      await roomService.updateRoomStatus(roomId, 'rejected', reason.trim());
       setRooms(rs => rs.filter(r => r.id !== roomId));
       setRejectModal(null);
     } catch {
@@ -67,6 +71,7 @@ const AdminPendingRooms = () => {
               value={rejectModal.reason}
               onChange={e => setRejectModal(m => ({ ...m, reason: e.target.value }))}
             />
+            {rejectModal.error && <p className="form-error">{rejectModal.error}</p>}
             <div className="modal-actions">
               <button id="btn-confirm-reject" className="btn btn-danger" onClick={handleReject}>
                 Xác nhận từ chối
@@ -118,6 +123,12 @@ const AdminPendingRooms = () => {
                 <p className="pending-card__date">📅 Đăng: {formatDate(room.created_at)}</p>
                 {room.description && (
                   <p className="pending-card__desc">{room.description.slice(0, 150)}{room.description.length > 150 ? '...' : ''}</p>
+                )}
+                {room.room_approval_history?.length > 0 && (
+                  <p className="pending-card__date">
+                    Lan duyet gan nhat: {room.room_approval_history[0].to_status}
+                    {room.room_approval_history[0].reason ? ` - ${room.room_approval_history[0].reason}` : ''}
+                  </p>
                 )}
                 {actionState[room.id]?.error && <p className="form-error">{actionState[room.id].error}</p>}
               </div>

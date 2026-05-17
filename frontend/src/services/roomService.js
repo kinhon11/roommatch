@@ -76,8 +76,8 @@ export const roomService = {
   /**
    * Landlord: Bật/tắt còn phòng
    */
-  toggleRoomAvailable: async (id) => {
-    const { data } = await apiClient.patch(`/rooms/${id}/toggle-available`);
+  toggleRoomAvailable: async (id, available_slots) => {
+    const { data } = await apiClient.patch(`/rooms/${id}/toggle-available`, { available_slots });
     return data;
   },
 

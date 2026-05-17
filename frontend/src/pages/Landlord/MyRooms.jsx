@@ -44,11 +44,21 @@ const MyRooms = () => {
   };
 
   const handleToggleAvailable = async (id) => {
+    const room = rooms?.find(r => r.id === id);
+    let slots;
+    if (room && !room.is_available) {
+      slots = window.prompt('Nhập số slot mới khi mở lại phòng:', room.last_available_slots || room.available_slots || 1);
+      if (slots === null) return;
+      if (!Number.isInteger(Number(slots)) || Number(slots) <= 0) {
+        alert('Số slot phải lớn hơn 0.');
+        return;
+      }
+    }
     setToggling(s => ({ ...s, [id]: true }));
     try {
-      await roomService.toggleRoomAvailable(id);
+      await roomService.toggleRoomAvailable(id, slots ? Number(slots) : undefined);
       refetch();
-    } catch { /* silent */ }
+    } catch (err) { alert(err?.response?.data?.error || 'Cập nhật trạng thái phòng thất bại.'); }
     finally { setToggling(s => ({ ...s, [id]: false })); }
   };
 
@@ -107,11 +117,18 @@ const MyRooms = () => {
                     <div className="mr-card-meta">
                       <span className="mr-card-price">{formatCurrency(room.price)}/tháng</span>
                       {room.area && <span className="mr-card-area">📐 {room.area} m²</span>}
+                      <span className="mr-card-area">Slot: {room.available_slots ?? 0}</span>
                     </div>
                     {room.rejection_reason && (
                       <div className="mr-card-reject">
                         ❌ Lý do từ chối: <em>{room.rejection_reason}</em>
                       </div>
+                    )}
+                    {room.room_approval_history?.length > 0 && (
+                      <p className="mr-card-date">
+                        Lich su duyet gan nhat: {room.room_approval_history[0].to_status}
+                        {room.room_approval_history[0].reason ? ` - ${room.room_approval_history[0].reason}` : ''}
+                      </p>
                     )}
                     <p className="mr-card-date">🕒 {formatDate(room.created_at)}</p>
                   </div>
