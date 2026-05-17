@@ -1,7 +1,12 @@
 const express = require('express');
+const multer = require('multer');
 const router = express.Router();
 const roomController = require('../controllers/roomController');
 const { protect, optionalAuth, restrictTo } = require('../middleware/authMiddleware');
+const upload = multer({
+  storage: multer.memoryStorage(),
+  limits: { fileSize: 5 * 1024 * 1024, files: 6 },
+});
 
 // Public routes
 router.get('/', roomController.getApprovedRooms);
@@ -18,6 +23,7 @@ router.patch('/:id/toggle-hidden', protect, restrictTo('landlord'), roomControll
 router.patch('/:id/toggle-available', protect, restrictTo('landlord'), roomController.toggleRoomAvailable);
 
 // Room image management (landlord)
+router.post('/:id/images', protect, restrictTo('landlord'), upload.array('images', 6), roomController.uploadRoomImages);
 router.delete('/:roomId/images/:imageId', protect, restrictTo('landlord'), roomController.deleteRoomImage);
 router.patch('/:roomId/images/:imageId/primary', protect, restrictTo('landlord'), roomController.setPrimaryImage);
 

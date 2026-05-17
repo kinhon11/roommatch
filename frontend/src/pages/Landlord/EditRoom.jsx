@@ -11,6 +11,8 @@ const EditRoom = () => {
   const navigate = useNavigate();
 
   const [form, setForm] = useState(null);
+  const [roomImages, setRoomImages] = useState([]);
+  const [newImages, setNewImages] = useState([]);
   const [amenities, setAmenities] = useState([]);
   const [selectedAmenities, setSelectedAmenities] = useState([]);
   const [loading, setLoading]   = useState(true);
@@ -31,6 +33,7 @@ const EditRoom = () => {
         address: roomRes.address, city: roomRes.city, description: roomRes.description || '',
       });
       setSelectedAmenities(roomRes.room_amenities?.map(ra => ra.amenities?.id).filter(Boolean) || []);
+      setRoomImages(roomRes.room_images || []);
       setAmenities(amenRes.data || []);
       setLoading(false);
     };
@@ -44,6 +47,29 @@ const EditRoom = () => {
 
   const toggleAmenity = (aid) =>
     setSelectedAmenities(prev => prev.includes(aid) ? prev.filter(x => x !== aid) : [...prev, aid]);
+
+  const handleNewImages = (e) => {
+    setNewImages(Array.from(e.target.files || []).slice(0, 6));
+  };
+
+  const handleDeleteImage = async (imageId) => {
+    if (!window.confirm('Xóa ảnh này khỏi phòng?')) return;
+    try {
+      await roomService.deleteRoomImage(id, imageId);
+      setRoomImages(prev => prev.filter(img => img.id !== imageId));
+    } catch (err) {
+      setApiError(err?.response?.data?.error || 'Xóa ảnh thất bại.');
+    }
+  };
+
+  const handleSetPrimary = async (imageId) => {
+    try {
+      await roomService.setPrimaryImage(id, imageId);
+      setRoomImages(prev => prev.map(img => ({ ...img, is_primary: img.id === imageId })));
+    } catch (err) {
+      setApiError(err?.response?.data?.error || 'Không thể đặt ảnh bìa.');
+    }
+  };
 
   const handleAI = async () => {
     if (!form.title || !form.price || !form.address) return;
@@ -67,6 +93,9 @@ const EditRoom = () => {
     setSaving(true); setApiError('');
     try {
       await roomService.updateRoom(id, { ...form, price: +form.price, area: form.area ? +form.area : null, available_slots: +form.available_slots, amenity_ids: selectedAmenities });
+      if (newImages.length > 0) {
+        await roomService.uploadRoomImages(id, newImages);
+      }
       setSuccess('✅ Cập nhật thành công! Bài đang chờ duyệt lại.');
       setTimeout(() => navigate('/landlord/my-rooms'), 1500);
     } catch (err) {
@@ -149,6 +178,28 @@ const EditRoom = () => {
                   ))}
                 </div>
               </div>
+              <div className="pr-section">
+                <h2 className="pr-section-title">Ảnh phòng</h2>
+                {roomImages.length > 0 && (
+                  <div className="edit-images">
+                    {roomImages.map(img => (
+                      <div key={img.id} className="edit-image">
+                        <img src={img.image_url} alt="" />
+                        {img.is_primary && <span>Ảnh bìa</span>}
+                        <div className="edit-image__actions">
+                          {!img.is_primary && (
+                            <button type="button" className="btn btn-sm btn-secondary" onClick={() => handleSetPrimary(img.id)}>Đặt bìa</button>
+                          )}
+                          <button type="button" className="btn btn-sm btn-danger" onClick={() => handleDeleteImage(img.id)}>Xóa</button>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+                {roomImages.length === 0 && <p className="pr-empty-hint">Phòng chưa có ảnh.</p>}
+                <input type="file" multiple accept="image/*" onChange={handleNewImages} className="form-input" />
+                {newImages.length > 0 && <p className="form-hint">Sẽ thêm {newImages.length} ảnh khi lưu.</p>}
+              </div>
               <div className="pr-section pr-submit-section">
                 <button type="submit" className="btn btn-primary btn-full btn-lg" disabled={saving}>
                   {saving ? 'Đang lưu...' : '💾 Lưu thay đổi'}
@@ -182,6 +233,11 @@ const EditRoom = () => {
         .pr-amenity-btn{padding:8px 12px;background:var(--bg-surface);border:1.5px solid var(--border);border-radius:var(--radius-md);color:var(--text-secondary);font-size:13px;cursor:pointer;transition:var(--transition)}
         .pr-amenity-btn:hover{border-color:var(--primary);color:var(--text-primary)}
         .pr-amenity-btn.selected{background:var(--primary-50);border-color:var(--primary);color:var(--primary-dark)}
+        .edit-images{display:grid;grid-template-columns:repeat(2,1fr);gap:10px}
+        .edit-image{position:relative;border:1px solid var(--border);border-radius:var(--radius-md);overflow:hidden;background:var(--bg-surface)}
+        .edit-image img{width:100%;aspect-ratio:4/3;object-fit:cover;display:block}
+        .edit-image span{position:absolute;top:6px;left:6px;background:var(--primary);color:#fff;font-size:11px;font-weight:700;padding:3px 8px;border-radius:var(--radius-full)}
+        .edit-image__actions{display:flex;gap:6px;padding:8px;flex-wrap:wrap}
         .pr-submit-section{gap:12px}
         .form-row-2{display:grid;grid-template-columns:1fr 1fr;gap:12px}
       `}</style>

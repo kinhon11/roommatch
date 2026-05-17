@@ -3,7 +3,6 @@ import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../../hooks/useAuth';
 import { roomService } from '../../services/roomService';
 import { geminiService } from '../../services/geminiService';
-import { uploadMultipleImages } from '../../services/storageService';
 import { supabase } from '../../services/supabaseClient';
 
 const CITIES = ['Hà Nội', 'Hồ Chí Minh', 'Đà Nẵng', 'Hải Phòng', 'Cần Thơ', 'Huế', 'Nha Trang', 'Biên Hòa', 'Vũng Tàu'];
@@ -105,11 +104,7 @@ const PostRoom = () => {
 
       // 2. Upload ảnh nếu có
       if (images.length > 0) {
-        const uploaded = await uploadMultipleImages(images, 'room-images');
-        const imageRows = uploaded.map((img, i) => ({
-          room_id: roomId, image_url: img.url, is_primary: i === 0,
-        }));
-        await supabase.from('room_images').insert(imageRows);
+        await roomService.uploadRoomImages(roomId, images);
       }
 
       setSuccess('🎉 Đăng tin thành công! Bài đang chờ Admin duyệt.');

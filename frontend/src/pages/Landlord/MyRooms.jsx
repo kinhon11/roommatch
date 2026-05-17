@@ -135,6 +135,10 @@ const MyRooms = () => {
 
                   {/* Actions */}
                   <div className="mr-card-actions">
+                    <button className="btn btn-ghost btn-sm"
+                      onClick={() => navigate(`/rooms/${room.id}`)}>
+                      Xem chi tiết
+                    </button>
                     <button className="btn btn-secondary btn-sm"
                       onClick={() => navigate(`/landlord/edit/${room.id}`)}>
                       ✏️ Sửa
