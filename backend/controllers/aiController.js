@@ -1,6 +1,8 @@
-const { getGeminiModel } = require('../config/geminiClient');
+const { generateAIText } = require('../config/aiClient');
 
-const DEFAULT_MODEL = 'gemini-1.5-flash';
+const DEFAULT_MODEL = process.env.AI_PROVIDER === 'minimax' || process.env.MINIMAX_API_KEY
+  ? 'MiniMax-M2.7'
+  : 'gemini-1.5-flash';
 
 const safeNumber = (value) => {
   const parsed = Number(value);
@@ -20,17 +22,13 @@ const extractJson = (text) => {
   const end = cleaned.lastIndexOf('}');
 
   if (start === -1 || end === -1 || end <= start) {
-    throw new Error('Gemini returned non-JSON content.');
+    throw new Error('AI returned non-JSON content.');
   }
 
   return JSON.parse(cleaned.slice(start, end + 1));
 };
 
-const generateText = async (prompt, modelName = DEFAULT_MODEL) => {
-  const model = getGeminiModel(modelName);
-  const result = await model.generateContent(prompt);
-  return result.response.text().trim();
-};
+const generateText = async (prompt, modelName = DEFAULT_MODEL) => generateAIText(prompt, { modelName });
 
 /**
  * @desc AI: Sinh mô tả phòng trọ từ thông tin cơ bản
@@ -68,9 +66,9 @@ Yêu cầu:
     const description = await generateText(prompt);
     return res.status(200).json({ description });
   } catch (err) {
-    console.error('Gemini Error:', err.message);
+    console.error('AI Error:', err.message);
     if (err.message?.includes('not configured')) {
-      return res.status(503).json({ error: 'Gemini AI chưa được cấu hình. Kiểm tra GEMINI_API_KEY trong .env.' });
+      return res.status(503).json({ error: 'AI chưa được cấu hình. Kiểm tra GEMINI_API_KEY hoặc MINIMAX_API_KEY trong backend/.env.' });
     }
     return res.status(500).json({ error: 'AI gặp lỗi: ' + err.message });
   }
@@ -148,7 +146,7 @@ Hãy viết ngắn gọn, thực tế, ưu tiên những góp ý có thể hành
         status: 'needs_work',
         summary: raw,
         strengths: [],
-        issues: ['Không thể phân tích JSON từ Gemini, trả về nội dung thô.'],
+        issues: ['Không thể phân tích JSON từ AI, trả về nội dung thô.'],
         suggestions: [],
         missing_fields: [],
         risk_level: 'medium',
@@ -157,9 +155,9 @@ Hãy viết ngắn gọn, thực tế, ưu tiên những góp ý có thể hành
 
     return res.status(200).json({ analysis });
   } catch (err) {
-    console.error('Gemini Error:', err.message);
+    console.error('AI Error:', err.message);
     if (err.message?.includes('not configured')) {
-      return res.status(503).json({ error: 'Gemini AI chưa được cấu hình. Kiểm tra GEMINI_API_KEY trong .env.' });
+      return res.status(503).json({ error: 'AI chưa được cấu hình. Kiểm tra GEMINI_API_KEY hoặc MINIMAX_API_KEY trong backend/.env.' });
     }
     return res.status(500).json({ error: 'AI gặp lỗi: ' + err.message });
   }
@@ -232,16 +230,16 @@ Chỉ trả về JSON, không markdown, không giải thích thêm.
         pros: [],
         cons: [],
         risks: [],
-        recommendation: 'Không thể phân tích JSON từ Gemini, hãy xem nội dung thô ở phần tóm tắt.',
+        recommendation: 'Không thể phân tích JSON từ AI, hãy xem nội dung thô ở phần tóm tắt.',
         confidence: 'low',
       };
     }
 
     return res.status(200).json({ summary });
   } catch (err) {
-    console.error('Gemini Error:', err.message);
+    console.error('AI Error:', err.message);
     if (err.message?.includes('not configured')) {
-      return res.status(503).json({ error: 'Gemini AI chưa được cấu hình. Kiểm tra GEMINI_API_KEY trong .env.' });
+      return res.status(503).json({ error: 'AI chưa được cấu hình. Kiểm tra GEMINI_API_KEY hoặc MINIMAX_API_KEY trong backend/.env.' });
     }
     return res.status(500).json({ error: 'AI gặp lỗi: ' + err.message });
   }

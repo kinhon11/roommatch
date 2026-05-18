@@ -72,7 +72,7 @@ const PostRoom = () => {
       });
       setForm(prev => ({ ...prev, description: desc }));
     } catch {
-      setApiError('AI gặp lỗi. Kiểm tra GEMINI_API_KEY trong backend/.env');
+      setApiError('AI gặp lỗi. Kiểm tra GEMINI_API_KEY hoặc MINIMAX_API_KEY trong backend/.env');
     } finally {
       setAiLoading(false);
     }
@@ -100,7 +100,7 @@ const PostRoom = () => {
       setListingAnalysis(analysis);
       setApiError('');
     } catch {
-      setApiError('AI kiểm tra tin đăng gặp lỗi. Kiểm tra GEMINI_API_KEY trong backend/.env');
+      setApiError('AI kiểm tra tin đăng gặp lỗi. Kiểm tra GEMINI_API_KEY hoặc MINIMAX_API_KEY trong backend/.env');
     } finally {
       setAnalysisLoading(false);
     }
