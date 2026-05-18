@@ -4,7 +4,7 @@ const { getGeminiModel } = require('../config/geminiClient');
 
 const DEFAULT_MODEL = process.env.AI_PROVIDER === 'minimax' || process.env.MINIMAX_API_KEY
   ? 'MiniMax-M2.7'
-  : 'gemini-1.5-flash';
+  : 'gemini-2.5-flash';
 
 const safeNumber = (value) => {
   const parsed = Number(value);

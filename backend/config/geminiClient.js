@@ -10,7 +10,7 @@ if (!geminiApiKey) {
 
 const genAI = geminiApiKey ? new GoogleGenerativeAI(geminiApiKey) : null;
 
-const getGeminiModel = (modelName = 'gemini-1.5-flash') => {
+const getGeminiModel = (modelName = 'gemini-2.5-flash') => {
   if (!genAI) throw new Error('Gemini AI is not configured.');
   return genAI.getGenerativeModel({ model: modelName });
 };

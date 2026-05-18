@@ -18,7 +18,7 @@ const stripThinkBlocks = (text) => String(text || '')
 
 const isMinimaxEnabled = aiProvider === 'minimax' || (!geminiApiKey && !!minimaxApiKey) || (!!minimaxApiKey && aiProvider !== 'gemini');
 
-const generateWithGemini = async (prompt, modelName = 'gemini-1.5-flash') => {
+const generateWithGemini = async (prompt, modelName = 'gemini-2.5-flash') => {
   if (!genAI) {
     throw new Error('Gemini AI is not configured.');
   }
@@ -66,7 +66,7 @@ const generateAIText = async (prompt, options = {}) => {
   if (isMinimaxEnabled) {
     return generateWithMinimax(prompt, modelName || 'MiniMax-M2.7');
   }
-  return generateWithGemini(prompt, modelName || 'gemini-1.5-flash');
+  return generateWithGemini(prompt, modelName || 'gemini-2.5-flash');
 };
 
 module.exports = {

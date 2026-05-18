@@ -4,6 +4,7 @@ import { useAuth } from './hooks/useAuth';
 import Navbar from './components/layout/Navbar';
 import ScrollToTop from './components/layout/ScrollToTop';
 import ProtectedRoute from './components/layout/ProtectedRoute';
+import AIChatWidget from './components/ai/AIChatWidget';
 
 const Login = lazy(() => import('./pages/Login'));
 const Register = lazy(() => import('./pages/Register'));
@@ -47,6 +48,7 @@ const App = () => {
     <>
       <ScrollToTop />
       <Navbar />
+      <AIChatWidget />
       <main className="page-content">
         <Suspense fallback={<LoadingScreen />}>
           <Routes>
