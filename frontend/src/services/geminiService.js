@@ -37,4 +37,13 @@ export const geminiService = {
     });
     return data.summary;
   },
+
+  assistantChat: async ({ message, conversation = [], context = {} }) => {
+    const { data } = await apiClient.post('/ai/assistant', {
+      message,
+      conversation,
+      context,
+    });
+    return data;
+  },
 };

@@ -74,3 +74,10 @@ test('AI listing analysis stays protected for landlords', async () => {
   assert.equal(res.statusCode, 401);
   assert.equal(res.body.error, 'Unauthorized: No token provided.');
 });
+
+test('AI assistant validates input even without auth', async () => {
+  const res = await request('POST', '/api/ai/assistant', {});
+
+  assert.equal(res.statusCode, 400);
+  assert.match(res.body.error, /vui lòng nhập/i);
+});

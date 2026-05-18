@@ -57,17 +57,22 @@ const Navbar = () => {
 
   const navLinks = isAuthenticated
     ? user?.role === 'admin'
-      ? [{ to: '/admin/dashboard', label: 'Admin', icon: '🛡️' }]
+      ? [
+          { to: '/admin/dashboard', label: 'Admin', icon: '🛡️' },
+          { to: '/assistant', label: 'AI trợ lý', icon: '🤖' },
+        ]
       : user?.role === 'landlord'
         ? [
             { to: '/landlord/dashboard', label: 'Dashboard', icon: '📊' },
             { to: '/landlord/post', label: 'Đăng tin', icon: '✏️' },
+            { to: '/assistant', label: 'AI trợ lý', icon: '🤖' },
             { to: '/appointments', label: 'Lịch hẹn', icon: '📅' },
             { to: '/chat', label: 'Chat', icon: '💬' },
           ]
         : [
             { to: '/rooms', label: 'Tìm phòng', icon: '🔍' },
             { to: '/favorites', label: 'Yêu thích', icon: '❤️' },
+            { to: '/assistant', label: 'AI trợ lý', icon: '🤖' },
             { to: '/my-requests', label: 'Ở ghép', icon: '🤝' },
             { to: '/appointments', label: 'Lịch hẹn', icon: '📅' },
             { to: '/chat', label: 'Chat', icon: '💬' },
@@ -154,6 +159,7 @@ const Navbar = () => {
             ) : (
               <div className="navbar__auth-actions">
                 <Link to="/login" className="btn btn-ghost btn-sm" id="nav-login">Đăng nhập</Link>
+                <Link to="/assistant" className="btn btn-secondary btn-sm" id="nav-assistant">🤖 AI trợ lý</Link>
                 <Link to="/register" className="btn btn-primary btn-sm" id="nav-register">Đăng ký</Link>
               </div>
             )}
@@ -191,6 +197,7 @@ const Navbar = () => {
             ))}
             {!isAuthenticated && (
               <div className="navbar__mobile-auth">
+                <Link to="/assistant" className="btn btn-secondary btn-full" onClick={closeMobile}>🤖 AI trợ lý</Link>
                 <Link to="/login" className="btn btn-ghost btn-full" onClick={closeMobile}>Đăng nhập</Link>
                 <Link to="/register" className="btn btn-primary btn-full" onClick={closeMobile}>Đăng ký</Link>
               </div>

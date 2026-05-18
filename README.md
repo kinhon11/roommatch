@@ -215,6 +215,7 @@ GET    /api/health                    — Health check
 POST   /api/ai/generate-description  — AI viết mô tả phòng (Gemini)
 POST   /api/ai/analyze-listing       — AI kiểm tra chất lượng tin đăng
 POST   /api/ai/review-summary        — AI tóm tắt review và rủi ro phòng
+POST   /api/ai/assistant             — AI trợ lý tìm phòng và hướng dẫn app
 POST   /api/reports                   — Báo cáo vi phạm
 GET    /api/favorites                 — Phòng yêu thích
 POST   /api/favorites/:roomId         — Thêm/xóa yêu thích

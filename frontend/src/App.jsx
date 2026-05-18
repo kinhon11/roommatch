@@ -10,6 +10,7 @@ const Register = lazy(() => import('./pages/Register'));
 const Home = lazy(() => import('./pages/Tenant/Home'));
 const NotFoundPage = lazy(() => import('./pages/NotFoundPage'));
 const NotificationsPage = lazy(() => import('./pages/NotificationsPage'));
+const AssistantPage = lazy(() => import('./pages/AI/AssistantPage'));
 
 const RoomsPage = lazy(() => import('./pages/Tenant/RoomsPage'));
 const RoomDetail = lazy(() => import('./pages/Tenant/RoomDetail'));
@@ -85,6 +86,10 @@ const App = () => {
                   <ChatPage />
                 </ProtectedRoute>
               }
+            />
+            <Route
+              path="/assistant"
+              element={<AssistantPage />}
             />
             <Route
               path="/appointments"
