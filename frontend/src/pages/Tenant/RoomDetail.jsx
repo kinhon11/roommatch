@@ -9,6 +9,7 @@ import { reportService } from '../../services/reportService';
 import { roommateRequestService } from '../../services/roommateRequestService';
 import { appointmentService } from '../../services/appointmentService';
 import { depositService } from '../../services/depositService';
+import { geminiService } from '../../services/geminiService';
 import { formatCurrency } from '../../utils/format';
 
 const RoomDetail = () => {
@@ -57,6 +58,11 @@ const RoomDetail = () => {
 
   // Similar rooms
   const [similarRooms, setSimilarRooms] = useState([]);
+
+  // AI review summary
+  const [reviewSummary, setReviewSummary] = useState(null);
+  const [reviewSummaryLoading, setReviewSummaryLoading] = useState(false);
+  const [reviewSummaryError, setReviewSummaryError] = useState('');
 
   useEffect(() => {
     const load = async () => {
@@ -282,6 +288,33 @@ const RoomDetail = () => {
     if (!reviews.length) return null;
     const sum = reviews.reduce((s, r) => s + r.rating, 0);
     return (sum / reviews.length).toFixed(1);
+  };
+
+  const handleReviewSummary = async () => {
+    const roomReviews = room?.reviews || [];
+    if (!roomReviews.length) return;
+
+    setReviewSummaryLoading(true);
+    setReviewSummaryError('');
+
+    try {
+      const summary = await geminiService.summarizeReviews({
+        room_title: room.title,
+        address: room.address,
+        city: room.city,
+        price: room.price,
+        average_rating: avgRating(),
+        reviews: roomReviews.map(review => ({
+          rating: review.rating,
+          comment: review.comment,
+        })),
+      });
+      setReviewSummary(summary);
+    } catch (err) {
+      setReviewSummaryError(err?.response?.data?.error || 'Không thể tóm tắt review bằng AI.');
+    } finally {
+      setReviewSummaryLoading(false);
+    }
   };
 
   const renderStars = (rating, interactive = false) => {
@@ -761,6 +794,92 @@ const RoomDetail = () => {
         )}
 
         <section className="room-section animate-fadeIn">
+          <div className="room-section__header">
+            <h2 className="room-section__title">🤖 AI tóm tắt review</h2>
+            <button
+              type="button"
+              className="btn btn-secondary btn-sm"
+              onClick={handleReviewSummary}
+              disabled={reviewSummaryLoading || reviews.length === 0}
+            >
+              {reviewSummaryLoading ? 'Đang phân tích...' : 'Tóm tắt bằng AI'}
+            </button>
+          </div>
+
+          {reviews.length === 0 ? (
+            <div className="reviews-empty">
+              <p>Chưa có review đủ dữ liệu để AI phân tích.</p>
+            </div>
+          ) : (
+            <>
+              <p className="room-ai-hint">
+                AI sẽ gom các review thành điểm mạnh, điểm yếu và cảnh báo thực tế để bạn quyết định nhanh hơn.
+              </p>
+
+              {reviewSummaryError && <p className="form-error">{reviewSummaryError}</p>}
+
+              {reviewSummary ? (
+                <div className="ai-review-summary">
+                  <div className="ai-review-summary__top">
+                    <div>
+                      <p className="ai-review-summary__label">Tổng quan</p>
+                      <h3>{reviewSummary.summary}</h3>
+                    </div>
+                    <span className={`ai-review-pill ai-review-pill--${reviewSummary.overall_tone || 'mixed'}`}>
+                      {reviewSummary.overall_tone === 'positive'
+                        ? 'Tích cực'
+                        : reviewSummary.overall_tone === 'negative'
+                          ? 'Tiêu cực'
+                          : 'Trung tính'}
+                    </span>
+                  </div>
+
+                  <div className="ai-review-summary__grid">
+                    <div>
+                      <h4>Điểm tốt</h4>
+                      <ul>
+                        {(reviewSummary.pros || []).length > 0
+                          ? reviewSummary.pros.map((item, index) => <li key={index}>{item}</li>)
+                          : <li>Chưa có dữ liệu nổi bật.</li>}
+                      </ul>
+                    </div>
+                    <div>
+                      <h4>Điểm cần chú ý</h4>
+                      <ul>
+                        {(reviewSummary.cons || []).length > 0
+                          ? reviewSummary.cons.map((item, index) => <li key={index}>{item}</li>)
+                          : <li>Chưa có cảnh báo rõ ràng.</li>}
+                      </ul>
+                    </div>
+                  </div>
+
+                  {(reviewSummary.risks || []).length > 0 && (
+                    <div className="ai-review-summary__risks">
+                      <h4>Cảnh báo rủi ro</h4>
+                      <div className="ai-review-tags">
+                        {reviewSummary.risks.map((item, index) => (
+                          <span key={index} className="ai-review-tag">{item}</span>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
+                  {reviewSummary.recommendation && (
+                    <div className="ai-review-summary__footer">
+                      <strong>Gợi ý nhanh:</strong> {reviewSummary.recommendation}
+                    </div>
+                  )}
+                </div>
+              ) : (
+                <div className="reviews-empty">
+                  <p>Nhấn “Tóm tắt bằng AI” để tạo bản đọc nhanh từ các review hiện có.</p>
+                </div>
+              )}
+            </>
+          )}
+        </section>
+
+        <section className="room-section animate-fadeIn">
           <h2 className="room-section__title">
             ⭐ Đánh giá {reviews.length > 0 && `(${reviews.length})`}
           </h2>
@@ -1096,6 +1215,26 @@ const styles = `
     margin-bottom: 16px; padding-bottom: 12px; border-bottom: 1px solid var(--border);
     letter-spacing: -0.01em;
   }
+  .room-section__header { display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap; }
+  .room-section__header .room-section__title { margin-bottom:0;padding-bottom:0;border-bottom:none;flex:1; }
+  .room-ai-hint { margin-bottom:16px;font-size:13px;color:var(--text-secondary);line-height:1.6; }
+  .ai-review-summary { background:var(--bg-surface);border:1px solid var(--border);border-radius:var(--radius-lg);padding:20px;display:flex;flex-direction:column;gap:16px;box-shadow:var(--shadow-sm); }
+  .ai-review-summary__top { display:flex;align-items:flex-start;justify-content:space-between;gap:12px; }
+  .ai-review-summary__label { font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:.04em;color:var(--primary-dark);margin-bottom:4px; }
+  .ai-review-summary__top h3 { font-size:16px;font-weight:700;color:var(--text-primary);line-height:1.5; }
+  .ai-review-pill { padding:8px 12px;border-radius:var(--radius-full);font-size:12px;font-weight:800;white-space:nowrap; }
+  .ai-review-pill--positive { background:var(--primary-50);color:var(--primary-dark); }
+  .ai-review-pill--mixed { background:#fef3c7;color:#92400e; }
+  .ai-review-pill--negative { background:#fee2e2;color:var(--danger); }
+  .ai-review-summary__grid { display:grid;grid-template-columns:1fr 1fr;gap:16px; }
+  @media(max-width:700px){ .ai-review-summary__grid{grid-template-columns:1fr;} }
+  .ai-review-summary__grid h4,
+  .ai-review-summary__risks h4 { font-size:13px;font-weight:700;color:var(--text-primary);margin-bottom:8px; }
+  .ai-review-summary__grid ul { margin:0;padding-left:18px;color:var(--text-secondary);font-size:13px;line-height:1.6;display:flex;flex-direction:column;gap:6px; }
+  .ai-review-summary__risks { display:flex;flex-direction:column;gap:8px; }
+  .ai-review-tags { display:flex;flex-wrap:wrap;gap:8px; }
+  .ai-review-tag { padding:6px 10px;border-radius:var(--radius-full);background:var(--bg-hover);border:1px solid var(--border);font-size:12px;color:var(--text-secondary); }
+  .ai-review-summary__footer { padding:12px 14px;background:var(--primary-50);border:1px solid var(--primary-100);border-radius:var(--radius-md);font-size:13px;color:var(--text-secondary);line-height:1.6; }
   .room-desc p { color: var(--text-secondary); line-height: 1.8; margin-bottom: 8px; max-width: 65ch; }
   .text-muted { color: var(--text-muted) !important; }
 

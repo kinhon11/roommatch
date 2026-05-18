@@ -123,7 +123,7 @@ npm run dev
 | Role | Quyền hạn chính | Dashboard |
 |------|-----------------|-----------|
 | **Tenant** | Xem phòng, Chat, Review, Yêu thích, Yêu cầu ở ghép, Đặt lịch hẹn, Thông báo | `/` |
-| **Landlord** | Đăng tin, Quản lý phòng, Duyệt yêu cầu ở ghép, Quản lý lịch hẹn, AI mô tả | `/landlord/dashboard` |
+| **Landlord** | Đăng tin, Quản lý phòng, Duyệt yêu cầu ở ghép, Quản lý lịch hẹn, AI mô tả và kiểm tra tin đăng | `/landlord/dashboard` |
 | **Admin** | Duyệt phòng, Quản lý user & report | `/admin/dashboard` |
 
 > 💡 **Tạo Admin**: Đăng ký tài khoản → Vào Supabase table `users` → Sửa `role` thành `admin`
@@ -211,6 +211,8 @@ PATCH  /api/admin/reports/:id         — Xử lý báo cáo
 ```
 GET    /api/health                    — Health check
 POST   /api/ai/generate-description  — AI viết mô tả phòng (Gemini)
+POST   /api/ai/analyze-listing       — AI kiểm tra chất lượng tin đăng
+POST   /api/ai/review-summary        — AI tóm tắt review và rủi ro phòng
 POST   /api/reports                   — Báo cáo vi phạm
 GET    /api/favorites                 — Phòng yêu thích
 POST   /api/favorites/:roomId         — Thêm/xóa yêu thích

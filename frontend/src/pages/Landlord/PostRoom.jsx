@@ -22,6 +22,8 @@ const PostRoom = () => {
   const [errors, setErrors]         = useState({});
   const [loading, setLoading]       = useState(false);
   const [aiLoading, setAiLoading]   = useState(false);
+  const [analysisLoading, setAnalysisLoading] = useState(false);
+  const [listingAnalysis, setListingAnalysis] = useState(null);
   const [success, setSuccess]       = useState('');
   const [apiError, setApiError]     = useState('');
 
@@ -73,6 +75,34 @@ const PostRoom = () => {
       setApiError('AI gặp lỗi. Kiểm tra GEMINI_API_KEY trong backend/.env');
     } finally {
       setAiLoading(false);
+    }
+  };
+
+  const handleAnalyzeListing = async () => {
+    if (!form.title || !form.price || !form.address) {
+      setErrors({ title: !form.title ? 'Cần nhập tiêu đề trước.' : '', price: !form.price ? 'Cần nhập giá trước.' : '', address: !form.address ? 'Cần nhập địa chỉ trước.' : '' });
+      return;
+    }
+    setAnalysisLoading(true);
+    try {
+      const amenityNames = amenities.filter(a => selectedAmenities.includes(a.id)).map(a => a.name);
+      const analysis = await geminiService.analyzeListing({
+        title: form.title,
+        price: form.price,
+        area: form.area,
+        address: form.address,
+        city: form.city,
+        description: form.description,
+        amenities: amenityNames,
+        available_slots: form.available_slots,
+        image_count: images.length,
+      });
+      setListingAnalysis(analysis);
+      setApiError('');
+    } catch {
+      setApiError('AI kiểm tra tin đăng gặp lỗi. Kiểm tra GEMINI_API_KEY trong backend/.env');
+    } finally {
+      setAnalysisLoading(false);
     }
   };
 
@@ -188,16 +218,75 @@ const PostRoom = () => {
               <div className="pr-section animate-slideUp" style={{ animationDelay: '0.1s' }}>
                 <div className="pr-section-title-row">
                   <h2 className="pr-section-title">📝 Mô tả phòng</h2>
-                  <button type="button" id="btn-ai-generate" className="btn btn-ai" onClick={handleAI} disabled={aiLoading}>
-                    {aiLoading
-                      ? <><span className="spinner" style={{width:14,height:14,borderWidth:2}}/> Đang viết...</>
-                      : '🤖 AI viết mô tả'}
-                  </button>
+                  <div className="pr-ai-actions">
+                    <button type="button" id="btn-ai-analyze" className="btn btn-ai btn-ai-secondary" onClick={handleAnalyzeListing} disabled={analysisLoading}>
+                      {analysisLoading
+                        ? <><span className="spinner" style={{width:14,height:14,borderWidth:2}}/> Đang kiểm tra...</>
+                        : '🔎 AI kiểm tra tin'}
+                    </button>
+                    <button type="button" id="btn-ai-generate" className="btn btn-ai" onClick={handleAI} disabled={aiLoading}>
+                      {aiLoading
+                        ? <><span className="spinner" style={{width:14,height:14,borderWidth:2}}/> Đang viết...</>
+                        : '🤖 AI viết mô tả'}
+                    </button>
+                  </div>
                 </div>
                 <textarea name="description" value={form.description} onChange={handleChange}
                   className="form-input pr-textarea"
                   placeholder="Nhập mô tả phòng, hoặc nhấn '🤖 AI viết mô tả' để AI tự động tạo nội dung." rows={6} />
                 <p className="form-hint">💡 Tip: Điền Tiêu đề, Giá, Địa chỉ trước rồi nhấn AI để có mô tả chuẩn nhất.</p>
+
+                {listingAnalysis && (
+                  <div className="ai-analysis-panel">
+                    <div className="ai-analysis-panel__head">
+                      <div>
+                        <p className="ai-analysis-panel__label">AI kiểm tra tin đăng</p>
+                        <h3>{listingAnalysis.status === 'ready' ? 'Tin đã khá sẵn sàng' : 'Tin còn vài chỗ cần chỉnh'}</h3>
+                      </div>
+                      <div className={`ai-score ai-score--${listingAnalysis.risk_level || 'medium'}`}>
+                        {typeof listingAnalysis.score === 'number' ? `${listingAnalysis.score}/100` : 'N/A'}
+                      </div>
+                    </div>
+
+                    {listingAnalysis.summary && <p className="ai-analysis-panel__summary">{listingAnalysis.summary}</p>}
+
+                    <div className="ai-analysis-grid">
+                      <div>
+                        <h4>Điểm mạnh</h4>
+                        <ul>
+                          {(listingAnalysis.strengths || []).length > 0
+                            ? listingAnalysis.strengths.map((item, index) => <li key={index}>{item}</li>)
+                            : <li>Chưa có dữ liệu đánh giá.</li>}
+                        </ul>
+                      </div>
+                      <div>
+                        <h4>Cần sửa</h4>
+                        <ul>
+                          {(listingAnalysis.issues || []).length > 0
+                            ? listingAnalysis.issues.map((item, index) => <li key={index}>{item}</li>)
+                            : <li>Chưa phát hiện vấn đề rõ ràng.</li>}
+                        </ul>
+                      </div>
+                    </div>
+
+                    {(listingAnalysis.suggestions || []).length > 0 && (
+                      <div className="ai-analysis-panel__list">
+                        <h4>Gợi ý hành động</h4>
+                        <ul>
+                          {listingAnalysis.suggestions.map((item, index) => <li key={index}>{item}</li>)}
+                        </ul>
+                      </div>
+                    )}
+
+                    {(listingAnalysis.missing_fields || []).length > 0 && (
+                      <div className="ai-analysis-panel__chips">
+                        {listingAnalysis.missing_fields.map((item, index) => (
+                          <span key={index} className="ai-analysis-chip">{item}</span>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                )}
               </div>
             </div>
 
@@ -283,10 +372,29 @@ const postRoomStyles = `
   .pr-section { background:var(--bg-card);border:1px solid var(--border);border-radius:var(--radius-lg);padding:24px;display:flex;flex-direction:column;gap:16px; }
   .pr-section-title { font-size:16px;font-weight:700;color:var(--text-primary); }
   .pr-section-title-row { display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px; }
+  .pr-ai-actions { display:flex;flex-wrap:wrap;gap:8px; }
   .btn-ai { padding:8px 14px;background:linear-gradient(135deg,var(--primary),var(--info));color:#fff;border-radius:var(--radius-md);font-size:13px;font-weight:600;border:none;cursor:pointer;display:flex;align-items:center;gap:6px;transition:var(--transition); }
   .btn-ai:hover { opacity:.9;transform:translateY(-1px); }
   .btn-ai:disabled { opacity:.5;cursor:not-allowed;transform:none; }
+  .btn-ai-secondary { background:var(--primary-50);color:var(--primary-dark);border:1px solid var(--primary-100); }
   .pr-textarea { resize:vertical;min-height:140px; }
+  .ai-analysis-panel { margin-top:4px;padding:18px;border-radius:var(--radius-lg);background:var(--bg-surface);border:1px solid var(--border);display:flex;flex-direction:column;gap:14px; }
+  .ai-analysis-panel__head { display:flex;align-items:flex-start;justify-content:space-between;gap:12px; }
+  .ai-analysis-panel__label { font-size:12px;font-weight:700;color:var(--primary-dark);text-transform:uppercase;letter-spacing:.04em;margin-bottom:4px; }
+  .ai-analysis-panel__head h3 { font-size:16px;font-weight:700;color:var(--text-primary); }
+  .ai-score { min-width:72px;padding:8px 12px;border-radius:var(--radius-full);font-size:13px;font-weight:800;text-align:center; }
+  .ai-score--low { background:var(--primary-50);color:var(--primary-dark); }
+  .ai-score--medium { background:#fef3c7;color:#92400e; }
+  .ai-score--high { background:#fee2e2;color:var(--danger); }
+  .ai-analysis-panel__summary { color:var(--text-secondary);line-height:1.6;font-size:14px; }
+  .ai-analysis-grid { display:grid;grid-template-columns:1fr 1fr;gap:12px; }
+  @media(max-width:640px){ .ai-analysis-grid{grid-template-columns:1fr;} }
+  .ai-analysis-grid h4,
+  .ai-analysis-panel__list h4 { font-size:13px;font-weight:700;color:var(--text-primary);margin-bottom:8px; }
+  .ai-analysis-grid ul,
+  .ai-analysis-panel__list ul { margin:0;padding-left:18px;color:var(--text-secondary);font-size:13px;line-height:1.6;display:flex;flex-direction:column;gap:6px; }
+  .ai-analysis-panel__chips { display:flex;flex-wrap:wrap;gap:8px; }
+  .ai-analysis-chip { padding:6px 10px;border-radius:var(--radius-full);background:var(--bg-hover);border:1px solid var(--border);font-size:12px;color:var(--text-secondary); }
   .pr-amenities { display:flex;flex-wrap:wrap;gap:8px; }
   .pr-amenity-btn { padding:8px 12px;background:var(--bg-surface);border:1.5px solid var(--border);border-radius:var(--radius-md);color:var(--text-secondary);font-size:13px;cursor:pointer;transition:var(--transition); }
   .pr-amenity-btn:hover   { border-color:var(--primary);color:var(--text-primary); }

@@ -10,4 +10,31 @@ export const geminiService = {
     });
     return data.description;
   },
+
+  analyzeListing: async ({ title, price, area, address, city, description, amenities, available_slots, image_count }) => {
+    const { data } = await apiClient.post('/ai/analyze-listing', {
+      title,
+      price,
+      area,
+      address,
+      city,
+      description,
+      amenities,
+      available_slots,
+      image_count,
+    });
+    return data.analysis;
+  },
+
+  summarizeReviews: async ({ room_title, address, city, price, average_rating, reviews }) => {
+    const { data } = await apiClient.post('/ai/review-summary', {
+      room_title,
+      address,
+      city,
+      price,
+      average_rating,
+      reviews,
+    });
+    return data.summary;
+  },
 };

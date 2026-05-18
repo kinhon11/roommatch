@@ -4,13 +4,20 @@ const { test } = require('node:test');
 
 const app = require('../server');
 
-const request = (method, path) => new Promise((resolve, reject) => {
+const request = (method, path, body = null) => new Promise((resolve, reject) => {
   const server = http.createServer(app);
 
   server.listen(0, '127.0.0.1', () => {
     const { port } = server.address();
+    const payload = body ? JSON.stringify(body) : null;
     const req = http.request(
-      { method, port, host: '127.0.0.1', path },
+      {
+        method,
+        port,
+        host: '127.0.0.1',
+        path,
+        headers: payload ? { 'Content-Type': 'application/json', 'Content-Length': Buffer.byteLength(payload) } : undefined,
+      },
       (res) => {
         let body = '';
         res.setEncoding('utf8');
@@ -26,6 +33,7 @@ const request = (method, path) => new Promise((resolve, reject) => {
       server.close();
       reject(error);
     });
+    if (payload) req.write(payload);
     req.end();
   });
 });
@@ -48,6 +56,20 @@ test('unknown API route returns JSON 404', async () => {
 
 test('protected routes reject missing tokens before database access', async () => {
   const res = await request('GET', '/api/profile');
+
+  assert.equal(res.statusCode, 401);
+  assert.equal(res.body.error, 'Unauthorized: No token provided.');
+});
+
+test('public AI review summary validates required review data', async () => {
+  const res = await request('POST', '/api/ai/review-summary', {});
+
+  assert.equal(res.statusCode, 400);
+  assert.match(res.body.error, /review/i);
+});
+
+test('AI listing analysis stays protected for landlords', async () => {
+  const res = await request('POST', '/api/ai/analyze-listing', {});
 
   assert.equal(res.statusCode, 401);
   assert.equal(res.body.error, 'Unauthorized: No token provided.');
