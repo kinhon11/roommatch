@@ -113,8 +113,10 @@ npm run dev
 | `backend/.env` | `SUPABASE_SERVICE_KEY` | Supabase → Settings → API → service_role |
 | `backend/.env` | `SUPABASE_ANON_KEY` | Supabase → Settings → API → anon/publishable |
 | `backend/.env` | `GEMINI_API_KEY` | [Google AI Studio](https://aistudio.google.com/app/apikey) |
-| `backend/.env` | `MINIMAX_API_KEY` | [MiniMax Platform](https://platform.minimaxi.com/) |
-| `backend/.env` | `AI_PROVIDER` | `minimax` hoặc `gemini` |
+| `backend/.env` | `MINIMAX_API_KEY` | [MiniMax Platform](https://platform.minimax.io/) |
+| `backend/.env` | `MINIMAX_MODEL` | Mặc định: `MiniMax-M2.7` |
+| `backend/.env` | `MINIMAX_BASE_URL` | Mặc định: `https://api.minimax.io` |
+| `backend/.env` | `AI_PROVIDER` | `auto`, `gemini` hoặc `minimax` |
 | `backend/.env` | `PORT` | Mặc định: `5000` |
 | `backend/.env` | `CLIENT_URL` | Mặc định: `http://localhost:5173` |
 

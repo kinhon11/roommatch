@@ -5,6 +5,9 @@ require('dotenv').config({ path: path.join(__dirname, '..', '.env') });
 const geminiApiKey = process.env.GEMINI_API_KEY;
 const minimaxApiKey = process.env.MINIMAX_API_KEY;
 const aiProvider = (process.env.AI_PROVIDER || '').toLowerCase();
+const geminiModel = process.env.GEMINI_MODEL || 'gemini-2.5-flash';
+const minimaxModel = process.env.MINIMAX_MODEL || 'MiniMax-M2.7';
+const minimaxBaseUrl = process.env.MINIMAX_BASE_URL || 'https://api.minimax.io';
 
 if (!geminiApiKey && !minimaxApiKey) {
   console.warn('⚠️  GEMINI_API_KEY hoặc MINIMAX_API_KEY chưa được cấu hình.');
@@ -16,9 +19,21 @@ const stripThinkBlocks = (text) => String(text || '')
   .replace(/<think>[\s\S]*?<\/think>\s*/gi, '')
   .trim();
 
-const isMinimaxEnabled = aiProvider === 'minimax' || (!geminiApiKey && !!minimaxApiKey) || (!!minimaxApiKey && aiProvider !== 'gemini');
+const providerAvailable = {
+  gemini: !!geminiApiKey,
+  minimax: !!minimaxApiKey,
+};
 
-const generateWithGemini = async (prompt, modelName = 'gemini-2.5-flash') => {
+const chooseProviderOrder = () => {
+  if (aiProvider === 'minimax') return ['minimax', 'gemini'];
+  if (aiProvider === 'auto') return ['gemini', 'minimax'];
+  if (!geminiApiKey && minimaxApiKey) return ['minimax'];
+  return ['gemini', 'minimax'];
+};
+
+const isMinimaxEnabled = chooseProviderOrder()[0] === 'minimax';
+
+const generateWithGemini = async (prompt, modelName = geminiModel) => {
   if (!genAI) {
     throw new Error('Gemini AI is not configured.');
   }
@@ -27,12 +42,12 @@ const generateWithGemini = async (prompt, modelName = 'gemini-2.5-flash') => {
   return result.response.text().trim();
 };
 
-const generateWithMinimax = async (prompt, modelName = 'MiniMax-M2.7') => {
+const generateWithMinimax = async (prompt, modelName = minimaxModel) => {
   if (!minimaxApiKey) {
     throw new Error('MiniMax AI is not configured.');
   }
 
-  const response = await fetch('https://api.minimaxi.com/v1/chat/completions', {
+  const response = await fetch(`${minimaxBaseUrl.replace(/\/$/, '')}/v1/text/chatcompletion_v2`, {
     method: 'POST',
     headers: {
       Authorization: `Bearer ${minimaxApiKey}`,
@@ -41,8 +56,8 @@ const generateWithMinimax = async (prompt, modelName = 'MiniMax-M2.7') => {
     body: JSON.stringify({
       model: modelName,
       messages: [
-        { role: 'system', content: 'You are a helpful assistant.' },
-        { role: 'user', content: prompt },
+        { role: 'system', name: 'RoommieMatch', content: 'You are a helpful Vietnamese assistant for a room rental app.' },
+        { role: 'user', name: 'user', content: prompt },
       ],
       temperature: 0.7,
     }),
@@ -54,6 +69,10 @@ const generateWithMinimax = async (prompt, modelName = 'MiniMax-M2.7') => {
   }
 
   const data = await response.json();
+  if (data?.base_resp && data.base_resp.status_code !== 0) {
+    throw new Error(`MiniMax API error (${data.base_resp.status_code}): ${data.base_resp.status_msg || 'unknown error'}`);
+  }
+
   const content = data?.choices?.[0]?.message?.content;
   if (!content) {
     throw new Error('MiniMax response did not include content.');
@@ -63,10 +82,26 @@ const generateWithMinimax = async (prompt, modelName = 'MiniMax-M2.7') => {
 
 const generateAIText = async (prompt, options = {}) => {
   const modelName = options.modelName;
-  if (isMinimaxEnabled) {
-    return generateWithMinimax(prompt, modelName || 'MiniMax-M2.7');
+  const errors = [];
+
+  for (const provider of chooseProviderOrder()) {
+    if (!providerAvailable[provider]) continue;
+
+    try {
+      const text = provider === 'minimax'
+        ? await generateWithMinimax(prompt, modelName || minimaxModel)
+        : await generateWithGemini(prompt, modelName || geminiModel);
+
+      return options.includeProvider
+        ? { text, provider }
+        : text;
+    } catch (error) {
+      errors.push(`${provider}: ${error.message}`);
+      console.warn(`AI provider ${provider} failed:`, error.message);
+    }
   }
-  return generateWithGemini(prompt, modelName || 'gemini-2.5-flash');
+
+  throw new Error(errors.length ? errors.join(' | ') : 'No AI provider is configured.');
 };
 
 module.exports = {
@@ -74,4 +109,5 @@ module.exports = {
   generateWithGemini,
   generateWithMinimax,
   isMinimaxEnabled,
+  chooseProviderOrder,
 };
