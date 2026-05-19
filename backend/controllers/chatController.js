@@ -6,18 +6,22 @@ const supabase = require('../config/supabaseClient');
  */
 const getOrCreateConversation = async (req, res) => {
   try {
-    const { room_id, landlord_id } = req.body;
-    const tenant_id = req.user.id;
+    const { room_id, landlord_id, tenant_id: requestedTenantId } = req.body;
+    const isLandlordRequester = req.user.role === 'landlord';
+    const tenant_id = isLandlordRequester ? requestedTenantId : req.user.id;
 
-    if (!landlord_id) {
+    if (!isLandlordRequester && !landlord_id) {
       return res.status(400).json({ error: 'Thiếu landlord_id.' });
+    }
+    if (isLandlordRequester && !tenant_id) {
+      return res.status(400).json({ error: 'Missing tenant_id.' });
     }
     if (tenant_id === landlord_id) {
       return res.status(400).json({ error: 'Bạn không thể tự nhắn tin cho chính mình.' });
     }
 
     // Kiểm tra đã tồn tại chưa
-    let verifiedLandlordId = landlord_id;
+    let verifiedLandlordId = isLandlordRequester ? req.user.id : landlord_id;
     if (room_id) {
       const { data: room, error: roomError } = await supabase
         .from('rooms')
@@ -29,7 +33,7 @@ const getOrCreateConversation = async (req, res) => {
       if (!room || room.status !== 'approved' || room.is_hidden === true) {
         return res.status(404).json({ error: 'Room not found or not public.' });
       }
-      if (room.host_id !== landlord_id) {
+      if (room.host_id !== verifiedLandlordId) {
         return res.status(400).json({ error: 'Landlord does not match this room.' });
       }
       verifiedLandlordId = room.host_id;
@@ -43,6 +47,19 @@ const getOrCreateConversation = async (req, res) => {
       if (landlordError) return res.status(400).json({ error: landlordError.message });
       if (!landlord || landlord.role !== 'landlord' || landlord.is_locked === true) {
         return res.status(404).json({ error: 'Valid landlord not found.' });
+      }
+    }
+
+    if (isLandlordRequester) {
+      const { data: tenant, error: tenantError } = await supabase
+        .from('users')
+        .select('id, role, is_locked')
+        .eq('id', tenant_id)
+        .maybeSingle();
+
+      if (tenantError) return res.status(400).json({ error: tenantError.message });
+      if (!tenant || tenant.role !== 'tenant' || tenant.is_locked === true) {
+        return res.status(404).json({ error: 'Valid tenant not found.' });
       }
     }
 

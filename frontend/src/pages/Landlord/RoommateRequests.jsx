@@ -35,11 +35,7 @@ const LandlordRequests = () => {
     setActionLoading(s => ({ ...s, [id]: true }));
     try {
       const { data } = await roommateRequestService.updateStatus(id, 'accepted');
-      setRequests(prev => prev.map(r => r.id === id ? { ...r, status: 'accepted' } : r));
-      // If conversation created, offer to navigate
-      if (data.conversation_id) {
-        // auto-navigate to chat
-      }
+      setRequests(prev => prev.map(r => r.id === id ? { ...r, status: 'accepted', conversation_id: data.conversation_id } : r));
     } catch { /* silent */ }
     finally { setActionLoading(s => ({ ...s, [id]: false })); }
   };
@@ -187,7 +183,9 @@ const LandlordRequests = () => {
                       )}
                       {req.status === 'accepted' && (
                         <button className="btn btn-sm lr-btn-chat"
-                          onClick={() => navigate('/chat')}>
+                          onClick={() => navigate(req.conversation_id
+                            ? `/chat/${req.conversation_id}`
+                            : `/chat?tenant=${req.tenant_id}&room=${req.room_id}`)}>
                           💬 Chat
                         </button>
                       )}

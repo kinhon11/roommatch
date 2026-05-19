@@ -73,9 +73,10 @@ const ChatPage = () => {
   /* ── Handle tạo conversation từ query param (từ RoomDetail) ── */
   useEffect(() => {
     const landlordId = searchParams.get('landlord');
+    const tenantId = searchParams.get('tenant');
     const roomId     = searchParams.get('room');
-    if (landlordId && isAuthenticated) {
-      chatService.getOrCreate(landlordId, roomId).then(res => {
+    if ((landlordId || tenantId) && isAuthenticated) {
+      chatService.getOrCreate({ landlordId, tenantId, roomId }).then(res => {
         const conv = res.conversation;
         loadConversations();
         navigate(`/chat/${conv.id}`, { replace: true });

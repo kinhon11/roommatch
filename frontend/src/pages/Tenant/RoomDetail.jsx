@@ -489,7 +489,9 @@ const RoomDetail = () => {
                 <>
                   <a
                     id="btn-contact-landlord"
-                    href={room.users?.phone ? `tel:${room.users.phone}` : '#'}
+                    href={`tel:${room.users?.phone || ''}`}
+                    aria-disabled={!room.users?.phone}
+                    onClick={(event) => { if (!room.users?.phone) event.preventDefault(); }}
                     className="btn btn-primary btn-full"
                   >
                     📞 Liên hệ chủ nhà

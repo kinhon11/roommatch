@@ -27,7 +27,7 @@ const AdminAllRooms = () => {
       if (status) params.status = status;
       if (search.trim()) params.search = search.trim();
       const { data } = await apiClient.get('/admin/rooms', { params });
-      setRooms(data.rooms || []);
+      setRooms(prev => p === 1 ? (data.rooms || []) : [...prev, ...(data.rooms || [])]);
       setTotal(data.total || 0);
       setPage(p);
     } catch (e) { console.error(e); }

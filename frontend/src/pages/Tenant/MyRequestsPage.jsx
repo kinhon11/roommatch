@@ -191,7 +191,7 @@ const MyRequestsPage = () => {
                           style={{ background: 'rgba(16,185,129,.15)', color: 'var(--success)', border: '1px solid rgba(16,185,129,.3)' }}>
                           🏠 Xem phòng
                         </Link>
-                        <Link to="/chat" className="btn btn-primary btn-sm">💬 Nhắn tin</Link>
+                        <Link to={`/chat?landlord=${req.room?.host_id}&room=${req.room_id}`} className="btn btn-primary btn-sm">💬 Nhắn tin</Link>
                       </>
                     )}
                     {req.status === 'rejected' && (

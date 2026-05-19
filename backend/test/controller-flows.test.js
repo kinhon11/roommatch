@@ -262,6 +262,54 @@ test('chat validates room ownership before creating conversation', async () => {
   assert.match(res.body.error, /Landlord does not match/i);
 });
 
+test('chat lets landlords open accepted tenant conversations by room', async () => {
+  const inserts = [];
+  const { getOrCreateConversation } = loadController('controllers/chatController.js', (query) => {
+    if (query.table === 'rooms') {
+      return { data: { id: 'room-1', host_id: 'landlord-1', status: 'approved', is_hidden: false }, error: null };
+    }
+    if (query.table === 'users') {
+      return { data: { id: 'tenant-1', role: 'tenant', is_locked: false }, error: null };
+    }
+    if (query.table === 'conversations' && query.operation === 'select') {
+      return { data: null, error: null };
+    }
+    if (query.table === 'conversations' && query.operation === 'insert') {
+      inserts.push(query.payload);
+      return { data: { id: 'conv-1', ...query.payload }, error: null };
+    }
+    return { data: null, error: null };
+  });
+
+  const res = await callController(getOrCreateConversation, {
+    user: { id: 'landlord-1', role: 'landlord' },
+    body: { room_id: 'room-1', tenant_id: 'tenant-1' },
+  });
+
+  assert.equal(res.statusCode, 201);
+  assert.deepEqual(inserts[0], { tenant_id: 'tenant-1', landlord_id: 'landlord-1', room_id: 'room-1' });
+});
+
+test('chat rejects landlord conversation creation for invalid tenants', async () => {
+  const { getOrCreateConversation } = loadController('controllers/chatController.js', (query) => {
+    if (query.table === 'rooms') {
+      return { data: { id: 'room-1', host_id: 'landlord-1', status: 'approved', is_hidden: false }, error: null };
+    }
+    if (query.table === 'users') {
+      return { data: { id: 'landlord-2', role: 'landlord', is_locked: false }, error: null };
+    }
+    return { data: null, error: null };
+  });
+
+  const res = await callController(getOrCreateConversation, {
+    user: { id: 'landlord-1', role: 'landlord' },
+    body: { room_id: 'room-1', tenant_id: 'landlord-2' },
+  });
+
+  assert.equal(res.statusCode, 404);
+  assert.match(res.body.error, /tenant/i);
+});
+
 test('chat sends trimmed messages only for conversation participants', async () => {
   const inserts = [];
   const { sendMessage } = loadController('controllers/chatController.js', (query) => {

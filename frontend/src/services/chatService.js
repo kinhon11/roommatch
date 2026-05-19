@@ -2,9 +2,10 @@ import apiClient from '../api/apiClient';
 
 export const chatService = {
   /** Lấy/tạo conversation */
-  getOrCreate: async (landlordId, roomId = null) => {
+  getOrCreate: async ({ landlordId = null, tenantId = null, roomId = null } = {}) => {
     const { data } = await apiClient.post('/chat/conversations', {
       landlord_id: landlordId,
+      tenant_id: tenantId,
       room_id: roomId,
     });
     return data;
