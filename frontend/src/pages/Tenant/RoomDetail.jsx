@@ -11,11 +11,15 @@ import { appointmentService } from '../../services/appointmentService';
 import { depositService } from '../../services/depositService';
 import { geminiService } from '../../services/geminiService';
 import { formatCurrency } from '../../utils/format';
+import { useDialog } from '../../context/DialogContext';
+import { useToast } from '../../context/ToastContext';
 
 const RoomDetail = () => {
   const { id } = useParams();
   const navigate = useNavigate();
   const { isAuthenticated, user } = useAuth();
+  const dialog = useDialog();
+  const toast = useToast();
 
   const [room, setRoom] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -166,14 +170,20 @@ const RoomDetail = () => {
         .then(res => setReviewEligibility(res.data))
         .catch(() => {});
     } catch (err) {
-      alert(err.response?.data?.error || 'Xóa đánh giá thất bại.');
+      toast.error(err.response?.data?.error || 'Xóa đánh giá thất bại.');
     } finally {
       setDeleteLoading(false);
     }
   };
 
   const handleLandlordResponse = async (rev) => {
-    const response = window.prompt('Nhap phan hoi cua chu nha:', rev.landlord_response || '');
+    const response = await dialog.prompt({
+      title: 'Phản hồi đánh giá',
+      label: 'Phản hồi của chủ nhà',
+      defaultValue: rev.landlord_response || '',
+      placeholder: 'Nhập phản hồi lịch sự, rõ ràng...',
+      confirmText: 'Gửi phản hồi',
+    });
     if (!response?.trim()) return;
     try {
       await apiClient.patch(`/rooms/${id}/reviews/${rev.id}/response`, { response: response.trim() });
@@ -181,19 +191,27 @@ const RoomDetail = () => {
         ...prev,
         reviews: prev.reviews.map(r => r.id === rev.id ? { ...r, landlord_response: response.trim(), landlord_responded_at: new Date().toISOString() } : r),
       }));
+      toast.success('Đã phản hồi đánh giá.');
     } catch (err) {
-      alert(err.response?.data?.error || 'Khong the phan hoi review.');
+      toast.error(err.response?.data?.error || 'Không thể phản hồi review.');
     }
   };
 
   const handleHideReview = async (rev) => {
-    const reason = window.prompt('Nhap ly do an review:');
+    const reason = await dialog.prompt({
+      title: 'Ẩn đánh giá',
+      label: 'Lý do ẩn',
+      placeholder: 'Nhập lý do để lưu lịch sử kiểm duyệt...',
+      confirmText: 'Ẩn đánh giá',
+      tone: 'danger',
+    });
     if (!reason?.trim()) return;
     try {
       await apiClient.patch(`/rooms/${id}/reviews/${rev.id}/moderation`, { is_hidden: true, hidden_reason: reason.trim() });
       setRoom(prev => ({ ...prev, reviews: prev.reviews.filter(r => r.id !== rev.id) }));
+      toast.success('Đã ẩn đánh giá.');
     } catch (err) {
-      alert(err.response?.data?.error || 'Khong the an review.');
+      toast.error(err.response?.data?.error || 'Không thể ẩn review.');
     }
   };
 

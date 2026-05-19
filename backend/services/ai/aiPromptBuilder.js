@@ -96,7 +96,7 @@ ${reviewList.slice(0, 20).map((review, index) => {
 Chỉ trả về JSON, không markdown, không giải thích thêm.
 `.trim();
 
-const buildAssistantPrompt = ({ message, user, criteria, rooms, conversation, context, profile, intent }) => `
+const buildAssistantPrompt = ({ message, user, criteria, rooms, conversation, context, profile, intent, toolResults = [] }) => `
 Bạn là trợ lý AI riêng của RoommieMatch.
 Mục tiêu của bạn là: hiểu đúng nhu cầu, dùng dữ liệu thật trong hệ thống, và trả lời ngắn gọn nhưng hữu ích.
 
@@ -127,6 +127,9 @@ ${JSON.stringify(criteria, null, 2)}
 Phòng đang gợi ý:
 ${JSON.stringify(summarizeRooms(rooms), null, 2)}
 
+Kết quả tool router:
+${JSON.stringify(toolResults, null, 2)}
+
 Ngữ cảnh hội thoại gần đây:
 ${JSON.stringify(conversation.slice(-8), null, 2)}
 
@@ -136,6 +139,8 @@ ${message}
 Hãy ưu tiên:
 - nếu intent là usage thì trả lời hướng dẫn ngắn gọn;
 - nếu intent là room_detail hoặc compare thì nhận xét trực tiếp trên phòng đang xem;
+- nếu tool router có summarizeReviews thì nêu rõ review có điểm mù hoặc rủi ro nào;
+- nếu tool router có compareRooms thì chỉ so sánh theo dữ liệu có thật: giá, diện tích, khu vực, tiện ích;
 - nếu có rooms phù hợp thì mở đầu bằng kết luận ngắn, sau đó liệt kê 2-4 phòng tốt nhất và nêu lý do phù hợp;
 - nếu không có phòng đủ tốt, nói rõ cần nới điều kiện nào.
 Không dùng markdown nặng; chỉ dùng xuống dòng hoặc gạch đầu dòng nhẹ.

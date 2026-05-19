@@ -3,12 +3,16 @@ import { useNavigate, useParams } from 'react-router-dom';
 import { roomService } from '../../services/roomService';
 import { supabase } from '../../services/supabaseClient';
 import { geminiService } from '../../services/geminiService';
+import { useDialog } from '../../context/DialogContext';
+import { useToast } from '../../context/ToastContext';
 
 const CITIES = ['Hà Nội', 'Hồ Chí Minh', 'Đà Nẵng', 'Hải Phòng', 'Cần Thơ', 'Huế', 'Nha Trang', 'Biên Hòa', 'Vũng Tàu'];
 
 const EditRoom = () => {
   const { id } = useParams();
   const navigate = useNavigate();
+  const dialog = useDialog();
+  const toast = useToast();
 
   const [form, setForm] = useState(null);
   const [roomImages, setRoomImages] = useState([]);
@@ -53,12 +57,19 @@ const EditRoom = () => {
   };
 
   const handleDeleteImage = async (imageId) => {
-    if (!window.confirm('Xóa ảnh này khỏi phòng?')) return;
+    const confirmed = await dialog.confirm({
+      title: 'Xóa ảnh phòng',
+      message: 'Bạn có chắc muốn xóa ảnh này khỏi phòng? Hành động này không thể hoàn tác.',
+      confirmText: 'Xóa ảnh',
+    });
+    if (!confirmed) return;
     try {
       await roomService.deleteRoomImage(id, imageId);
       setRoomImages(prev => prev.filter(img => img.id !== imageId));
+      toast.success('Đã xóa ảnh phòng.');
     } catch (err) {
       setApiError(err?.response?.data?.error || 'Xóa ảnh thất bại.');
+      toast.error(err?.response?.data?.error || 'Xóa ảnh thất bại.');
     }
   };
 

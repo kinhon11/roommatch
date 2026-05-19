@@ -3,6 +3,8 @@ import { Link } from 'react-router-dom';
 import { useAuth } from '../../hooks/useAuth';
 import { depositService } from '../../services/depositService';
 import { formatCurrency, formatDate } from '../../utils/format';
+import { useDialog } from '../../context/DialogContext';
+import { useToast } from '../../context/ToastContext';
 
 const statusLabels = {
   pending_payment: 'Cho thanh toan',
@@ -24,6 +26,8 @@ const DepositsPage = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [busyId, setBusyId] = useState(null);
+  const dialog = useDialog();
+  const toast = useToast();
 
   const loadDeposits = async () => {
     setLoading(true);
@@ -50,9 +54,23 @@ const DepositsPage = () => {
   const updateStatus = async (deposit, status) => {
     let note = '';
     if (status === 'paid') {
-      note = window.prompt('Ghi chu xac nhan da nhan coc (tuy chon):', '') || '';
+      const paidNote = await dialog.prompt({
+        title: 'Xác nhận đã nhận cọc',
+        label: 'Ghi chú tùy chọn',
+        placeholder: 'Ví dụ: Đã nhận chuyển khoản...',
+        required: false,
+        confirmText: 'Xác nhận',
+      });
+      if (paidNote === null) return;
+      note = paidNote;
     } else {
-      note = window.prompt(status === 'cancelled' ? 'Nhap ly do huy coc:' : 'Nhap ly do hoan coc:');
+      note = await dialog.prompt({
+        title: status === 'cancelled' ? 'Hủy yêu cầu cọc' : 'Hoàn cọc',
+        label: status === 'cancelled' ? 'Lý do hủy' : 'Lý do hoàn cọc',
+        placeholder: 'Nhập lý do để lưu vào lịch sử...',
+        confirmText: status === 'cancelled' ? 'Hủy yêu cầu' : 'Hoàn cọc',
+        tone: status === 'cancelled' ? 'danger' : 'primary',
+      });
       if (!note?.trim()) return;
     }
 
@@ -60,8 +78,9 @@ const DepositsPage = () => {
     try {
       await depositService.updateStatus(deposit.id, status, note);
       await loadDeposits();
+      toast.success('Cập nhật cọc phòng thành công.');
     } catch (err) {
-      alert(err.response?.data?.error || 'Cap nhat coc phong that bai.');
+      toast.error(err.response?.data?.error || 'Cập nhật cọc phòng thất bại.');
     } finally {
       setBusyId(null);
     }

@@ -3,6 +3,8 @@ import { Link } from 'react-router-dom';
 import { useAuth } from '../../hooks/useAuth';
 import { appointmentService } from '../../services/appointmentService';
 import { formatDate } from '../../utils/format';
+import { useDialog } from '../../context/DialogContext';
+import { useToast } from '../../context/ToastContext';
 
 const STATUS_MAP = {
   pending: { label: 'Cho xac nhan', cls: 'badge-pending' },
@@ -21,6 +23,8 @@ const AppointmentsPage = () => {
   const [actionId, setActionId] = useState(null);
   const [filter, setFilter] = useState('all');
   const isLandlord = user?.role === 'landlord';
+  const dialog = useDialog();
+  const toast = useToast();
 
   const load = async () => {
     setLoading(true);
@@ -39,7 +43,13 @@ const AppointmentsPage = () => {
   const updateStatus = async (appointment, status) => {
     let reason;
     if (status === 'cancelled') {
-      reason = window.prompt('Nhap ly do huy lich:');
+      reason = await dialog.prompt({
+        title: isLandlord && appointment.status === 'pending' ? 'Từ chối lịch hẹn' : 'Hủy lịch hẹn',
+        label: 'Lý do',
+        placeholder: 'Nhập lý do để người còn lại nắm được thông tin...',
+        confirmText: isLandlord && appointment.status === 'pending' ? 'Từ chối' : 'Hủy lịch',
+        tone: 'danger',
+      });
       if (!reason?.trim()) return;
     }
 
@@ -47,23 +57,37 @@ const AppointmentsPage = () => {
     try {
       await appointmentService.updateStatus(appointment.id, status, reason?.trim());
       await load();
+      toast.success('Cập nhật lịch hẹn thành công.');
     } catch (err) {
-      alert(err.response?.data?.error || err.message);
+      toast.error(err.response?.data?.error || err.message || 'Cập nhật lịch hẹn thất bại.');
     } finally {
       setActionId(null);
     }
   };
 
   const reschedule = async (appointment) => {
-    const input = window.prompt('Nhap thoi gian moi theo dinh dang YYYY-MM-DDTHH:mm:', appointment.scheduled_at?.slice(0, 16));
+    const input = await dialog.prompt({
+      title: 'Đổi lịch hẹn',
+      label: 'Thời gian mới',
+      placeholder: 'YYYY-MM-DDTHH:mm',
+      defaultValue: appointment.scheduled_at?.slice(0, 16),
+      inputType: 'datetime-local',
+      confirmText: 'Đổi lịch',
+    });
     if (!input) return;
+    const nextDate = new Date(input);
+    if (Number.isNaN(nextDate.getTime())) {
+      toast.warning('Thời gian mới không hợp lệ.');
+      return;
+    }
 
     setActionId(appointment.id);
     try {
-      await appointmentService.reschedule(appointment.id, new Date(input).toISOString());
+      await appointmentService.reschedule(appointment.id, nextDate.toISOString());
       await load();
+      toast.success('Đã đổi lịch hẹn.');
     } catch (err) {
-      alert(err.response?.data?.error || err.message);
+      toast.error(err.response?.data?.error || err.message || 'Đổi lịch hẹn thất bại.');
     } finally {
       setActionId(null);
     }

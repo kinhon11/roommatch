@@ -3,7 +3,8 @@
   "version": "1.0.0",
   "main": "index.js",
   "scripts": {
-    "test": "npm --prefix backend test && npm --prefix frontend run lint && npm --prefix frontend run build",
+    "test": "npm run check:encoding && npm --prefix backend test && npm --prefix frontend run lint && npm --prefix frontend run build",
+    "check:encoding": "node scripts/check-encoding.js",
     "test:backend": "npm --prefix backend test",
     "lint:frontend": "npm --prefix frontend run lint",
     "build:frontend": "npm --prefix frontend run build"

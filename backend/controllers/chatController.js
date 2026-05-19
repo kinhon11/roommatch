@@ -17,11 +17,40 @@ const getOrCreateConversation = async (req, res) => {
     }
 
     // Kiểm tra đã tồn tại chưa
+    let verifiedLandlordId = landlord_id;
+    if (room_id) {
+      const { data: room, error: roomError } = await supabase
+        .from('rooms')
+        .select('id, host_id, status, is_hidden')
+        .eq('id', room_id)
+        .maybeSingle();
+
+      if (roomError) return res.status(400).json({ error: roomError.message });
+      if (!room || room.status !== 'approved' || room.is_hidden === true) {
+        return res.status(404).json({ error: 'Room not found or not public.' });
+      }
+      if (room.host_id !== landlord_id) {
+        return res.status(400).json({ error: 'Landlord does not match this room.' });
+      }
+      verifiedLandlordId = room.host_id;
+    } else {
+      const { data: landlord, error: landlordError } = await supabase
+        .from('users')
+        .select('id, role, is_locked')
+        .eq('id', landlord_id)
+        .maybeSingle();
+
+      if (landlordError) return res.status(400).json({ error: landlordError.message });
+      if (!landlord || landlord.role !== 'landlord' || landlord.is_locked === true) {
+        return res.status(404).json({ error: 'Valid landlord not found.' });
+      }
+    }
+
     let query = supabase
       .from('conversations')
       .select('*')
       .eq('tenant_id', tenant_id)
-      .eq('landlord_id', landlord_id);
+      .eq('landlord_id', verifiedLandlordId);
 
     if (room_id) query = query.eq('room_id', room_id);
 
@@ -34,7 +63,7 @@ const getOrCreateConversation = async (req, res) => {
     // Tạo mới
     const { data, error } = await supabase
       .from('conversations')
-      .insert({ tenant_id, landlord_id, room_id: room_id || null })
+      .insert({ tenant_id, landlord_id: verifiedLandlordId, room_id: room_id || null })
       .select()
       .single();
 

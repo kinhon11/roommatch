@@ -1,11 +1,13 @@
 import { useState, useEffect } from 'react';
 import apiClient from '../../api/apiClient';
+import { useToast } from '../../context/ToastContext';
 
 const AdminUsers = () => {
   const [users, setUsers] = useState([]);
   const [loading, setLoading] = useState(true);
   const [updating, setUpdating] = useState({});
   const [search, setSearch] = useState('');
+  const toast = useToast();
 
   useEffect(() => {
     const fetch = async () => {
@@ -23,8 +25,9 @@ const AdminUsers = () => {
     try {
       await apiClient.patch(`/admin/users/${userId}/role`, { role: newRole });
       setUsers(u => u.map(usr => usr.id === userId ? { ...usr, role: newRole } : usr));
+      toast.success('Cập nhật vai trò thành công.');
     } catch (e) {
-      alert('Lỗi cập nhật role: ' + (e.response?.data?.error || e.message));
+      toast.error(e.response?.data?.error || e.message || 'Cập nhật vai trò thất bại.');
     } finally {
       setUpdating(s => ({ ...s, [userId]: false }));
     }
@@ -35,8 +38,9 @@ const AdminUsers = () => {
     try {
       const { data } = await apiClient.patch(`/admin/users/${userId}/lock`);
       setUsers(u => u.map(usr => usr.id === userId ? { ...usr, is_locked: data.user?.is_locked ?? !usr.is_locked } : usr));
+      toast.success(data.user?.is_locked ? 'Đã khóa tài khoản.' : 'Đã mở khóa tài khoản.');
     } catch (e) {
-      alert('Lỗi: ' + (e.response?.data?.error || e.message));
+      toast.error(e.response?.data?.error || e.message || 'Cập nhật trạng thái tài khoản thất bại.');
     } finally {
       setUpdating(s => ({ ...s, [userId]: false }));
     }

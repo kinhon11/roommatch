@@ -11,7 +11,7 @@ const getFavorites = async (req, res) => {
       .select(`
         id, created_at,
         rooms (
-          id, title, price, address, city, area, status,
+          id, title, price, address, city, area, status, is_hidden,
           room_images (image_url, is_primary),
           users (full_name, avatar_url)
         )
@@ -22,7 +22,9 @@ const getFavorites = async (req, res) => {
     if (error) return res.status(500).json({ error: error.message });
 
     // Lọc ra chỉ trường rooms
-    const rooms = data.map(f => ({ favorite_id: f.id, ...f.rooms })).filter(r => r.id);
+    const rooms = data
+      .map(f => ({ favorite_id: f.id, ...f.rooms }))
+      .filter(room => room.id && room.status === 'approved' && room.is_hidden !== true);
     return res.status(200).json({ favorites: rooms, total: rooms.length });
   } catch (err) {
     return res.status(500).json({ error: err.message });
@@ -54,6 +56,17 @@ const checkFavorite = async (req, res) => {
  */
 const addFavorite = async (req, res) => {
   try {
+    const { data: room, error: roomError } = await supabase
+      .from('rooms')
+      .select('id, status, is_hidden')
+      .eq('id', req.params.roomId)
+      .maybeSingle();
+
+    if (roomError) return res.status(400).json({ error: roomError.message });
+    if (!room || room.status !== 'approved' || room.is_hidden === true) {
+      return res.status(404).json({ error: 'Phòng không tồn tại hoặc chưa được công khai.' });
+    }
+
     const { data, error } = await supabase
       .from('favorites')
       .insert({ user_id: req.user.id, room_id: req.params.roomId })

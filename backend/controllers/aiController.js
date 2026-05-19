@@ -14,10 +14,7 @@ const {
   detectAssistantIntent,
   loadAssistantSignals,
 } = require('../services/ai/assistantContextService');
-const {
-  buildSearchCriteria,
-  searchRoomsByCriteria,
-} = require('../services/ai/roomRecommendationService');
+const { routeAssistantTools } = require('../services/ai/assistantToolRouter');
 const {
   extractJson,
   normalizeList,
@@ -198,8 +195,12 @@ const assistantChat = async (req, res) => {
     const intent = detectAssistantIntent(message, context);
     const assistantSignals = await loadAssistantSignals(req.user?.id);
     const profile = buildPreferenceProfile(assistantSignals);
-    const searchCriteria = await buildSearchCriteria(message, context, profile, intent);
-    const rooms = await searchRoomsByCriteria(searchCriteria, 5, profile, context);
+    const {
+      criteria: searchCriteria,
+      rooms,
+      toolResults,
+      selectedTools,
+    } = await routeAssistantTools({ message, context, profile, intent, user: req.user });
     const followUpPrompts = buildFollowUpPrompts({
       intent,
       profile,
@@ -219,6 +220,7 @@ const assistantChat = async (req, res) => {
         context,
         profile,
         intent,
+        toolResults,
       });
       reply = assistantResult.text;
       provider = assistantResult.provider;
@@ -238,6 +240,8 @@ const assistantChat = async (req, res) => {
       criteria: searchCriteria,
       provider,
       intent,
+      tools: selectedTools,
+      tool_results: toolResults,
       profile_summary: preferenceSummary,
       follow_up_prompts: followUpPrompts,
       usage_tip: buildUsageGuide(req.user?.role),

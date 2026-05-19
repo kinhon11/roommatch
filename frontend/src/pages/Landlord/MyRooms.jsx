@@ -3,6 +3,8 @@ import { Link, useNavigate } from 'react-router-dom';
 import { roomService } from '../../services/roomService';
 import useFetch from '../../hooks/useFetch';
 import { formatCurrency, formatDate } from '../../utils/format';
+import { useDialog } from '../../context/DialogContext';
+import { useToast } from '../../context/ToastContext';
 
 const STATUS_MAP = {
   pending:  { label: 'Chờ duyệt', cls: 'badge-pending' },
@@ -15,6 +17,8 @@ const MyRooms = () => {
   const [deletingId, setDeletingId] = useState(null);
   const [confirmId, setConfirmId]   = useState(null);
   const [toggling, setToggling]     = useState({});
+  const dialog = useDialog();
+  const toast = useToast();
 
   const { data: rooms, loading, error, refetch } = useFetch(
     () => roomService.getMyRooms(),
@@ -26,8 +30,9 @@ const MyRooms = () => {
     try {
       await roomService.deleteRoom(id);
       refetch();
+      toast.success('Đã xóa phòng.');
     } catch (err) {
-      alert(err?.response?.data?.error || 'Xóa thất bại!');
+      toast.error(err?.response?.data?.error || 'Xóa phòng thất bại.');
     } finally {
       setDeletingId(null);
       setConfirmId(null);
@@ -47,10 +52,17 @@ const MyRooms = () => {
     const room = rooms?.find(r => r.id === id);
     let slots;
     if (room && !room.is_available) {
-      slots = window.prompt('Nhập số slot mới khi mở lại phòng:', room.last_available_slots || room.available_slots || 1);
+      slots = await dialog.prompt({
+        title: 'Mở lại phòng',
+        label: 'Số slot còn trống',
+        defaultValue: String(room.last_available_slots || room.available_slots || 1),
+        placeholder: 'Ví dụ: 1',
+        inputType: 'number',
+        confirmText: 'Mở phòng',
+      });
       if (slots === null) return;
       if (!Number.isInteger(Number(slots)) || Number(slots) <= 0) {
-        alert('Số slot phải lớn hơn 0.');
+        toast.warning('Số slot phải là số nguyên lớn hơn 0.');
         return;
       }
     }
@@ -58,7 +70,8 @@ const MyRooms = () => {
     try {
       await roomService.toggleRoomAvailable(id, slots ? Number(slots) : undefined);
       refetch();
-    } catch (err) { alert(err?.response?.data?.error || 'Cập nhật trạng thái phòng thất bại.'); }
+      toast.success('Đã cập nhật trạng thái phòng.');
+    } catch (err) { toast.error(err?.response?.data?.error || 'Cập nhật trạng thái phòng thất bại.'); }
     finally { setToggling(s => ({ ...s, [id]: false })); }
   };
 

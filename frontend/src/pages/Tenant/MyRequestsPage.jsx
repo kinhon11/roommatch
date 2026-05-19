@@ -3,6 +3,8 @@ import { Link } from 'react-router-dom';
 import { useAuth } from '../../hooks/useAuth';
 import { roommateRequestService } from '../../services/roommateRequestService';
 import { formatDate } from '../../utils/format';
+import { useDialog } from '../../context/DialogContext';
+import { useToast } from '../../context/ToastContext';
 
 const STATUS_MAP = {
   pending:  { label: 'Chờ phản hồi', cls: 'badge-pending',  icon: '⏳' },
@@ -17,6 +19,8 @@ const MyRequestsPage = () => {
   const [filter, setFilter]     = useState('all');
   const [actionId, setActionId] = useState(null);
   const [msg, setMsg]           = useState('');
+  const dialog = useDialog();
+  const toast = useToast();
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -30,15 +34,22 @@ const MyRequestsPage = () => {
   useEffect(() => { load(); }, [load]);
 
   const handleCancel = async (id) => {
-    if (!window.confirm('Bạn có chắc muốn hủy yêu cầu này?')) return;
+    const confirmed = await dialog.confirm({
+      title: 'Hủy yêu cầu ở ghép',
+      message: 'Bạn có chắc muốn hủy yêu cầu này? Chủ nhà sẽ không còn thấy yêu cầu của bạn.',
+      confirmText: 'Hủy yêu cầu',
+    });
+    if (!confirmed) return;
     setActionId(id);
     setMsg('');
     try {
       await roommateRequestService.cancel(id);
       setRequests(prev => prev.filter(r => r.id !== id));
       setMsg('✅ Đã hủy yêu cầu thành công.');
+      toast.success('Đã hủy yêu cầu ở ghép.');
     } catch (err) {
       setMsg('❌ ' + (err.response?.data?.error || 'Không thể hủy yêu cầu.'));
+      toast.error(err.response?.data?.error || 'Không thể hủy yêu cầu.');
     } finally { setActionId(null); }
   };
 
