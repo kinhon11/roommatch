@@ -1,0 +1,25 @@
+@startuml
+title Use Case Quản lý Nhân sự & Phân quyền
+
+left to right direction
+skinparam shadowing false
+actor "Admin" as Admin
+
+rectangle "RoommieMatch" {
+  usecase "Xem danh sách người dùng" as ViewUsers
+  usecase "Tìm kiếm / lọc người dùng" as FilterUsers
+  usecase "Cập nhật vai trò" as UpdateRole
+  usecase "Khóa / mở khóa tài khoản" as LockUser
+  usecase "Xem thông tin người dùng" as ViewUserDetail
+}
+
+Admin --> ViewUsers
+Admin --> FilterUsers
+Admin --> ViewUserDetail
+Admin --> UpdateRole
+Admin --> LockUser
+
+FilterUsers .> ViewUsers : <<include>>
+ViewUserDetail .> ViewUsers : <<include>>
+
+@enduml

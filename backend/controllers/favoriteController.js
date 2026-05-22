@@ -13,7 +13,8 @@ const getFavorites = async (req, res) => {
         rooms (
           id, title, price, address, city, area, status, is_hidden,
           room_images (image_url, is_primary),
-          users (full_name, avatar_url)
+          users:users!rooms_host_id_fkey (full_name, avatar_url),
+          broker:users!rooms_broker_id_fkey (full_name, avatar_url)
         )
       `)
       .eq('user_id', req.user.id)

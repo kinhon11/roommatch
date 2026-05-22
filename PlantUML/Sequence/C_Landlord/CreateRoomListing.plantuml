@@ -1,0 +1,36 @@
+@startuml
+title Sequence Diagram: Create Room Listing Process
+
+actor "Chủ trọ" as Landlord
+boundary "Post Room UI" as UI
+control "Room Controller" as RoomCtrl
+database "Rooms Table" as Rooms
+database "Room Amenities Table" as Amenities
+
+Landlord -> UI: Nhập thông tin phòng
+Landlord -> UI: Chọn tiện ích
+Landlord -> UI: Nhấn "Đăng tin"
+UI -> RoomCtrl: POST /api/rooms
+RoomCtrl -> RoomCtrl: Validate dữ liệu phòng
+
+alt Dữ liệu không hợp lệ
+  RoomCtrl --> UI: 400 Bad Request
+  UI --> Landlord: Hiển thị lỗi nhập liệu
+else Dữ liệu hợp lệ
+  RoomCtrl -> Rooms: Insert room status = pending
+  alt Lưu phòng thất bại
+    Rooms --> RoomCtrl: Database error
+    RoomCtrl --> UI: 400 Error
+    UI --> Landlord: Không thể đăng tin
+  else Lưu phòng thành công
+    Rooms --> RoomCtrl: Room mới
+    opt Có chọn tiện ích
+      RoomCtrl -> Amenities: Insert room_amenities
+      Amenities --> RoomCtrl: Saved
+    end
+    RoomCtrl --> UI: 201 Created
+    UI --> Landlord: Đăng tin thành công, chờ Admin duyệt
+  end
+end
+
+@enduml

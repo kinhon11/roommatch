@@ -79,6 +79,11 @@ class QueryBuilder {
     return this;
   }
 
+  not(column, operator, value) {
+    this.filters.push({ method: 'not', column, operator, value });
+    return this;
+  }
+
   order(column, options) {
     this.filters.push({ method: 'order', column, options });
     return this;

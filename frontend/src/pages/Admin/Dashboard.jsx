@@ -11,12 +11,15 @@ const AdminDashboard = () => {
   const { user } = useAuth();
   const [stats, setStats] = useState(null);
   const [statsLoading, setStatsLoading] = useState(true);
+  const [activityLogs, setActivityLogs] = useState([]);
 
   useEffect(() => {
     const load = async () => {
       try {
         const { data } = await apiClient.get('/admin/stats');
         setStats(data);
+        const logs = await apiClient.get('/admin/activity-logs');
+        setActivityLogs(logs.data || []);
       } catch (e) { console.error(e); }
       finally { setStatsLoading(false); }
     };
@@ -92,15 +95,30 @@ const AdminDashboard = () => {
           ))}
         </div>
 
+        <div className="admin-ops-stats animate-fadeIn">
+          {[
+            ['Moi gioi', stats?.totalBrokers],
+            ['Phong da gan moi gioi', stats?.brokerAssignedRooms],
+            ['Phong con cho', stats?.availableRooms],
+            ['Phong het cho', stats?.fullRooms],
+            ['Yeu cau thanh cong', stats?.acceptedRequests],
+          ].map(([label, value]) => (
+            <div className="admin-ops-stat" key={label}>
+              <strong>{statsLoading ? '-' : (value ?? 0)}</strong>
+              <span>{label}</span>
+            </div>
+          ))}
+        </div>
+
         {/* Sub-pages via nested routing */}
         <div className="admin-content animate-fadeIn">
           <Routes>
-            <Route index path="dashboard" element={<AdminOverview stats={stats} loading={statsLoading} />} />
+            <Route index path="dashboard" element={<AdminOverview stats={stats} loading={statsLoading} activityLogs={activityLogs} />} />
             <Route path="rooms"           element={<AdminAllRooms />} />
             <Route path="pending"         element={<PendingRooms />} />
             <Route path="users"           element={<AdminUsers />} />
             <Route path="reports"         element={<AdminReports />} />
-            <Route path="*"               element={<AdminOverview stats={stats} loading={statsLoading} />} />
+            <Route path="*"               element={<AdminOverview stats={stats} loading={statsLoading} activityLogs={activityLogs} />} />
           </Routes>
         </div>
       </main>
@@ -110,7 +128,7 @@ const AdminDashboard = () => {
   );
 };
 
-const AdminOverview = ({ stats, loading }) => (
+const AdminOverview = ({ stats, loading, activityLogs = [] }) => (
   <div>
     <h2 style={{ fontSize: 18, fontWeight: 700, color: 'var(--text-primary)', marginBottom: 16 }}>
       Tổng quan hệ thống
@@ -145,6 +163,20 @@ const AdminOverview = ({ stats, loading }) => (
         <li><strong>Duyệt phòng</strong> — Xem và duyệt/từ chối các phòng đang chờ</li>
         <li><strong>Người dùng</strong> — Xem danh sách và đổi role người dùng</li>
       </ul>
+    </div>
+    <div style={{
+      marginTop: 20, padding: 16, background: 'var(--bg-warm)',
+      border: '1px solid var(--border)', borderRadius: 'var(--radius-sm)',
+    }}>
+      <h3 style={{ fontSize: 15, fontWeight: 800, color: 'var(--text-primary)', marginBottom: 10 }}>Lich su xu ly gan day</h3>
+      {activityLogs.length === 0 ? (
+        <p style={{ color: 'var(--text-secondary)', fontSize: 13 }}>Chua co hoat dong nao.</p>
+      ) : activityLogs.slice(0, 8).map(log => (
+        <div key={log.id} style={{ display: 'flex', justifyContent: 'space-between', gap: 12, padding: '8px 0', borderTop: '1px solid var(--border)' }}>
+          <span style={{ color: 'var(--text-primary)', fontSize: 13 }}>{log.action}</span>
+          <span style={{ color: 'var(--text-muted)', fontSize: 12 }}>{log.actor?.full_name || 'He thong'} - {new Date(log.created_at).toLocaleString('vi-VN')}</span>
+        </div>
+      ))}
     </div>
   </div>
 );
@@ -197,6 +229,16 @@ const styles = `
     background: var(--bg-card); border: 1px solid var(--border);
     border-radius: var(--radius-lg); padding: 24px;
   }
+  .admin-ops-stats {
+    display: grid; grid-template-columns: repeat(5, 1fr); gap: 10px; margin: -8px 0 24px;
+  }
+  .admin-ops-stat {
+    background: var(--bg-card); border: 1px solid var(--border); border-radius: var(--radius-md);
+    padding: 12px 14px;
+  }
+  .admin-ops-stat strong { display:block; color: var(--text-primary); font-size: 20px; font-weight: 800; }
+  .admin-ops-stat span { color: var(--text-muted); font-size: 12px; }
+  @media(max-width:900px){ .admin-ops-stats { grid-template-columns: repeat(2,1fr); } }
 
   @media(max-width:768px){
     .admin-layout { flex-direction: column; }

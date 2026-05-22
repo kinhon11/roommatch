@@ -1,5 +1,7 @@
 const supabase = require('../config/supabaseClient');
 
+const PROFILE_SELECT = 'id, email, full_name, role, phone, contact_email, zalo, facebook_url, contact_hours, address, avatar_url, bio, is_verified, created_at';
+
 /**
  * @desc  GET current user profile
  * @route GET /api/auth/profile
@@ -8,7 +10,7 @@ const getProfile = async (req, res) => {
   try {
     const { data: profile, error } = await supabase
       .from('users')
-      .select('id, email, full_name, role, phone, address, avatar_url, bio, created_at')
+      .select(PROFILE_SELECT)
       .eq('id', req.user.id)
       .single();
 
@@ -28,7 +30,7 @@ const getProfile = async (req, res) => {
  */
 const updateProfile = async (req, res) => {
   try {
-    const { full_name, phone, address, bio, avatar_url } = req.body;
+    const { full_name, phone, contact_email, zalo, facebook_url, contact_hours, address, bio, avatar_url } = req.body;
 
     // Validation
     if (!full_name || full_name.trim().length < 2) {
@@ -39,11 +41,22 @@ const updateProfile = async (req, res) => {
       return res.status(400).json({ error: 'Số điện thoại không hợp lệ.' });
     }
 
+    if (contact_email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(contact_email.trim())) {
+      return res.status(400).json({ error: 'Email lien he khong hop le.' });
+    }
+    if (facebook_url && !/^https?:\/\/(www\.)?facebook\.com\/.+/i.test(facebook_url.trim())) {
+      return res.status(400).json({ error: 'Facebook URL phai la lien ket facebook hop le.' });
+    }
+
     const updates = {
       full_name: full_name.trim(),
-      phone:     phone?.trim()      || null,
-      address:   address?.trim()    || null,
-      bio:       bio?.trim()        || null,
+      phone: phone?.trim() || null,
+      contact_email: contact_email?.trim() || null,
+      zalo: zalo?.trim() || null,
+      facebook_url: facebook_url?.trim() || null,
+      contact_hours: contact_hours?.trim() || null,
+      address: address?.trim() || null,
+      bio: bio?.trim() || null,
       updated_at: new Date().toISOString(),
     };
 
@@ -53,7 +66,7 @@ const updateProfile = async (req, res) => {
       .from('users')
       .update(updates)
       .eq('id', req.user.id)
-      .select('id, email, full_name, role, phone, address, avatar_url, bio, created_at')
+      .select(PROFILE_SELECT)
       .single();
 
     if (error) {

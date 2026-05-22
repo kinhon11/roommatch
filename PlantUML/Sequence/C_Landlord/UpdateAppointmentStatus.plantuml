@@ -1,0 +1,35 @@
+@startuml
+title Sequence Diagram: Update Appointment Status Process
+
+actor "Chủ trọ / Người thuê" as User
+boundary "Appointments UI" as UI
+control "Appointment Controller" as AppointmentCtrl
+database "Appointments Table" as Appointments
+database "Notifications Table" as Notifications
+
+User -> UI: Chọn lịch hẹn
+User -> UI: Xác nhận / hoàn thành / hủy / đổi lịch
+UI -> AppointmentCtrl: PATCH /api/appointments/{id}
+AppointmentCtrl -> Appointments: Lấy lịch hẹn
+
+alt Lịch hẹn không tồn tại
+  Appointments --> AppointmentCtrl: Không có dữ liệu
+  AppointmentCtrl --> UI: 404 Not Found
+  UI --> User: Lịch hẹn không tồn tại
+else Người dùng không có quyền
+  Appointments --> AppointmentCtrl: Không phải tenant/landlord liên quan
+  AppointmentCtrl --> UI: 403 Forbidden
+  UI --> User: Không có quyền cập nhật
+else Trạng thái không hợp lệ
+  AppointmentCtrl --> UI: 400 Bad Request
+  UI --> User: Không thể chuyển trạng thái
+else Cập nhật hợp lệ
+  AppointmentCtrl -> Appointments: Update status / scheduled_at
+  Appointments --> AppointmentCtrl: Appointment mới
+  AppointmentCtrl -> Notifications: Thông báo cho bên còn lại
+  Notifications --> AppointmentCtrl: Notification created
+  AppointmentCtrl --> UI: 200 OK
+  UI --> User: Cập nhật lịch hẹn thành công
+end
+
+@enduml

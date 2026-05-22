@@ -7,8 +7,8 @@ const { createAppointment, updateAppointmentStatus, rescheduleAppointment, getAp
 router.post('/', protect, restrictTo('tenant'), createAppointment);
 
 // Landlord OR tenant can update appointment status (controller handles role-based permission)
-router.patch('/:id', protect, restrictTo('tenant', 'landlord'), updateAppointmentStatus);
-router.patch('/:id/reschedule', protect, restrictTo('tenant', 'landlord'), rescheduleAppointment);
+router.patch('/:id', protect, restrictTo('tenant', 'landlord', 'broker'), updateAppointmentStatus);
+router.patch('/:id/reschedule', protect, restrictTo('tenant', 'landlord', 'broker'), rescheduleAppointment);
 
 // Get appointments (tenant or landlord based on role)
 router.get('/', protect, getAppointments);

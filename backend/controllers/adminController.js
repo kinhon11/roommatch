@@ -1,4 +1,5 @@
 const supabase = require('../config/supabaseClient');
+const { logActivity } = require('../utils/activityLogger');
 
 const APPROVAL_HISTORY_SELECT = `
   id, from_status, to_status, reason, created_at,
@@ -24,6 +25,11 @@ const getStats = async (req, res) => {
       { count: rejectedRooms },
       { count: pendingReports },
       { count: newUsersThisMonth },
+      { count: totalBrokers },
+      { count: brokerAssignedRooms },
+      { count: availableRooms },
+      { count: fullRooms },
+      { count: acceptedRequests },
     ] = await Promise.all([
       supabase.from('users').select('*', { count: 'exact', head: true }),
       supabase.from('rooms').select('*', { count: 'exact', head: true }),
@@ -32,6 +38,11 @@ const getStats = async (req, res) => {
       supabase.from('rooms').select('*', { count: 'exact', head: true }).eq('status', 'rejected'),
       supabase.from('reports').select('*', { count: 'exact', head: true }).eq('status', 'pending'),
       supabase.from('users').select('*', { count: 'exact', head: true }).gte('created_at', startOfMonth.toISOString()),
+      supabase.from('users').select('*', { count: 'exact', head: true }).eq('role', 'broker'),
+      supabase.from('rooms').select('*', { count: 'exact', head: true }).not('broker_id', 'is', null),
+      supabase.from('rooms').select('*', { count: 'exact', head: true }).eq('status', 'approved').eq('is_available', true).gt('available_slots', 0),
+      supabase.from('rooms').select('*', { count: 'exact', head: true }).eq('status', 'approved').or('is_available.eq.false,available_slots.lte.0'),
+      supabase.from('roommate_requests').select('*', { count: 'exact', head: true }).eq('status', 'accepted'),
     ]);
 
     return res.status(200).json({
@@ -39,6 +50,11 @@ const getStats = async (req, res) => {
       pendingRooms, approvedRooms, rejectedRooms,
       pendingReports,
       newUsersThisMonth,
+      totalBrokers,
+      brokerAssignedRooms,
+      availableRooms,
+      fullRooms,
+      acceptedRequests,
     });
   } catch (err) {
     return res.status(500).json({ error: err.message });
@@ -77,7 +93,7 @@ const getAllUsers = async (req, res) => {
 const updateUserRole = async (req, res) => {
   try {
     const { role } = req.body;
-    if (!['tenant', 'landlord', 'admin'].includes(role)) {
+    if (!['tenant', 'landlord', 'broker', 'admin'].includes(role)) {
       return res.status(400).json({ error: 'Role không hợp lệ.' });
     }
 
@@ -139,6 +155,25 @@ const toggleUserLock = async (req, res) => {
 };
 
 /**
+ * @desc Admin: Get broker users for room assignment
+ * @route GET /api/admin/brokers
+ */
+const getBrokers = async (req, res) => {
+  try {
+    const { data, error } = await supabase
+      .from('users')
+      .select('id, full_name, email, phone, avatar_url, is_locked')
+      .eq('role', 'broker')
+      .order('full_name', { ascending: true });
+
+    if (error) return res.status(500).json({ error: error.message });
+    return res.status(200).json(data || []);
+  } catch (err) {
+    return res.status(500).json({ error: err.message });
+  }
+};
+
+/**
  * @desc Admin: Get pending rooms
  * @route GET /api/admin/rooms/pending
  */
@@ -146,7 +181,7 @@ const getPendingRooms = async (req, res) => {
   try {
     const { data, error } = await supabase
       .from('rooms')
-      .select(`*, users (full_name, email), room_images (image_url, is_primary), room_approval_history (${APPROVAL_HISTORY_SELECT})`)
+      .select(`*, users:users!rooms_host_id_fkey (full_name, email), broker:users!rooms_broker_id_fkey (id, full_name, email, phone), room_images (image_url, is_primary), room_approval_history (${APPROVAL_HISTORY_SELECT})`)
       .eq('status', 'pending')
       .order('created_at', { ascending: true })
       .order('created_at', { foreignTable: 'room_approval_history', ascending: false });
@@ -170,7 +205,7 @@ const getAllRooms = async (req, res) => {
 
     let query = supabase
       .from('rooms')
-      .select(`*, users (full_name, email, avatar_url), room_images (image_url, is_primary), room_approval_history (${APPROVAL_HISTORY_SELECT})`, { count: 'exact' })
+      .select(`*, users:users!rooms_host_id_fkey (full_name, email, avatar_url), broker:users!rooms_broker_id_fkey (id, full_name, email, phone), room_images (image_url, is_primary), room_approval_history (${APPROVAL_HISTORY_SELECT})`, { count: 'exact' })
       .order('created_at', { ascending: false })
       .range(from, to)
       .order('created_at', { foreignTable: 'room_approval_history', ascending: false });
@@ -190,6 +225,148 @@ const getAllRooms = async (req, res) => {
       page: Number(page),
       limit: Number(limit),
     });
+  } catch (err) {
+    return res.status(500).json({ error: err.message });
+  }
+};
+
+/**
+ * @desc Admin: Assign or clear a broker for a room
+ * @route PATCH /api/admin/rooms/:id/broker
+ */
+const assignRoomBroker = async (req, res) => {
+  try {
+    const brokerId = req.body.broker_id || null;
+    const { data: existingRoom } = await supabase
+      .from('rooms')
+      .select('id, broker_id')
+      .eq('id', req.params.id)
+      .single();
+
+    if (brokerId) {
+      const { data: broker, error: brokerError } = await supabase
+        .from('users')
+        .select('id, role, is_locked')
+        .eq('id', brokerId)
+        .single();
+
+      if (brokerError || !broker || broker.role !== 'broker') {
+        return res.status(400).json({ error: 'Tai khoan duoc gan phai co vai tro broker.' });
+      }
+      if (broker.is_locked) {
+        return res.status(400).json({ error: 'Khong the gan moi gioi dang bi khoa.' });
+      }
+    }
+
+    const { data, error } = await supabase
+      .from('rooms')
+      .update({ broker_id: brokerId, updated_at: new Date().toISOString() })
+      .eq('id', req.params.id)
+      .select('*, broker:users!rooms_broker_id_fkey (id, full_name, email, phone)')
+      .single();
+
+    if (error) return res.status(400).json({ error: error.message });
+    await logActivity({
+      actorId: req.user.id,
+      action: brokerId ? 'broker_assigned' : 'broker_unassigned',
+      targetType: 'room',
+      targetId: req.params.id,
+      oldValue: { broker_id: existingRoom?.broker_id || null },
+      newValue: { broker_id: brokerId },
+    });
+
+    return res.status(200).json({
+      message: brokerId ? 'Da phan cong moi gioi cho phong.' : 'Da bo phan cong moi gioi.',
+      room: data,
+    });
+  } catch (err) {
+    return res.status(500).json({ error: err.message });
+  }
+};
+
+/**
+ * @desc Broker: Dashboard statistics for assigned rooms
+ * @route GET /api/admin/broker-dashboard
+ */
+const getBrokerDashboard = async (req, res) => {
+  try {
+    const brokerId = req.user.id;
+    const { data: rooms, error: roomsError } = await supabase
+      .from('rooms')
+      .select('id, title, status, is_available, available_slots, city, created_at, room_images (image_url, is_primary)')
+      .eq('broker_id', brokerId)
+      .order('updated_at', { ascending: false });
+
+    if (roomsError) return res.status(500).json({ error: roomsError.message });
+
+    const roomIds = (rooms || []).map(room => room.id);
+    let requests = [];
+    let appointments = [];
+    let activities = [];
+
+    if (roomIds.length) {
+      const [requestRes, appointmentRes, activityRes] = await Promise.all([
+        supabase
+          .from('roommate_requests')
+          .select('id, room_id, status, occupants, created_at, tenant:users!tenant_id (full_name, phone)')
+          .in('room_id', roomIds)
+          .order('created_at', { ascending: false })
+          .limit(8),
+        supabase
+          .from('appointments')
+          .select('id, room_id, status, scheduled_at, tenant:users!tenant_id (full_name, phone), room:rooms (title)')
+          .eq('landlord_id', brokerId)
+          .order('scheduled_at', { ascending: true })
+          .limit(8),
+        supabase
+          .from('activity_logs')
+          .select('id, action, target_type, target_id, old_value, new_value, created_at')
+          .eq('actor_id', brokerId)
+          .order('created_at', { ascending: false })
+          .limit(10),
+      ]);
+
+      if (requestRes.error) return res.status(500).json({ error: requestRes.error.message });
+      if (appointmentRes.error) return res.status(500).json({ error: appointmentRes.error.message });
+      if (activityRes.error) return res.status(500).json({ error: activityRes.error.message });
+      requests = requestRes.data || [];
+      appointments = appointmentRes.data || [];
+      activities = activityRes.data || [];
+    }
+
+    return res.status(200).json({
+      stats: {
+        assignedRooms: rooms?.length || 0,
+        availableRooms: (rooms || []).filter(room => room.status === 'approved' && room.is_available && Number(room.available_slots) > 0).length,
+        fullRooms: (rooms || []).filter(room => !room.is_available || Number(room.available_slots) <= 0).length,
+        pendingRequests: requests.filter(request => request.status === 'pending').length,
+        acceptedRequests: requests.filter(request => request.status === 'accepted').length,
+        upcomingAppointments: appointments.filter(appt => ['pending', 'confirmed'].includes(appt.status)).length,
+      },
+      rooms: rooms || [],
+      requests,
+      appointments,
+      activities,
+    });
+  } catch (err) {
+    return res.status(500).json({ error: err.message });
+  }
+};
+
+/**
+ * @desc Admin: Recent activity logs
+ * @route GET /api/admin/activity-logs
+ */
+const getActivityLogs = async (req, res) => {
+  try {
+    const { data, error } = await supabase
+      .from('activity_logs')
+      .select('*, actor:users!activity_logs_actor_id_fkey (id, full_name, email, role)')
+      .order('created_at', { ascending: false })
+      .limit(30);
+
+    if (error) return res.status(500).json({ error: error.message });
+    return res.status(200).json(data || []);
   } catch (err) {
     return res.status(500).json({ error: err.message });
   }
@@ -240,6 +417,6 @@ const handleReport = async (req, res) => {
 
 module.exports = {
   getStats, getAllUsers, updateUserRole, toggleUserLock,
-  getPendingRooms, getAllRooms,
+  getBrokers, getPendingRooms, getAllRooms, assignRoomBroker, getBrokerDashboard, getActivityLogs,
   getReports, handleReport,
 };

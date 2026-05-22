@@ -1,0 +1,30 @@
+@startuml
+title Use Case Dashboard tổng quan hệ thống
+
+left to right direction
+skinparam shadowing false
+actor "Admin" as Admin
+
+rectangle "RoommieMatch" {
+  usecase "Xem dashboard tổng quan" as ViewDashboard
+  usecase "Xem thống kê người dùng" as UserStats
+  usecase "Xem thống kê phòng" as RoomStats
+  usecase "Xem số bài chờ duyệt" as PendingRooms
+  usecase "Xem số báo cáo chờ xử lý" as PendingReports
+  usecase "Điều hướng sang quản lý chi tiết" as NavigateDetail
+}
+
+Admin --> ViewDashboard
+Admin --> UserStats
+Admin --> RoomStats
+Admin --> PendingRooms
+Admin --> PendingReports
+Admin --> NavigateDetail
+
+ViewDashboard .> UserStats : <<include>>
+ViewDashboard .> RoomStats : <<include>>
+ViewDashboard .> PendingRooms : <<include>>
+ViewDashboard .> PendingReports : <<include>>
+NavigateDetail .> ViewDashboard : <<extend>>
+
+@enduml

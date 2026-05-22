@@ -59,6 +59,7 @@ export const AuthProvider = ({ children }) => {
 
   const isAdmin = user?.role === 'admin';
   const isLandlord = user?.role === 'landlord';
+  const isBroker = user?.role === 'broker';
   const isTenant = user?.role === 'tenant';
 
   const value = {
@@ -72,6 +73,7 @@ export const AuthProvider = ({ children }) => {
     isAuthenticated: !!user,
     isAdmin,
     isLandlord,
+    isBroker,
     isTenant,
   };
 

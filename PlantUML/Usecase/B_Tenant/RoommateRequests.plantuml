@@ -1,0 +1,27 @@
+@startuml
+title Use Case Gửi & Quản lý yêu cầu ở ghép
+
+left to right direction
+skinparam shadowing false
+actor "Người thuê" as Tenant
+
+rectangle "RoommieMatch" {
+  usecase "Kiểm tra trạng thái yêu cầu" as CheckRequest
+  usecase "Gửi yêu cầu ở ghép" as CreateRequest
+  usecase "Xem danh sách yêu cầu đã gửi" as ListRequests
+  usecase "Theo dõi trạng thái duyệt" as TrackStatus
+  usecase "Hủy yêu cầu đang chờ" as CancelRequest
+  usecase "Nhận thông báo kết quả" as ReceiveNotification
+}
+
+Tenant --> CheckRequest
+Tenant --> CreateRequest
+Tenant --> ListRequests
+Tenant --> TrackStatus
+Tenant --> CancelRequest
+Tenant --> ReceiveNotification
+
+CreateRequest .> CheckRequest : <<include>>
+TrackStatus .> ReceiveNotification : <<include>>
+
+@enduml

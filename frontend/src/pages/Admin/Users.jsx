@@ -51,7 +51,7 @@ const AdminUsers = () => {
     u.email?.toLowerCase().includes(search.toLowerCase())
   );
 
-  const ROLES = ['tenant', 'landlord', 'admin'];
+  const ROLES = ['tenant', 'landlord', 'broker', 'admin'];
 
   return (
     <div className="admin-users-page">
@@ -179,6 +179,7 @@ const styles = `
   }
   .role-select--tenant   { background: rgba(16,185,129,0.1);   color: var(--success); border-color: rgba(16,185,129,0.3); }
   .role-select--landlord { background: rgba(59,130,246,0.1);   color: #60a5fa; border-color: rgba(59,130,246,0.3); }
+  .role-select--broker   { background: rgba(245,158,11,0.12);  color: #d97706; border-color: rgba(245,158,11,0.32); }
   .role-select--admin    { background: var(--primary-50);  color: var(--primary-dark); border-color: var(--primary-100); }
   .role-select:disabled { opacity: 0.5; cursor: not-allowed; }
   .role-select option { background: var(--bg-card); color: var(--text-primary); font-size: 13px; }

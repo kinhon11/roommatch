@@ -1,0 +1,35 @@
+@startuml
+title Sequence Diagram: Admin Dashboard Overview Process
+
+actor "Admin" as Admin
+boundary "Admin Dashboard UI" as UI
+control "Admin Controller" as AdminCtrl
+database "Users Table" as Users
+database "Rooms Table" as Rooms
+database "Reports Table" as Reports
+
+Admin -> UI: Mở Dashboard tổng quan
+UI -> AdminCtrl: GET /api/admin/stats
+
+par Thống kê người dùng
+  AdminCtrl -> Users: Count total users
+  Users --> AdminCtrl: totalUsers
+  AdminCtrl -> Users: Count new users this month
+  Users --> AdminCtrl: newUsersThisMonth
+and Thống kê phòng
+  AdminCtrl -> Rooms: Count total/pending/approved/rejected rooms
+  Rooms --> AdminCtrl: room stats
+and Thống kê báo cáo
+  AdminCtrl -> Reports: Count pending reports
+  Reports --> AdminCtrl: pendingReports
+end
+
+alt Truy vấn thất bại
+  AdminCtrl --> UI: 500 Server Error
+  UI --> Admin: Không thể tải thống kê
+else Truy vấn thành công
+  AdminCtrl --> UI: Dashboard stats
+  UI --> Admin: Hiển thị số liệu tổng quan
+end
+
+@enduml

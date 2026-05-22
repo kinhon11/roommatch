@@ -1,0 +1,42 @@
+@startuml
+title Sequence Diagram: Search and View Room Process
+
+actor "Người thuê" as Tenant
+boundary "Rooms UI" as UI
+control "Room Controller" as RoomCtrl
+database "Rooms Table" as Rooms
+database "Room Images/Amenities" as RoomData
+
+Tenant -> UI: Nhập từ khóa, bộ lọc
+Tenant -> UI: Nhấn tìm kiếm
+UI -> RoomCtrl: GET /api/rooms?filters
+RoomCtrl -> Rooms: Query phòng đã duyệt, chưa ẩn
+RoomCtrl -> RoomData: Lấy ảnh và tiện ích phòng
+
+alt Không có phòng phù hợp
+  Rooms --> RoomCtrl: Danh sách rỗng
+  RoomCtrl --> UI: rooms = []
+  UI --> Tenant: Hiển thị không có kết quả
+else Có phòng phù hợp
+  Rooms --> RoomCtrl: Danh sách phòng
+  RoomData --> RoomCtrl: Ảnh + tiện ích
+  RoomCtrl --> UI: Danh sách phòng
+  UI --> Tenant: Hiển thị kết quả
+
+  Tenant -> UI: Chọn một phòng
+  UI -> RoomCtrl: GET /api/rooms/{id}
+  RoomCtrl -> Rooms: Lấy chi tiết phòng
+  alt Phòng không tồn tại hoặc bị ẩn
+    Rooms --> RoomCtrl: Not found
+    RoomCtrl --> UI: 404 Not Found
+    UI --> Tenant: Không tìm thấy phòng
+  else Phòng hợp lệ
+    Rooms --> RoomCtrl: Chi tiết phòng
+    RoomCtrl -> Rooms: GET /api/rooms/{id}/similar
+    Rooms --> RoomCtrl: Phòng tương tự
+    RoomCtrl --> UI: Chi tiết + phòng tương tự
+    UI --> Tenant: Hiển thị chi tiết phòng
+  end
+end
+
+@enduml

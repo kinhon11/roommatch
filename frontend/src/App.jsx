@@ -23,6 +23,7 @@ const MyRequestsPage = lazy(() => import('./pages/Tenant/MyRequestsPage'));
 const ChatPage = lazy(() => import('./pages/Chat/ChatPage'));
 const AdminDashboard = lazy(() => import('./pages/Admin/Dashboard'));
 const LandlordDashboard = lazy(() => import('./pages/Landlord/Dashboard'));
+const BrokerDashboard = lazy(() => import('./pages/Broker/Dashboard'));
 const PostRoom = lazy(() => import('./pages/Landlord/PostRoom'));
 const MyRooms = lazy(() => import('./pages/Landlord/MyRooms'));
 const EditRoom = lazy(() => import('./pages/Landlord/EditRoom'));
@@ -68,7 +69,7 @@ const App = () => {
             <Route
               path="/profile"
               element={
-                <ProtectedRoute allowedRoles={['tenant', 'landlord', 'admin']}>
+                <ProtectedRoute allowedRoles={['tenant', 'landlord', 'broker', 'admin']}>
                   <ProfilePage />
                 </ProtectedRoute>
               }
@@ -76,7 +77,7 @@ const App = () => {
             <Route
               path="/chat"
               element={
-                <ProtectedRoute allowedRoles={['tenant', 'landlord', 'admin']}>
+                <ProtectedRoute allowedRoles={['tenant', 'landlord', 'broker', 'admin']}>
                   <ChatPage />
                 </ProtectedRoute>
               }
@@ -84,7 +85,7 @@ const App = () => {
             <Route
               path="/chat/:convId"
               element={
-                <ProtectedRoute allowedRoles={['tenant', 'landlord', 'admin']}>
+                <ProtectedRoute allowedRoles={['tenant', 'landlord', 'broker', 'admin']}>
                   <ChatPage />
                 </ProtectedRoute>
               }
@@ -96,7 +97,7 @@ const App = () => {
             <Route
               path="/appointments"
               element={
-                <ProtectedRoute allowedRoles={['tenant', 'landlord']}>
+                <ProtectedRoute allowedRoles={['tenant', 'landlord', 'broker']}>
                   <AppointmentsPage />
                 </ProtectedRoute>
               }
@@ -104,7 +105,7 @@ const App = () => {
             <Route
               path="/deposits"
               element={
-                <ProtectedRoute allowedRoles={['tenant', 'landlord', 'admin']}>
+                <ProtectedRoute allowedRoles={['tenant', 'landlord', 'broker', 'admin']}>
                   <DepositsPage />
                 </ProtectedRoute>
               }
@@ -136,6 +137,14 @@ const App = () => {
               }
             />
             <Route
+              path="/broker/dashboard"
+              element={
+                <ProtectedRoute allowedRoles={['broker']}>
+                  <BrokerDashboard />
+                </ProtectedRoute>
+              }
+            />
+            <Route
               path="/landlord/post"
               element={
                 <ProtectedRoute allowedRoles={['landlord']}>
@@ -146,7 +155,7 @@ const App = () => {
             <Route
               path="/landlord/my-rooms"
               element={
-                <ProtectedRoute allowedRoles={['landlord']}>
+                <ProtectedRoute allowedRoles={['landlord', 'broker']}>
                   <MyRooms />
                 </ProtectedRoute>
               }
@@ -162,7 +171,7 @@ const App = () => {
             <Route
               path="/landlord/requests"
               element={
-                <ProtectedRoute allowedRoles={['landlord']}>
+                <ProtectedRoute allowedRoles={['landlord', 'broker']}>
                   <LandlordRequests />
                 </ProtectedRoute>
               }
@@ -180,7 +189,7 @@ const App = () => {
             <Route
               path="/notifications"
               element={
-                <ProtectedRoute allowedRoles={['tenant', 'landlord', 'admin']}>
+                <ProtectedRoute allowedRoles={['tenant', 'landlord', 'broker', 'admin']}>
                   <NotificationsPage />
                 </ProtectedRoute>
               }
@@ -196,6 +205,7 @@ const App = () => {
 
 const getDefaultPath = (role) => {
   if (role === 'admin') return '/admin/dashboard';
+  if (role === 'broker') return '/broker/dashboard';
   if (role === 'landlord') return '/landlord/dashboard';
   return '/';
 };

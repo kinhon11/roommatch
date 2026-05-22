@@ -1,0 +1,44 @@
+@startuml
+title Sequence Diagram: Login Process
+
+actor "Người dùng" as User
+boundary "Login UI" as UI
+control "Auth Controller" as Auth
+database "Supabase Auth" as SupaAuth
+database "Users Table" as Users
+
+User -> UI: Nhập email và mật khẩu
+User -> UI: Nhấn "Đăng nhập"
+UI -> Auth: POST /api/auth/login
+Auth -> Auth: Kiểm tra email, password
+
+alt Thiếu email hoặc password
+  Auth --> UI: 400 Bad Request
+  UI --> User: Hiển thị lỗi nhập liệu
+else Đủ dữ liệu
+  Auth -> SupaAuth: signInWithPassword(email, password)
+  alt Sai email hoặc mật khẩu
+    SupaAuth --> Auth: Auth error
+    Auth --> UI: 401 Unauthorized
+    UI --> User: Email hoặc mật khẩu không đúng
+  else Đăng nhập Supabase thành công
+    SupaAuth --> Auth: User + Session
+    Auth -> Users: Tìm hồ sơ theo user.id
+    alt Không tìm thấy hồ sơ
+      Users --> Auth: Không có dữ liệu
+      Auth --> UI: 404 Not Found
+      UI --> User: Không tìm thấy thông tin người dùng
+    else Tài khoản bị khóa
+      Users --> Auth: Profile is_locked = true
+      Auth --> UI: 403 Forbidden
+      UI --> User: Tài khoản bị khóa
+    else Tài khoản hợp lệ
+      Users --> Auth: Profile hợp lệ
+      Auth --> UI: Token + thông tin người dùng
+      UI -> UI: Lưu session
+      UI --> User: Chuyển đến trang theo vai trò
+    end
+  end
+end
+
+@enduml

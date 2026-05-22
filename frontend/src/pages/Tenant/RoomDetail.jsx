@@ -370,6 +370,9 @@ const RoomDetail = () => {
   const images = room.room_images || [];
   const amenities = room.room_amenities?.map(ra => ra.amenities) || [];
   const reviews = room.reviews || [];
+  const contactUser = room.broker || room.users;
+  const contactLabel = room.broker ? 'Moi gioi phu trach' : 'Chu nha';
+  const contactProfilePath = `/landlords/${room.users?.id}`;
 
   return (
     <div className="room-detail-page">
@@ -454,12 +457,12 @@ const RoomDetail = () => {
             </div>
 
             {/* Host */}
-            <Link to={`/landlords/${room.users?.id}`} className="room-info__host room-info__host--link">
-              {room.users?.avatar_url
-                ? <img src={room.users.avatar_url} alt="" className="host-avatar-lg" />
+            <Link to={contactProfilePath} className="room-info__host room-info__host--link">
+              {contactUser?.avatar_url
+                ? <img src={contactUser.avatar_url} alt="" className="host-avatar-lg" />
                 : (
                   <div className="host-avatar-lg host-avatar-lg--fallback">
-                    {(room.users?.full_name || 'C')[0]}
+                    {(contactUser?.full_name || 'C')[0]}
                   </div>
                 )
               }
@@ -472,6 +475,18 @@ const RoomDetail = () => {
               </div>
               <span className="host-link-arrow">→</span>
             </Link>
+
+            <div className="contact-detail-box">
+              <div className="contact-detail-box__title">Nguoi phu trach</div>
+              <div className="contact-detail-box__name">{contactLabel}: {contactUser?.full_name || 'Chua cap nhat'}</div>
+              <div className="contact-detail-box__grid">
+                {contactUser?.phone && <span>SDT: {contactUser.phone}</span>}
+                {contactUser?.zalo && <span>Zalo: {contactUser.zalo}</span>}
+                {contactUser?.contact_email && <span>Email: {contactUser.contact_email}</span>}
+                {contactUser?.contact_hours && <span>Gio lien he: {contactUser.contact_hours}</span>}
+                {contactUser?.facebook_url && <a href={contactUser.facebook_url} target="_blank" rel="noreferrer">Facebook</a>}
+              </div>
+            </div>
 
             {/* CTAs */}
             <div className="room-info__cta">
@@ -489,18 +504,18 @@ const RoomDetail = () => {
                 <>
                   <a
                     id="btn-contact-landlord"
-                    href={`tel:${room.users?.phone || ''}`}
-                    aria-disabled={!room.users?.phone}
-                    onClick={(event) => { if (!room.users?.phone) event.preventDefault(); }}
+                    href={`tel:${contactUser?.phone || ''}`}
+                    aria-disabled={!contactUser?.phone}
+                    onClick={(event) => { if (!contactUser?.phone) event.preventDefault(); }}
                     className="btn btn-primary btn-full"
                   >
                     📞 Liên hệ chủ nhà
                   </a>
                   {/* Chat button – chỉ hiện với tenant, không phải chủ nhà */}
-                  {user?.role === 'tenant' && room.users?.id !== user?.id && (
+                  {user?.role === 'tenant' && contactUser?.id !== user?.id && (
                     <Link
                       id="btn-chat-landlord"
-                      to={`/chat?landlord=${room.users?.id}&room=${room.id}`}
+                      to={`/chat?landlord=${contactUser?.id}&room=${room.id}`}
                       className="btn btn-secondary btn-full"
                     >
                       💬 Nhắn tin cho chủ nhà
@@ -701,7 +716,7 @@ const RoomDetail = () => {
                   <div className="form-group">
                     <label className="form-label">👥 Số người ở</label>
                     <input
-                      type="number" className="form-input" min={1} max={10}
+                      type="number" className="form-input" min={1} max={Math.max(Number(room.available_slots) || 1, 1)}
                       value={roommateForm.occupants}
                       onChange={e => setRoommateForm(f => ({ ...f, occupants: +e.target.value }))}
                     />
@@ -728,7 +743,7 @@ const RoomDetail = () => {
         )}
 
         {/* ── Appointment Booking ── */}
-        {isAuthenticated && user?.role === 'tenant' && room.status === 'approved' && room.is_hidden !== true && room.is_available !== false && (
+        {isAuthenticated && user?.role === 'tenant' && room.status === 'approved' && room.is_hidden !== true && room.is_available !== false && Number(room.available_slots) > 0 && (
           <section className="room-section animate-fadeIn">
             <h2 className="room-section__title">📅 Đặt lịch xem phòng</h2>
             {!showAppt ? (
@@ -1168,6 +1183,11 @@ const styles = `
   .room-info__host--link:hover { border-color: var(--primary); background: var(--primary-50); }
   .host-name { font-weight: 600; color: var(--text-primary); font-size: 14px; display: flex; align-items: center; gap: 6px; }
   .host-phone { font-size: 13px; color: var(--text-secondary); margin-top: 2px; }
+  .contact-detail-box { margin: 12px 0; padding: 12px; border: 1px solid var(--border); border-radius: var(--radius-md); background: var(--bg-surface); }
+  .contact-detail-box__title { font-size: 11px; font-weight: 700; color: var(--text-muted); text-transform: uppercase; letter-spacing: .04em; margin-bottom: 4px; }
+  .contact-detail-box__name { font-size: 14px; font-weight: 700; color: var(--text-primary); margin-bottom: 8px; }
+  .contact-detail-box__grid { display: flex; flex-direction: column; gap: 5px; font-size: 13px; color: var(--text-secondary); }
+  .contact-detail-box__grid a { color: var(--primary); font-weight: 600; }
   .host-link-arrow { margin-left: auto; color: var(--text-muted); font-size: 16px; transition: var(--transition); }
   .room-info__host--link:hover .host-link-arrow { color: var(--primary); transform: translateX(2px); }
   .verified-badge {

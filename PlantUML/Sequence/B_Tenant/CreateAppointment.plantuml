@@ -1,0 +1,46 @@
+@startuml
+title Sequence Diagram: Create Appointment Process
+
+actor "Người thuê" as Tenant
+boundary "Appointment UI" as UI
+control "Appointment Controller" as AppointmentCtrl
+database "Rooms Table" as Rooms
+database "Appointments Table" as Appointments
+database "Notifications Table" as Notifications
+
+Tenant -> UI: Chọn phòng và thời gian xem phòng
+Tenant -> UI: Nhấn "Đặt lịch"
+UI -> AppointmentCtrl: POST /api/appointments
+AppointmentCtrl -> AppointmentCtrl: Kiểm tra room_id, scheduled_at
+
+alt Thiếu dữ liệu hoặc thời gian không hợp lệ
+  AppointmentCtrl --> UI: 400 Bad Request
+  UI --> Tenant: Hiển thị lỗi lịch hẹn
+else Dữ liệu hợp lệ
+  AppointmentCtrl -> Rooms: Lấy thông tin phòng
+  alt Phòng không tồn tại
+    Rooms --> AppointmentCtrl: Không có dữ liệu
+    AppointmentCtrl --> UI: 404 Not Found
+    UI --> Tenant: Phòng không tồn tại
+  else Phòng không khả dụng
+    Rooms --> AppointmentCtrl: Chưa duyệt / bị ẩn / hết chỗ
+    AppointmentCtrl --> UI: 400 Bad Request
+    UI --> Tenant: Phòng không thể đặt lịch
+  else Phòng khả dụng
+    Rooms --> AppointmentCtrl: host_id, title
+    AppointmentCtrl -> Appointments: Kiểm tra trùng lịch
+    alt Trùng khung giờ
+      Appointments --> AppointmentCtrl: Duplicate active appointment
+      AppointmentCtrl --> UI: 409 Conflict
+      UI --> Tenant: Khung giờ đã có lịch
+    else Không trùng lịch
+      AppointmentCtrl -> Appointments: Insert appointment status = pending
+      Appointments --> AppointmentCtrl: Appointment mới
+      AppointmentCtrl -> Notifications: Tạo thông báo cho chủ trọ
+      AppointmentCtrl --> UI: 201 Created
+      UI --> Tenant: Đặt lịch thành công, chờ xác nhận
+    end
+  end
+end
+
+@enduml

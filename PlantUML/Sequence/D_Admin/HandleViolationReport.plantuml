@@ -1,0 +1,41 @@
+@startuml
+title Sequence Diagram: Handle Violation Report Process
+
+actor "Admin" as Admin
+boundary "Reports UI" as UI
+control "Admin Controller" as AdminCtrl
+database "Reports Table" as Reports
+database "Rooms Table" as Rooms
+
+Admin -> UI: Mở trang báo cáo vi phạm
+UI -> AdminCtrl: GET /api/admin/reports
+AdminCtrl -> Reports: Query reports
+Reports --> AdminCtrl: Danh sách báo cáo
+AdminCtrl --> UI: Reports
+UI --> Admin: Hiển thị báo cáo
+
+Admin -> UI: Chọn xử lý hoặc bỏ qua
+UI -> AdminCtrl: PATCH /api/admin/reports/{id}
+AdminCtrl -> AdminCtrl: Validate status
+
+alt Status không hợp lệ
+  AdminCtrl --> UI: 400 Bad Request
+  UI --> Admin: Trạng thái xử lý không hợp lệ
+else Status hợp lệ
+  AdminCtrl -> Reports: Update status, resolved_at
+  alt Cập nhật thất bại
+    Reports --> AdminCtrl: Database error
+    AdminCtrl --> UI: 400 Error
+    UI --> Admin: Không thể xử lý báo cáo
+  else Cập nhật thành công
+    Reports --> AdminCtrl: Report đã cập nhật
+    opt Báo cáo liên quan phòng cần xử lý
+      AdminCtrl -> Rooms: Kiểm tra phòng bị báo cáo
+      Rooms --> AdminCtrl: Room info
+    end
+    AdminCtrl --> UI: 200 OK
+    UI --> Admin: Xử lý báo cáo thành công
+  end
+end
+
+@enduml

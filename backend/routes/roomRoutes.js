@@ -10,7 +10,7 @@ const upload = multer({
 
 // Public routes
 router.get('/', roomController.getApprovedRooms);
-router.get('/my/listings', protect, restrictTo('landlord'), roomController.getMyRooms);
+router.get('/my/listings', protect, restrictTo('landlord', 'broker'), roomController.getMyRooms);
 router.get('/landlord/:id/profile', roomController.getLandlordProfile);
 router.get('/:id', optionalAuth, roomController.getRoomById);
 router.get('/:id/similar', roomController.getSimilarRooms);
@@ -19,8 +19,8 @@ router.get('/:id/similar', roomController.getSimilarRooms);
 router.post('/', protect, restrictTo('landlord'), roomController.createRoom);
 router.put('/:id', protect, restrictTo('landlord'), roomController.updateRoom);
 router.delete('/:id', protect, restrictTo('landlord', 'admin'), roomController.deleteRoom);
-router.patch('/:id/toggle-hidden', protect, restrictTo('landlord'), roomController.toggleRoomHidden);
-router.patch('/:id/toggle-available', protect, restrictTo('landlord'), roomController.toggleRoomAvailable);
+router.patch('/:id/toggle-hidden', protect, restrictTo('landlord', 'broker'), roomController.toggleRoomHidden);
+router.patch('/:id/toggle-available', protect, restrictTo('landlord', 'broker'), roomController.toggleRoomAvailable);
 
 // Room image management (landlord)
 router.post('/:id/images', protect, restrictTo('landlord'), upload.array('images', 6), roomController.uploadRoomImages);

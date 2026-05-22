@@ -19,6 +19,7 @@ const AdminAllRooms = () => {
   const [page, setPage] = useState(1);
   const [actionState, setActionState] = useState({});
   const [rejectModal, setRejectModal] = useState(null);
+  const [brokers, setBrokers] = useState([]);
 
   const fetchRooms = async (p = 1) => {
     setLoading(true);
@@ -36,6 +37,16 @@ const AdminAllRooms = () => {
 
   // eslint-disable-next-line react-hooks/exhaustive-deps
   useEffect(() => { fetchRooms(1); }, [status, search]);
+
+  useEffect(() => {
+    const fetchBrokers = async () => {
+      try {
+        const { data } = await apiClient.get('/admin/brokers');
+        setBrokers(data || []);
+      } catch (e) { console.error(e); }
+    };
+    fetchBrokers();
+  }, []);
 
   const handleApprove = async (id) => {
     setActionState(s => ({ ...s, [id]: { loading: true } }));
@@ -60,6 +71,24 @@ const AdminAllRooms = () => {
     } catch {
       setActionState(s => ({ ...s, [roomId]: { error: 'Loi tu choi' } }));
       setRejectModal(null);
+    }
+  };
+
+  const handleBrokerChange = async (roomId, brokerId) => {
+    setActionState(s => ({ ...s, [roomId]: { loading: true } }));
+    try {
+      const { data } = await apiClient.patch(`/admin/rooms/${roomId}/broker`, {
+        broker_id: brokerId || null,
+      });
+      setRooms(prev => prev.map(room => (
+        room.id === roomId
+          ? { ...room, broker_id: data.room?.broker_id || null, broker: data.room?.broker || null }
+          : room
+      )));
+    } catch (e) {
+      setActionState(s => ({ ...s, [roomId]: { error: e.response?.data?.error || 'Loi gan moi gioi' } }));
+    } finally {
+      setActionState(s => ({ ...s, [roomId]: { loading: false } }));
     }
   };
 
@@ -142,6 +171,22 @@ const AdminAllRooms = () => {
                 <p className="pending-card__host">
                   👤 {room.users?.full_name} ({room.users?.email})
                 </p>
+                <label className="broker-assign">
+                  <span>Moi gioi phu trach</span>
+                  <select
+                    value={room.broker_id || ''}
+                    disabled={actionState[room.id]?.loading}
+                    onChange={e => handleBrokerChange(room.id, e.target.value)}
+                  >
+                    <option value="">Chua phan cong</option>
+                    {brokers.map(broker => (
+                      <option key={broker.id} value={broker.id}>
+                        {broker.full_name} ({broker.email})
+                      </option>
+                    ))}
+                  </select>
+                </label>
+                {actionState[room.id]?.error && <p className="form-error">{actionState[room.id].error}</p>}
                 <div style={{ display: 'flex', gap: 6, alignItems: 'center', marginTop: 4 }}>
                   <span className={`badge badge-${room.status}`}>
                     {room.status === 'approved' ? '✅ Duyệt' : room.status === 'pending' ? '⏳ Chờ' : '❌ Từ chối'}
@@ -201,6 +246,8 @@ const AdminAllRooms = () => {
         .modal-overlay { position: fixed; inset: 0; z-index: 200; background: rgba(0,0,0,.4); display: flex; align-items: center; justify-content: center; padding: 20px; }
         .modal-box { background: var(--bg-card); border: 1px solid var(--border); border-radius: var(--radius-xl); padding: 28px; max-width: 480px; width: 100%; display: flex; flex-direction: column; gap: 14px; }
         .modal-actions { display: flex; gap: 10px; justify-content: flex-end; }
+        .broker-assign { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; margin-top: 10px; color: var(--text-secondary); font-size: 12px; }
+        .broker-assign select { min-width: 220px; max-width: 100%; padding: 7px 10px; border: 1px solid var(--border); border-radius: var(--radius-sm); background: var(--bg-surface); color: var(--text-primary); font: inherit; font-size: 12px; }
       `}</style>
     </div>
   );

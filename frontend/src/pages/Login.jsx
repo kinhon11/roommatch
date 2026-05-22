@@ -25,6 +25,7 @@ const Login = () => {
     try {
       const res = await login(form);
       if (res.user?.role === 'admin') navigate('/admin/dashboard');
+      else if (res.user?.role === 'broker') navigate('/broker/dashboard');
       else if (res.user?.role === 'landlord') navigate('/landlord/dashboard');
       else navigate('/');
     } catch (err) {

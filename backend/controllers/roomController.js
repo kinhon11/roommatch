@@ -1,4 +1,5 @@
 const supabase = require('../config/supabaseClient');
+const { logActivity } = require('../utils/activityLogger');
 
 const APPROVAL_HISTORY_SELECT = `
   id, from_status, to_status, reason, created_at,
@@ -16,6 +17,10 @@ const parseNumber = (value) => {
   const number = Number(value);
   return Number.isFinite(number) ? number : null;
 };
+
+const canManageRoom = (user, room) => (
+  user?.role === 'admin' || room?.host_id === user?.id || room?.broker_id === user?.id
+);
 
 const buildRoomPayload = (body, fallbackSlots = 1) => {
   const slots = normalizeSlots(body.available_slots, fallbackSlots);
@@ -62,12 +67,15 @@ const getApprovedRooms = async (req, res) => {
       .from('rooms')
       .select(`
         *,
-        users (id, full_name, avatar_url, phone),
+        users:users!rooms_host_id_fkey (id, full_name, avatar_url, phone, contact_email, zalo, facebook_url, contact_hours),
+        broker:users!rooms_broker_id_fkey (id, full_name, avatar_url, phone, contact_email, zalo, facebook_url, contact_hours),
         room_images (image_url, is_primary),
         room_amenities (amenities (id, name, icon))
       `, { count: 'exact' })
       .eq('status', 'approved')
       .eq('is_hidden', false)
+      .eq('is_available', true)
+      .gt('available_slots', 0)
       .range(from, to);
 
     if (sort === 'price_asc') {
@@ -122,7 +130,8 @@ const getRoomById = async (req, res) => {
       .from('rooms')
       .select(`
         *,
-        users (id, full_name, avatar_url, phone, is_verified, created_at),
+        users:users!rooms_host_id_fkey (id, full_name, avatar_url, phone, contact_email, zalo, facebook_url, contact_hours, is_verified, created_at),
+        broker:users!rooms_broker_id_fkey (id, full_name, avatar_url, phone, contact_email, zalo, facebook_url, contact_hours, is_verified, created_at),
         room_images (id, image_url, is_primary),
         room_amenities (amenities (id, name, icon)),
         reviews (id, user_id, rating, comment, is_hidden, landlord_response, landlord_responded_at, created_at, updated_at, users!reviews_user_id_fkey (full_name, avatar_url))
@@ -132,7 +141,7 @@ const getRoomById = async (req, res) => {
 
     if (error) return res.status(404).json({ error: 'Không tìm thấy phòng.' });
     const isPublic = data.status === 'approved' && data.is_hidden !== true;
-    const canViewPrivate = req.user && (req.user.role === 'admin' || req.user.id === data.host_id);
+    const canViewPrivate = req.user && canManageRoom(req.user, data);
     if (!isPublic && !canViewPrivate) {
       return res.status(404).json({ error: 'Room not found.' });
     }
@@ -172,6 +181,8 @@ const getSimilarRooms = async (req, res) => {
       `)
       .eq('status', 'approved')
       .eq('is_hidden', false)
+      .eq('is_available', true)
+      .gt('available_slots', 0)
       .neq('id', room.id)
       .eq('city', room.city)
       .gte('price', minPrice)
@@ -278,9 +289,9 @@ const updateRoom = async (req, res) => {
 const toggleRoomHidden = async (req, res) => {
   try {
     const { data: existing } = await supabase
-      .from('rooms').select('host_id, is_hidden').eq('id', req.params.id).single();
+      .from('rooms').select('host_id, broker_id, is_hidden').eq('id', req.params.id).single();
 
-    if (!existing || existing.host_id !== req.user.id) {
+    if (!existing || !canManageRoom(req.user, existing)) {
       return res.status(403).json({ error: 'Bạn không có quyền thay đổi phòng này.' });
     }
 
@@ -293,6 +304,14 @@ const toggleRoomHidden = async (req, res) => {
       .single();
 
     if (error) return res.status(400).json({ error: error.message });
+    await logActivity({
+      actorId: req.user.id,
+      action: newHidden ? 'room_hidden' : 'room_unhidden',
+      targetType: 'room',
+      targetId: req.params.id,
+      oldValue: { is_hidden: existing.is_hidden },
+      newValue: { is_hidden: newHidden },
+    });
     return res.status(200).json({
       message: newHidden ? 'Đã ẩn phòng.' : 'Đã hiện phòng.',
       room: data,
@@ -309,9 +328,9 @@ const toggleRoomHidden = async (req, res) => {
 const toggleRoomAvailable = async (req, res) => {
   try {
     const { data: existing } = await supabase
-      .from('rooms').select('host_id, is_available, available_slots, last_available_slots').eq('id', req.params.id).single();
+      .from('rooms').select('host_id, broker_id, is_available, available_slots, last_available_slots').eq('id', req.params.id).single();
 
-    if (!existing || existing.host_id !== req.user.id) {
+    if (!existing || !canManageRoom(req.user, existing)) {
       return res.status(403).json({ error: 'Bạn không có quyền thay đổi phòng này.' });
     }
 
@@ -341,6 +360,14 @@ const toggleRoomAvailable = async (req, res) => {
       .single();
 
     if (error) return res.status(400).json({ error: error.message });
+    await logActivity({
+      actorId: req.user.id,
+      action: newAvail ? 'room_marked_available' : 'room_marked_full',
+      targetType: 'room',
+      targetId: req.params.id,
+      oldValue: { is_available: existing.is_available, available_slots: existing.available_slots },
+      newValue: { is_available: data.is_available, available_slots: data.available_slots },
+    });
     return res.status(200).json({
       message: newAvail ? 'Đã mở nhận khách.' : 'Đã đánh dấu hết phòng.',
       room: data,
@@ -366,7 +393,7 @@ const deleteRoom = async (req, res) => {
       return res.status(404).json({ error: 'Room not found.' });
     }
 
-    if (req.user.role !== 'admin' && existing.host_id !== req.user.id) {
+    if (req.user.role === 'broker' || (req.user.role !== 'admin' && existing.host_id !== req.user.id)) {
       return res.status(403).json({ error: 'You do not have permission to delete this room.' });
     }
 
@@ -384,12 +411,17 @@ const deleteRoom = async (req, res) => {
  */
 const getMyRooms = async (req, res) => {
   try {
-    const { data, error } = await supabase
+    let query = supabase
       .from('rooms')
-      .select(`*, room_images (image_url, is_primary), room_approval_history (${APPROVAL_HISTORY_SELECT})`)
-      .eq('host_id', req.user.id)
+      .select(`*, users:users!rooms_host_id_fkey (full_name, email), broker:users!rooms_broker_id_fkey (id, full_name, email, phone), room_images (image_url, is_primary), room_approval_history (${APPROVAL_HISTORY_SELECT})`)
       .order('created_at', { ascending: false })
       .order('created_at', { foreignTable: 'room_approval_history', ascending: false });
+
+    query = req.user.role === 'broker'
+      ? query.eq('broker_id', req.user.id)
+      : query.eq('host_id', req.user.id);
+
+    const { data, error } = await query;
 
     if (error) return res.status(500).json({ error: error.message });
     return res.status(200).json(data);
@@ -682,7 +714,7 @@ const respondToReview = async (req, res) => {
 
     const { data: room } = await supabase
       .from('rooms')
-      .select('host_id')
+      .select('host_id, broker_id')
       .eq('id', req.params.id)
       .single();
 
@@ -739,6 +771,8 @@ const getLandlordProfile = async (req, res) => {
       .eq('host_id', landlordId)
       .eq('status', 'approved')
       .eq('is_hidden', false)
+      .eq('is_available', true)
+      .gt('available_slots', 0)
       .order('created_at', { ascending: false });
 
     if (roomErr) return res.status(500).json({ error: roomErr.message });

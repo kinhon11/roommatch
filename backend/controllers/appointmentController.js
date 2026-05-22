@@ -51,19 +51,20 @@ const createAppointment = async (req, res) => {
 
     const { data: room } = await supabase
       .from('rooms')
-      .select('host_id, title, status, is_hidden, is_available')
+      .select('host_id, broker_id, title, status, is_hidden, is_available')
       .eq('id', room_id)
       .single();
 
     if (!room) return res.status(404).json({ error: 'Phong khong ton tai.' });
-    if (room.host_id === req.user.id) {
+    const responsibleUserId = room.broker_id || room.host_id;
+    if (room.host_id === req.user.id || room.broker_id === req.user.id) {
       return res.status(400).json({ error: 'Ban khong the dat lich cho phong cua minh.' });
     }
     if (room.status !== 'approved' || room.is_hidden === true || room.is_available === false) {
       return res.status(400).json({ error: 'This room is not available for appointments.' });
     }
 
-    if (await hasDuplicateAppointment({ roomId: room_id, landlordId: room.host_id, scheduledAt: scheduled_at })) {
+    if (await hasDuplicateAppointment({ roomId: room_id, landlordId: responsibleUserId, scheduledAt: scheduled_at })) {
       return res.status(409).json({ error: 'Khung gio nay da co lich hen cho phong hoac landlord.' });
     }
 
@@ -72,7 +73,7 @@ const createAppointment = async (req, res) => {
       .insert({
         room_id,
         tenant_id: req.user.id,
-        landlord_id: room.host_id,
+        landlord_id: responsibleUserId,
         scheduled_at,
         status: 'pending',
       })
@@ -81,7 +82,7 @@ const createAppointment = async (req, res) => {
 
     if (error) return res.status(400).json({ error: error.message });
 
-    await createNotification(room.host_id, 'appointment', {
+    await createNotification(responsibleUserId, 'appointment', {
       message: `Co lich hen xem phong "${room.title}" vao ${scheduledDate.toLocaleString('vi-VN')}`,
       appointment_id: data.id,
       room_id,
@@ -254,7 +255,7 @@ const getAppointments = async (req, res) => {
       query = query.eq('landlord_id', landlordId);
     } else if (req.user.role === 'tenant') {
       query = query.eq('tenant_id', req.user.id);
-    } else if (req.user.role === 'landlord') {
+    } else if (req.user.role === 'landlord' || req.user.role === 'broker') {
       query = query.eq('landlord_id', req.user.id);
     }
 

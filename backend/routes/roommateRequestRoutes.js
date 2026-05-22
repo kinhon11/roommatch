@@ -19,7 +19,7 @@ router.get('/check/:roomId', protect, restrictTo('tenant'), checkRequestStatus);
 router.post('/', protect, restrictTo('tenant'), createRoommateRequest);
 
 // Landlord updates request status (accept/reject)
-router.patch('/:id', protect, restrictTo('landlord'), updateRoommateRequestStatus);
+router.patch('/:id', protect, restrictTo('landlord', 'broker'), updateRoommateRequestStatus);
 
 // Tenant cancels own pending request
 router.delete('/:id', protect, restrictTo('tenant'), cancelRoommateRequest);

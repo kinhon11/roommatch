@@ -1,0 +1,29 @@
+@startuml
+title Use Case Quản lý lịch hẹn xem phòng - Chủ trọ
+
+left to right direction
+skinparam shadowing false
+actor "Chủ trọ" as Landlord
+actor "Người thuê" as Tenant
+
+rectangle "RoommieMatch" {
+  usecase "Xem lịch hẹn xem phòng" as ViewAppointments
+  usecase "Xác nhận lịch hẹn" as ConfirmAppointment
+  usecase "Đổi lịch hẹn" as RescheduleAppointment
+  usecase "Hoàn thành lịch hẹn" as CompleteAppointment
+  usecase "Hủy lịch hẹn" as CancelAppointment
+  usecase "Gửi thông báo lịch hẹn" as NotifyTenant
+}
+
+Landlord --> ViewAppointments
+Landlord --> ConfirmAppointment
+Landlord --> RescheduleAppointment
+Landlord --> CompleteAppointment
+Landlord --> CancelAppointment
+Tenant --> NotifyTenant
+
+ConfirmAppointment .> NotifyTenant : <<include>>
+RescheduleAppointment .> NotifyTenant : <<include>>
+CancelAppointment .> NotifyTenant : <<include>>
+
+@enduml

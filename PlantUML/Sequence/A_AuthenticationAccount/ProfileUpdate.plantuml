@@ -1,0 +1,39 @@
+@startuml
+title Sequence Diagram: Profile Update Process
+
+actor "Người dùng" as User
+boundary "Profile UI" as UI
+control "Profile Controller" as Profile
+control "Auth Middleware" as AuthMW
+database "Users Table" as Users
+
+User -> UI: Mở trang hồ sơ
+UI -> AuthMW: GET /api/profile + JWT
+AuthMW -> AuthMW: Kiểm tra token
+
+alt Token không hợp lệ
+  AuthMW --> UI: 401 Unauthorized
+  UI --> User: Yêu cầu đăng nhập lại
+else Token hợp lệ
+  AuthMW -> Profile: getProfile(user.id)
+  Profile -> Users: Select profile by id
+  Users --> Profile: Thông tin hồ sơ
+  Profile --> UI: Profile data
+  UI --> User: Hiển thị hồ sơ
+
+  User -> UI: Cập nhật thông tin cá nhân
+  UI -> AuthMW: PUT /api/profile + JWT
+  AuthMW -> Profile: updateProfile(user.id, data)
+  Profile -> Users: Update profile
+  alt Cập nhật thất bại
+    Users --> Profile: Database error
+    Profile --> UI: 400/500 Error
+    UI --> User: Hiển thị lỗi
+  else Cập nhật thành công
+    Users --> Profile: Profile mới
+    Profile --> UI: Profile mới
+    UI --> User: Thông báo cập nhật thành công
+  end
+end
+
+@enduml

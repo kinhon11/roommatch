@@ -55,13 +55,13 @@ const Navbar = () => {
 
   const closeMobile = () => setMobileOpen(false);
 
-  const navLinks = isAuthenticated
+  const navLinks = (isAuthenticated
     ? user?.role === 'admin'
       ? [
           { to: '/admin/dashboard', label: 'Admin', icon: '🛡️' },
           { to: '/assistant', label: 'AI trợ lý', icon: '🤖' },
         ]
-      : user?.role === 'landlord'
+      : user?.role === 'landlord' || user?.role === 'broker'
         ? [
             { to: '/landlord/dashboard', label: 'Dashboard', icon: '📊' },
             { to: '/landlord/post', label: 'Đăng tin', icon: '✏️' },
@@ -77,7 +77,9 @@ const Navbar = () => {
             { to: '/appointments', label: 'Lịch hẹn', icon: '📅' },
             { to: '/chat', label: 'Chat', icon: '💬' },
           ]
-    : [];
+    : [])
+      .filter((link) => user?.role !== 'broker' || link.to !== '/landlord/post')
+      .map((link) => user?.role === 'broker' && link.to === '/landlord/dashboard' ? { ...link, to: '/broker/dashboard' } : link);
 
   return (
     <>
@@ -143,7 +145,7 @@ const Navbar = () => {
                       <Link to="/notifications" className="navbar__dropdown-item" onClick={() => setDropdownOpen(false)}>
                         🔔 Thông báo
                       </Link>
-                      {user?.role === 'landlord' && (
+                      {(user?.role === 'landlord' || user?.role === 'broker') && (
                         <Link to="/landlord/my-rooms" className="navbar__dropdown-item" onClick={() => setDropdownOpen(false)}>
                           🏠 Phòng của tôi
                         </Link>

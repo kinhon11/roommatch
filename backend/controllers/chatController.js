@@ -7,7 +7,7 @@ const supabase = require('../config/supabaseClient');
 const getOrCreateConversation = async (req, res) => {
   try {
     const { room_id, landlord_id, tenant_id: requestedTenantId } = req.body;
-    const isLandlordRequester = req.user.role === 'landlord';
+    const isLandlordRequester = req.user.role === 'landlord' || req.user.role === 'broker';
     const tenant_id = isLandlordRequester ? requestedTenantId : req.user.id;
 
     if (!isLandlordRequester && !landlord_id) {
@@ -25,7 +25,7 @@ const getOrCreateConversation = async (req, res) => {
     if (room_id) {
       const { data: room, error: roomError } = await supabase
         .from('rooms')
-        .select('id, host_id, status, is_hidden')
+        .select('id, host_id, broker_id, status, is_hidden')
         .eq('id', room_id)
         .maybeSingle();
 
@@ -33,10 +33,11 @@ const getOrCreateConversation = async (req, res) => {
       if (!room || room.status !== 'approved' || room.is_hidden === true) {
         return res.status(404).json({ error: 'Room not found or not public.' });
       }
-      if (room.host_id !== verifiedLandlordId) {
+      const responsibleUserId = room.broker_id || room.host_id;
+      if (responsibleUserId !== verifiedLandlordId) {
         return res.status(400).json({ error: 'Landlord does not match this room.' });
       }
-      verifiedLandlordId = room.host_id;
+      verifiedLandlordId = responsibleUserId;
     } else {
       const { data: landlord, error: landlordError } = await supabase
         .from('users')
@@ -45,8 +46,8 @@ const getOrCreateConversation = async (req, res) => {
         .maybeSingle();
 
       if (landlordError) return res.status(400).json({ error: landlordError.message });
-      if (!landlord || landlord.role !== 'landlord' || landlord.is_locked === true) {
-        return res.status(404).json({ error: 'Valid landlord not found.' });
+      if (!landlord || !['landlord', 'broker'].includes(landlord.role) || landlord.is_locked === true) {
+        return res.status(404).json({ error: 'Valid contact person not found.' });
       }
     }
 

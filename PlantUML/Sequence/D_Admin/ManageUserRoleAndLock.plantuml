@@ -1,0 +1,45 @@
+@startuml
+title Sequence Diagram: Manage User Role and Lock Process
+
+actor "Admin" as Admin
+boundary "Users Management UI" as UI
+control "Admin Controller" as AdminCtrl
+database "Users Table" as Users
+
+Admin -> UI: Mở trang quản lý người dùng
+UI -> AdminCtrl: GET /api/admin/users
+AdminCtrl -> Users: Query users, search nếu có
+Users --> AdminCtrl: Danh sách người dùng
+AdminCtrl --> UI: Users
+UI --> Admin: Hiển thị danh sách
+
+alt Cập nhật vai trò
+  Admin -> UI: Chọn vai trò mới
+  UI -> AdminCtrl: PATCH /api/admin/users/{id}/role
+  AdminCtrl -> AdminCtrl: Validate role
+  alt Role không hợp lệ hoặc tự đổi vai trò
+    AdminCtrl --> UI: 400 Bad Request
+    UI --> Admin: Không thể cập nhật vai trò
+  else Hợp lệ
+    AdminCtrl -> Users: Update role
+    Users --> AdminCtrl: User đã cập nhật
+    AdminCtrl --> UI: 200 OK
+    UI --> Admin: Cập nhật vai trò thành công
+  end
+else Khóa / mở khóa tài khoản
+  Admin -> UI: Nhấn khóa hoặc mở khóa
+  UI -> AdminCtrl: PATCH /api/admin/users/{id}/lock
+  AdminCtrl -> Users: Lấy trạng thái khóa hiện tại
+  alt Người dùng không tồn tại hoặc tự khóa mình
+    Users --> AdminCtrl: Error
+    AdminCtrl --> UI: 400/404 Error
+    UI --> Admin: Không thể thay đổi trạng thái khóa
+  else Hợp lệ
+    AdminCtrl -> Users: Update is_locked
+    Users --> AdminCtrl: User đã cập nhật
+    AdminCtrl --> UI: 200 OK
+    UI --> Admin: Cập nhật trạng thái tài khoản thành công
+  end
+end
+
+@enduml

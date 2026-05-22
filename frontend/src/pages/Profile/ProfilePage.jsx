@@ -21,7 +21,7 @@ const ProfilePage = () => {
   const [activeTab, setActiveTab] = useState('info');
 
   // --- Info form state
-  const [form, setForm] = useState({ full_name: '', phone: '', address: '', bio: '' });
+  const [form, setForm] = useState({ full_name: '', phone: '', contact_email: '', zalo: '', facebook_url: '', contact_hours: '', address: '', bio: '' });
   const [saving,  setSaving]  = useState(false);
   const [success, setSuccess] = useState('');
   const [error,   setError]   = useState('');
@@ -47,9 +47,13 @@ const ProfilePage = () => {
     if (user) {
       setForm({
         full_name: user.full_name || '',
-        phone:     user.phone    || '',
-        address:   user.address  || '',
-        bio:       user.bio      || '',
+        phone: user.phone || '',
+        contact_email: user.contact_email || '',
+        zalo: user.zalo || '',
+        facebook_url: user.facebook_url || '',
+        contact_hours: user.contact_hours || '',
+        address: user.address || '',
+        bio: user.bio || '',
       });
     }
   }, [user]);
@@ -236,6 +240,58 @@ const ProfilePage = () => {
 
                 <div className="prof-form-group">
                   <label htmlFor="address">📍 Địa chỉ</label>
+                  <input
+                    id="contact_email"
+                    name="contact_email"
+                    type="email"
+                    className="input"
+                    placeholder="lienhe@example.com"
+                    value={form.contact_email}
+                    onChange={handleChange}
+                  />
+                </div>
+
+                <div className="prof-form-group">
+                  <label htmlFor="zalo">Zalo</label>
+                  <input
+                    id="zalo"
+                    name="zalo"
+                    type="text"
+                    className="input"
+                    placeholder="So Zalo hoac ten Zalo"
+                    value={form.zalo}
+                    onChange={handleChange}
+                  />
+                </div>
+
+                <div className="prof-form-group">
+                  <label htmlFor="facebook_url">Facebook</label>
+                  <input
+                    id="facebook_url"
+                    name="facebook_url"
+                    type="url"
+                    className="input"
+                    placeholder="https://facebook.com/..."
+                    value={form.facebook_url}
+                    onChange={handleChange}
+                  />
+                </div>
+
+                <div className="prof-form-group">
+                  <label htmlFor="contact_hours">Gio lien he</label>
+                  <input
+                    id="contact_hours"
+                    name="contact_hours"
+                    type="text"
+                    className="input"
+                    placeholder="8:00 - 21:00"
+                    value={form.contact_hours}
+                    onChange={handleChange}
+                  />
+                </div>
+
+                <div className="prof-form-group">
+                  <label htmlFor="address">Dia chi</label>
                   <input
                     id="address"
                     name="address"

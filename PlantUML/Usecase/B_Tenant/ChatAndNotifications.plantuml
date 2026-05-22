@@ -1,0 +1,30 @@
+@startuml
+title Use Case Chat & Thông báo - Người thuê
+
+left to right direction
+skinparam shadowing false
+actor "Người thuê" as Tenant
+actor "Chủ trọ" as Landlord
+
+rectangle "RoommieMatch" {
+  usecase "Mở cuộc trò chuyện" as OpenChat
+  usecase "Gửi tin nhắn" as SendMessage
+  usecase "Xem tin nhắn" as ViewMessages
+  usecase "Xem số tin chưa đọc" as UnreadCount
+  usecase "Xem thông báo" as ViewNotifications
+  usecase "Đánh dấu thông báo đã đọc" as MarkRead
+}
+
+Tenant --> OpenChat
+Tenant --> SendMessage
+Tenant --> ViewMessages
+Tenant --> UnreadCount
+Tenant --> ViewNotifications
+Tenant --> MarkRead
+Landlord --> ViewMessages
+Landlord --> SendMessage
+
+SendMessage .> ViewNotifications : <<include>>
+MarkRead .> ViewNotifications : <<include>>
+
+@enduml

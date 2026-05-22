@@ -12,6 +12,7 @@ const STATUS_MAP = {
 
 const LandlordDashboard = () => {
   const { user } = useAuth();
+  const isBroker = user?.role === 'broker';
   const [rooms, setRooms] = useState([]);
   const [loading, setLoading] = useState(true);
 
@@ -30,7 +31,7 @@ const LandlordDashboard = () => {
   };
 
   return (
-    <div className="ld-page">
+    <div className={`ld-page ${isBroker ? 'ld-page--broker' : ''}`}>
       <div className="container">
         {/* ── Welcome ── */}
         <div className="ld-welcome animate-slideUp">
@@ -165,6 +166,8 @@ const LandlordDashboard = () => {
 
 const ldStyles = `
   .ld-page { padding: 32px 0 80px; }
+  .ld-page--broker a[href="/landlord/post"],
+  .ld-page--broker a[href^="/landlord/edit/"] { display: none; }
 
   /* Welcome */
   .ld-welcome {

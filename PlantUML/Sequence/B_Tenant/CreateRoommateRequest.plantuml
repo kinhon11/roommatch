@@ -1,0 +1,42 @@
+@startuml
+title Sequence Diagram: Create Roommate Request Process
+
+actor "Người thuê" as Tenant
+boundary "Room Detail UI" as UI
+control "Roommate Request Controller" as RequestCtrl
+database "Rooms Table" as Rooms
+database "Roommate Requests Table" as Requests
+database "Notifications Table" as Notifications
+
+Tenant -> UI: Nhập nội dung yêu cầu ở ghép
+Tenant -> UI: Nhấn "Gửi yêu cầu"
+UI -> RequestCtrl: POST /api/roommate-requests
+RequestCtrl -> Rooms: Lấy thông tin phòng
+
+alt Phòng không tồn tại
+  Rooms --> RequestCtrl: Không có dữ liệu
+  RequestCtrl --> UI: 404 Not Found
+  UI --> Tenant: Phòng không tồn tại
+else Phòng không nhận yêu cầu
+  Rooms --> RequestCtrl: Chưa duyệt / bị ẩn / hết chỗ
+  RequestCtrl --> UI: 400 Bad Request
+  UI --> Tenant: Phòng không còn nhận yêu cầu
+else Phòng hợp lệ
+  Rooms --> RequestCtrl: host_id, title, available_slots
+  RequestCtrl -> Requests: Kiểm tra request pending/accepted đã tồn tại
+  alt Đã gửi yêu cầu trước đó
+    Requests --> RequestCtrl: Existing request
+    RequestCtrl --> UI: 409 Conflict
+    UI --> Tenant: Bạn đã gửi yêu cầu cho phòng này
+  else Chưa có yêu cầu
+    Requests --> RequestCtrl: Không trùng
+    RequestCtrl -> Requests: Insert request status = pending
+    Requests --> RequestCtrl: Request mới
+    RequestCtrl -> Notifications: Tạo thông báo cho chủ trọ
+    Notifications --> RequestCtrl: Notification created
+    RequestCtrl --> UI: 201 Created
+    UI --> Tenant: Gửi yêu cầu thành công
+  end
+end
+
+@enduml

@@ -5,6 +5,7 @@ import useFetch from '../../hooks/useFetch';
 import { formatCurrency, formatDate } from '../../utils/format';
 import { useDialog } from '../../context/DialogContext';
 import { useToast } from '../../context/ToastContext';
+import { useAuth } from '../../hooks/useAuth';
 
 const STATUS_MAP = {
   pending:  { label: 'Chờ duyệt', cls: 'badge-pending' },
@@ -14,6 +15,8 @@ const STATUS_MAP = {
 
 const MyRooms = () => {
   const navigate = useNavigate();
+  const { user } = useAuth();
+  const isBroker = user?.role === 'broker';
   const [deletingId, setDeletingId] = useState(null);
   const [confirmId, setConfirmId]   = useState(null);
   const [toggling, setToggling]     = useState({});
@@ -76,7 +79,7 @@ const MyRooms = () => {
   };
 
   return (
-    <div className="my-rooms-page">
+    <div className={`my-rooms-page ${isBroker ? 'my-rooms-page--broker' : ''}`}>
       <div className="container">
         {/* Header */}
         <div className="mr-header animate-slideUp">
@@ -208,6 +211,10 @@ const MyRooms = () => {
 
 const myRoomsStyles = `
   .my-rooms-page { padding:32px 0 80px; }
+  .my-rooms-page--broker a[href="/landlord/post"],
+  .my-rooms-page--broker .mr-empty a[href="/landlord/post"],
+  .my-rooms-page--broker .mr-card-actions .btn-secondary,
+  .my-rooms-page--broker .mr-card-actions .btn-danger { display:none; }
   .mr-header { display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:16px;margin-bottom:32px; }
   .mr-header h1 { font-size:28px;font-weight:800;color:var(--text-primary);margin-bottom:6px; }
   .mr-header p  { color:var(--text-secondary);font-size:15px; }
