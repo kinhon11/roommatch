@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { useAuth } from '../../hooks/useAuth';
 import { geminiService } from '../../services/geminiService';
@@ -27,6 +27,12 @@ const AssistantPage = () => {
   const [criteria, setCriteria] = useState(null);
   const [provider, setProvider] = useState('');
   const [error, setError] = useState('');
+  const [followUpPrompts, setFollowUpPrompts] = useState(QUICK_PROMPTS);
+  const bottomRef = useRef(null);
+
+  useEffect(() => {
+    bottomRef.current?.scrollIntoView({ behavior: 'smooth', block: 'end' });
+  }, [messages, loading]);
 
   const sendMessage = async (content) => {
     const text = content.trim();
@@ -53,6 +59,9 @@ const AssistantPage = () => {
       setRooms(Array.isArray(data.rooms) ? data.rooms : []);
       setCriteria(data.criteria || null);
       setProvider(data.provider || '');
+      setFollowUpPrompts(Array.isArray(data.follow_up_prompts) && data.follow_up_prompts.length
+        ? data.follow_up_prompts.slice(0, 4)
+        : QUICK_PROMPTS);
     } catch (err) {
       setError(err?.response?.data?.error || 'Không thể kết nối trợ lý AI.');
       setMessages(prev => [...prev, {
@@ -89,7 +98,7 @@ const AssistantPage = () => {
         <section className="assistant-layout">
           <div className="assistant-chat animate-slideUp">
             <div className="assistant-chat__quick">
-              {QUICK_PROMPTS.map(prompt => (
+              {followUpPrompts.map(prompt => (
                 <button key={prompt} type="button" className="assistant-chip" onClick={() => sendMessage(prompt)}>
                   {prompt}
                 </button>
@@ -111,6 +120,7 @@ const AssistantPage = () => {
                   </div>
                 </div>
               )}
+              <div ref={bottomRef} />
             </div>
 
             <form className="assistant-input" onSubmit={handleSubmit}>
@@ -188,52 +198,86 @@ const AssistantPage = () => {
 };
 
 const assistantStyles = `
-  .assistant-page { padding: 28px 0 64px; }
-  .assistant-shell { display: flex; flex-direction: column; gap: 20px; }
+  .assistant-page { padding: 12px 0 20px; }
+  .assistant-shell { display: flex; flex-direction: column; gap: 10px; }
   .assistant-hero {
-    background: linear-gradient(135deg, var(--bg-surface) 0%, var(--primary-50) 100%);
+    background: var(--bg-surface);
     border: 1px solid var(--border);
-    border-radius: var(--radius-xl);
-    padding: 24px;
-    display: flex;
-    align-items: flex-start;
-    justify-content: space-between;
-    gap: 20px;
-  }
-  .assistant-kicker { font-size: 12px; font-weight: 800; text-transform: uppercase; letter-spacing: .08em; color: var(--primary-dark); margin-bottom: 8px; }
-  .assistant-hero h1 { font-size: 28px; font-weight: 800; color: var(--text-primary); margin-bottom: 8px; }
-  .assistant-hero p { color: var(--text-secondary); max-width: 68ch; line-height: 1.7; }
-  .assistant-hero__badge {
+    border-radius: var(--radius-lg);
     padding: 10px 14px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 16px;
+  }
+  .assistant-kicker { font-size: 11px; font-weight: 800; text-transform: uppercase; letter-spacing: .08em; color: var(--primary-dark); margin-bottom: 2px; }
+  .assistant-hero h1 { font-size: 18px; font-weight: 800; color: var(--text-primary); margin-bottom: 0; letter-spacing: 0; }
+  .assistant-hero p { display: none; }
+  .assistant-hero__badge {
+    padding: 7px 11px;
     border-radius: var(--radius-full);
     background: var(--bg-surface);
     border: 1px solid var(--border);
     color: var(--text-secondary);
-    font-size: 13px;
+    font-size: 12px;
     font-weight: 600;
     white-space: nowrap;
   }
-  .assistant-layout { display: grid; grid-template-columns: 1.4fr .9fr; gap: 20px; align-items: start; }
+  .assistant-layout {
+    display: grid;
+    grid-template-columns: minmax(0, 1.35fr) minmax(320px, .85fr);
+    gap: 16px;
+    align-items: stretch;
+    min-height: 0;
+  }
   @media (max-width: 1024px) { .assistant-layout { grid-template-columns: 1fr; } }
   .assistant-chat, .assistant-sidebar {
     background: var(--bg-surface);
     border: 1px solid var(--border);
-    border-radius: var(--radius-xl);
+    border-radius: var(--radius-lg);
     box-shadow: var(--shadow-sm);
+    min-width: 0;
   }
-  .assistant-chat { padding: 18px; display: flex; flex-direction: column; gap: 16px; min-height: 680px; }
-  .assistant-chat__quick { display: flex; flex-wrap: wrap; gap: 8px; }
+  .assistant-chat {
+    padding: 14px;
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    height: min(660px, calc(100vh - 170px));
+    min-height: 430px;
+    overflow: hidden;
+  }
+  .assistant-chat__quick {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    max-height: 76px;
+    overflow: hidden;
+    padding-bottom: 2px;
+    flex-shrink: 0;
+  }
   .assistant-chip {
-    padding: 8px 12px;
+    padding: 7px 11px;
     border-radius: var(--radius-full);
     border: 1px solid var(--border);
     background: var(--bg-hover);
     color: var(--text-secondary);
-    font-size: 13px;
+    font-size: 12px;
     transition: var(--transition);
+    white-space: nowrap;
+    flex: 0 0 auto;
+    max-width: 100%;
   }
   .assistant-chip:hover { border-color: var(--primary); color: var(--primary-dark); background: var(--primary-50); }
-  .assistant-messages { flex: 1; overflow-y: auto; display: flex; flex-direction: column; gap: 12px; padding-right: 4px; }
+  .assistant-messages {
+    flex: 1;
+    min-height: 0;
+    overflow-y: auto;
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    padding: 2px 4px 2px 0;
+  }
   .assistant-msg { display: flex; }
   .assistant-msg--user { justify-content: flex-end; }
   .assistant-msg--bot { justify-content: flex-start; }
@@ -244,16 +288,29 @@ const assistantStyles = `
     background: var(--bg-warm);
     color: var(--text-primary);
     border: 1px solid var(--border);
-    line-height: 1.7;
+    line-height: 1.6;
     white-space: pre-line;
+    overflow-wrap: anywhere;
   }
   .assistant-msg--user .assistant-msg__bubble { background: var(--primary); color: #fff; border-color: transparent; }
   .assistant-msg__bubble--loading { color: var(--text-secondary); font-style: italic; }
-  .assistant-input { display: flex; flex-direction: column; gap: 12px; }
-  .assistant-input__field { resize: vertical; min-height: 96px; }
+  .assistant-input {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    flex-shrink: 0;
+    border-top: 1px solid var(--border);
+    padding-top: 12px;
+  }
+  .assistant-input__field { resize: none; min-height: 78px; max-height: 120px; }
   .assistant-input__actions { display: flex; justify-content: flex-end; }
-  .assistant-sidebar { padding: 18px; }
-  .assistant-panel { display: flex; flex-direction: column; gap: 16px; }
+  .assistant-sidebar {
+    padding: 14px;
+    height: min(660px, calc(100vh - 170px));
+    min-height: 430px;
+    overflow: hidden;
+  }
+  .assistant-panel { display: flex; flex-direction: column; gap: 12px; height: 100%; min-height: 0; }
   .assistant-panel h2 { font-size: 18px; font-weight: 700; color: var(--text-primary); }
   .assistant-summary {
     background: var(--primary-50);
@@ -272,7 +329,7 @@ const assistantStyles = `
     color: var(--text-secondary);
     font-size: 14px;
   }
-  .assistant-room-list { display: flex; flex-direction: column; gap: 12px; }
+  .assistant-room-list { display: flex; flex-direction: column; gap: 10px; overflow-y: auto; min-height: 0; padding-right: 2px; }
   .assistant-room-card {
     display: grid;
     grid-template-columns: 96px 1fr;
@@ -292,6 +349,7 @@ const assistantStyles = `
   .assistant-room-card__body p, .assistant-room-card__body span { font-size: 12px; color: var(--text-secondary); line-height: 1.5; }
   .assistant-room-card__body strong { font-size: 14px; color: var(--primary-dark); margin-top: 2px; }
   .assistant-panel__tip {
+    margin-top: auto;
     padding-top: 4px;
     border-top: 1px solid var(--border);
     color: var(--text-secondary);
@@ -301,6 +359,10 @@ const assistantStyles = `
   .assistant-panel__tip ul { margin: 8px 0 0; padding-left: 18px; display: flex; flex-direction: column; gap: 6px; }
   @media (max-width: 640px) {
     .assistant-hero { flex-direction: column; }
+    .assistant-hero__badge { align-self: flex-start; }
+    .assistant-chat, .assistant-sidebar { height: auto; min-height: 0; }
+    .assistant-messages { max-height: 52vh; }
+    .assistant-msg__bubble { max-width: 92%; }
     .assistant-room-card { grid-template-columns: 1fr; }
     .assistant-room-card__image { width: 100%; height: 180px; }
   }

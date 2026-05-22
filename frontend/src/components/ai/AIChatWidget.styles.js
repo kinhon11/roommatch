@@ -23,12 +23,12 @@ export const widgetStyles = `
     position: fixed;
     right: 24px;
     bottom: 24px;
-    width: 380px;
+    width: 400px;
     max-width: calc(100vw - 24px);
     z-index: var(--z-toast);
     background: var(--bg-surface);
     border: 1px solid var(--border);
-    border-radius: 22px;
+    border-radius: 16px;
     box-shadow: var(--shadow-float);
     overflow: hidden;
     display: flex;
@@ -88,11 +88,15 @@ export const widgetStyles = `
     gap: 12px;
     min-height: 0;
     flex: 1;
+    overflow: hidden;
   }
   .ai-widget__chips {
     display: flex;
-    flex-wrap: wrap;
+    flex-wrap: nowrap;
     gap: 8px;
+    overflow-x: auto;
+    padding-bottom: 2px;
+    flex-shrink: 0;
   }
   .ai-widget__chip {
     padding: 7px 10px;
@@ -101,6 +105,8 @@ export const widgetStyles = `
     background: var(--bg-warm);
     color: var(--text-secondary);
     font-size: 12px;
+    white-space: nowrap;
+    flex: 0 0 auto;
   }
   .ai-widget__chip:hover {
     border-color: var(--primary-100);
@@ -114,6 +120,7 @@ export const widgetStyles = `
     flex-direction: column;
     gap: 10px;
     padding-right: 2px;
+    min-height: 0;
   }
   .ai-widget__msg { display: flex; }
   .ai-widget__msg--user { justify-content: flex-end; }
@@ -126,6 +133,7 @@ export const widgetStyles = `
     border: 1px solid var(--border);
     line-height: 1.6;
     white-space: pre-line;
+    overflow-wrap: anywhere;
   }
   .ai-widget__msg--user .ai-widget__bubble {
     background: var(--primary);
@@ -148,6 +156,9 @@ export const widgetStyles = `
     display: flex;
     flex-direction: column;
     gap: 10px;
+    flex-shrink: 0;
+    max-height: 190px;
+    overflow-y: auto;
   }
   .ai-widget__context {
     display: flex;
@@ -256,10 +267,12 @@ export const widgetStyles = `
     gap: 10px;
     padding-top: 4px;
     border-top: 1px solid var(--border);
+    flex-shrink: 0;
   }
   .ai-widget__textarea {
-    resize: vertical;
-    min-height: 90px;
+    resize: none;
+    min-height: 72px;
+    max-height: 110px;
   }
   .ai-widget__footer {
     display: flex;
@@ -284,7 +297,7 @@ export const widgetStyles = `
       left: 12px;
       bottom: 12px;
       width: auto;
-      height: min(76vh, 680px);
+      height: min(82vh, 680px);
     }
   }
 `;
