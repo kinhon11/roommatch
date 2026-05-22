@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useParams, Link, useNavigate } from 'react-router-dom';
 import { roomService } from '../../services/roomService';
-import { formatCurrency as formatPrice, formatDate } from '../../utils/format';
+import { formatCurrency, formatDate } from '../../utils/format';
 import { useAuth } from '../../hooks/useAuth';
 import apiClient from '../../api/apiClient';
 import { favoriteService } from '../../services/favoriteService';
@@ -10,7 +10,6 @@ import { roommateRequestService } from '../../services/roommateRequestService';
 import { appointmentService } from '../../services/appointmentService';
 import { depositService } from '../../services/depositService';
 import { geminiService } from '../../services/geminiService';
-import { formatCurrency } from '../../utils/format';
 import { useDialog } from '../../context/DialogContext';
 import { useToast } from '../../context/ToastContext';
 
@@ -373,6 +372,29 @@ const RoomDetail = () => {
   const contactUser = room.broker || room.users;
   const contactLabel = room.broker ? 'Moi gioi phu trach' : 'Chu nha';
   const contactProfilePath = `/landlords/${room.users?.id}`;
+  const paymentCycleLabel = {
+    monthly: 'Hàng tháng',
+    quarterly: 'Theo quý',
+    negotiable: 'Thỏa thuận',
+  }[room.payment_cycle] || 'Hàng tháng';
+  const costRows = [
+    ['Tiền cọc yêu cầu', room.deposit_amount ? formatCurrency(room.deposit_amount) : 'Chưa cập nhật'],
+    ['Điện', room.electricity_price ? `${formatCurrency(room.electricity_price)} / kWh` : 'Chưa cập nhật'],
+    ['Nước', room.water_price ? `${formatCurrency(room.water_price)} / người hoặc m³` : 'Chưa cập nhật'],
+    ['Wifi', room.internet_fee ? `${formatCurrency(room.internet_fee)} / tháng` : 'Chưa cập nhật'],
+    ['Gửi xe', room.parking_fee ? `${formatCurrency(room.parking_fee)} / tháng` : 'Chưa cập nhật'],
+    ['Dịch vụ', room.service_fee ? `${formatCurrency(room.service_fee)} / tháng` : 'Chưa cập nhật'],
+    ['Chu kỳ thanh toán', paymentCycleLabel],
+  ];
+  const ruleRows = [
+    ['Chung chủ', room.is_owner_occupied ? 'Có' : 'Không'],
+    ['Giờ giấc', room.has_private_hours ? 'Tự do' : 'Theo quy định chủ nhà'],
+    ['Nấu ăn', room.allow_cooking ? 'Được phép' : 'Không cho phép'],
+    ['Thú cưng', room.allow_pets ? 'Được phép' : 'Không cho phép'],
+    ['Tiếp khách', room.allow_visitors ? 'Được phép' : 'Hạn chế'],
+    ['Chỗ để xe', room.has_parking ? 'Có' : 'Chưa có / chưa cập nhật'],
+    ['Số người tối đa', room.max_occupants ? `${room.max_occupants} người` : 'Chưa cập nhật'],
+  ];
 
   return (
     <div className="room-detail-page">
@@ -440,12 +462,18 @@ const RoomDetail = () => {
             <div className="room-info__stats">
               <div className="room-stat">
                 <span className="room-stat__label">Giá thuê</span>
-                <strong className="room-stat__value room-stat__value--price">{formatPrice(room.price)}<small>/tháng</small></strong>
+                <strong className="room-stat__value room-stat__value--price">{formatCurrency(room.price)}<small>/tháng</small></strong>
               </div>
               {room.area && (
                 <div className="room-stat">
                   <span className="room-stat__label">Diện tích</span>
                   <strong className="room-stat__value">{room.area} m²</strong>
+                </div>
+              )}
+              {room.deposit_amount && (
+                <div className="room-stat">
+                  <span className="room-stat__label">Cọc yêu cầu</span>
+                  <strong className="room-stat__value">{formatCurrency(room.deposit_amount)}</strong>
                 </div>
               )}
               {avgRating() && (
@@ -561,6 +589,31 @@ const RoomDetail = () => {
               <p className="text-muted">Chưa có mô tả.</p>
             )}
           </div>
+        </section>
+
+        <section className="room-section animate-fadeIn">
+          <h2 className="room-section__title">💰 Chi phí & thanh toán</h2>
+          <div className="room-cost-grid">
+            {costRows.map(([label, value]) => (
+              <div key={label} className="room-cost-item">
+                <span>{label}</span>
+                <strong>{value}</strong>
+              </div>
+            ))}
+          </div>
+        </section>
+
+        <section className="room-section animate-fadeIn">
+          <h2 className="room-section__title">📌 Nội quy phòng</h2>
+          <div className="room-rule-grid">
+            {ruleRows.map(([label, value]) => (
+              <div key={label} className="room-rule-item">
+                <span>{label}</span>
+                <strong>{value}</strong>
+              </div>
+            ))}
+          </div>
+          {room.house_rules && <p className="room-rule-note">{room.house_rules}</p>}
         </section>
 
         {/* ── Amenities ── */}
@@ -792,7 +845,7 @@ const RoomDetail = () => {
               </div>
               {!showDeposit ? (
                 <button className="btn btn-primary" onClick={() => {
-                  setDepositForm(f => ({ ...f, amount: f.amount || room.price || '' }));
+                  setDepositForm(f => ({ ...f, amount: f.amount || room.deposit_amount || room.price || '' }));
                   setShowDeposit(true);
                 }}>
                   Gui yeu cau coc
@@ -1279,6 +1332,20 @@ const styles = `
   .text-muted { color: var(--text-muted) !important; }
 
   /* Amenities */
+  .room-cost-grid,
+  .room-rule-grid { display:grid;grid-template-columns:repeat(2,1fr);gap:10px; }
+  .room-cost-item,
+  .room-rule-item {
+    display:flex;flex-direction:column;gap:4px;padding:14px;
+    background:var(--bg-surface);border:1px solid var(--border);border-radius:var(--radius-md);
+  }
+  .room-cost-item span,
+  .room-rule-item span { font-size:12px;color:var(--text-muted);font-weight:600;text-transform:uppercase;letter-spacing:.04em; }
+  .room-cost-item strong,
+  .room-rule-item strong { font-size:14px;color:var(--text-primary);font-weight:700; }
+  .room-rule-note { margin-top:12px;padding:12px 14px;border-radius:var(--radius-md);background:var(--bg-warm);border:1px solid var(--border-subtle);color:var(--text-secondary);line-height:1.6; }
+  @media(max-width:640px){ .room-cost-grid,.room-rule-grid{grid-template-columns:1fr;} }
+
   .amenities-grid { display: flex; flex-wrap: wrap; gap: 8px; }
   .amenity-chip {
     display: flex; align-items: center; gap: 6px;

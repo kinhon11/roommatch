@@ -6,6 +6,37 @@ import { geminiService } from '../../services/geminiService';
 import { supabase } from '../../services/supabaseClient';
 
 const CITIES = ['Hà Nội', 'Hồ Chí Minh', 'Đà Nẵng', 'Hải Phòng', 'Cần Thơ', 'Huế', 'Nha Trang', 'Biên Hòa', 'Vũng Tàu'];
+const PAYMENT_CYCLES = [
+  { value: 'monthly', label: 'Hàng tháng' },
+  { value: 'quarterly', label: 'Theo quý' },
+  { value: 'negotiable', label: 'Thỏa thuận' },
+];
+
+const MONEY_FIELDS = ['deposit_amount', 'electricity_price', 'water_price', 'internet_fee', 'parking_fee', 'service_fee'];
+const buildRoomPayload = (form) => ({
+  title: form.title,
+  price: +form.price,
+  area: form.area ? +form.area : null,
+  address: form.address,
+  city: form.city,
+  description: form.description,
+  available_slots: form.available_slots ? +form.available_slots : 1,
+  deposit_amount: form.deposit_amount ? +form.deposit_amount : null,
+  electricity_price: form.electricity_price ? +form.electricity_price : null,
+  water_price: form.water_price ? +form.water_price : null,
+  internet_fee: form.internet_fee ? +form.internet_fee : null,
+  parking_fee: form.parking_fee ? +form.parking_fee : null,
+  service_fee: form.service_fee ? +form.service_fee : null,
+  payment_cycle: form.payment_cycle,
+  is_owner_occupied: form.is_owner_occupied,
+  has_private_hours: form.has_private_hours,
+  allow_cooking: form.allow_cooking,
+  allow_pets: form.allow_pets,
+  allow_visitors: form.allow_visitors,
+  has_parking: form.has_parking,
+  max_occupants: form.max_occupants ? +form.max_occupants : null,
+  house_rules: form.house_rules,
+});
 
 const PostRoom = () => {
   useAuth(); // ensure authenticated
@@ -14,6 +45,11 @@ const PostRoom = () => {
   const [form, setForm] = useState({
     title: '', price: '', area: '', address: '', city: 'Hà Nội', description: '',
     available_slots: 1,
+    deposit_amount: '', electricity_price: '', water_price: '', internet_fee: '',
+    parking_fee: '', service_fee: '', payment_cycle: 'monthly',
+    is_owner_occupied: false, has_private_hours: true, allow_cooking: true,
+    allow_pets: false, allow_visitors: true, has_parking: false,
+    max_occupants: '', house_rules: '',
   });
   const [selectedAmenities, setSelectedAmenities] = useState([]);
   const [amenities, setAmenities]   = useState([]);
@@ -35,7 +71,8 @@ const PostRoom = () => {
   }, []);
 
   const handleChange = (e) => {
-    setForm(prev => ({ ...prev, [e.target.name]: e.target.value }));
+    const value = e.target.type === 'checkbox' ? e.target.checked : e.target.value;
+    setForm(prev => ({ ...prev, [e.target.name]: value }));
     if (errors[e.target.name]) setErrors(prev => ({ ...prev, [e.target.name]: '' }));
     setApiError('');
   };
@@ -67,8 +104,8 @@ const PostRoom = () => {
     try {
       const amenityNames = amenities.filter(a => selectedAmenities.includes(a.id)).map(a => a.name);
       const desc = await geminiService.generateDescription({
-        title: form.title, price: form.price, area: form.area,
-        address: form.address, city: form.city, amenities: amenityNames,
+        ...buildRoomPayload(form),
+        amenities: amenityNames,
       });
       setForm(prev => ({ ...prev, description: desc }));
     } catch {
@@ -87,14 +124,8 @@ const PostRoom = () => {
     try {
       const amenityNames = amenities.filter(a => selectedAmenities.includes(a.id)).map(a => a.name);
       const analysis = await geminiService.analyzeListing({
-        title: form.title,
-        price: form.price,
-        area: form.area,
-        address: form.address,
-        city: form.city,
-        description: form.description,
+        ...buildRoomPayload(form),
         amenities: amenityNames,
-        available_slots: form.available_slots,
         image_count: images.length,
       });
       setListingAnalysis(analysis);
@@ -112,6 +143,12 @@ const PostRoom = () => {
     if (!form.price)          e.price   = 'Vui lòng nhập giá thuê.';
     else if (isNaN(form.price) || +form.price <= 0) e.price = 'Giá phải là số dương.';
     if (!form.address.trim()) e.address = 'Vui lòng nhập địa chỉ.';
+    MONEY_FIELDS.forEach((field) => {
+      if (form[field] !== '' && (+form[field] < 0 || Number.isNaN(+form[field]))) e[field] = 'Không được âm.';
+    });
+    if (form.max_occupants !== '' && (!Number.isInteger(+form.max_occupants) || +form.max_occupants <= 0)) {
+      e.max_occupants = 'Nhập số nguyên lớn hơn 0.';
+    }
     return e;
   };
 
@@ -124,9 +161,7 @@ const PostRoom = () => {
     try {
       // 1. Đăng tin (status: pending)
       const res = await roomService.createRoom({
-        title: form.title, price: +form.price, area: form.area ? +form.area : null,
-        address: form.address, city: form.city, description: form.description,
-        available_slots: form.available_slots ? +form.available_slots : 1,
+        ...buildRoomPayload(form),
         amenity_ids: selectedAmenities,
       });
 
@@ -214,6 +249,49 @@ const PostRoom = () => {
                 </div>
               </div>
 
+              <div className="pr-section animate-slideUp" style={{ animationDelay: '0.08s' }}>
+                <h2 className="pr-section-title">💰 Chi phí thực tế</h2>
+                <div className="form-row-2">
+                  <div className="form-group">
+                    <label className="form-label">Tiền cọc yêu cầu</label>
+                    <input name="deposit_amount" type="number" value={form.deposit_amount} onChange={handleChange} className={`form-input ${errors.deposit_amount ? 'error' : ''}`} placeholder="VD: 3500000" min="0" />
+                    {errors.deposit_amount && <p className="form-error">{errors.deposit_amount}</p>}
+                  </div>
+                  <div className="form-group">
+                    <label className="form-label">Chu kỳ thanh toán</label>
+                    <select name="payment_cycle" value={form.payment_cycle} onChange={handleChange} className="form-input">
+                      {PAYMENT_CYCLES.map(cycle => <option key={cycle.value} value={cycle.value}>{cycle.label}</option>)}
+                    </select>
+                  </div>
+                </div>
+                <div className="form-row-2">
+                  <div className="form-group">
+                    <label className="form-label">Giá điện</label>
+                    <input name="electricity_price" type="number" value={form.electricity_price} onChange={handleChange} className={`form-input ${errors.electricity_price ? 'error' : ''}`} placeholder="VD: 4000 / kWh" min="0" />
+                    {errors.electricity_price && <p className="form-error">{errors.electricity_price}</p>}
+                  </div>
+                  <div className="form-group">
+                    <label className="form-label">Giá nước</label>
+                    <input name="water_price" type="number" value={form.water_price} onChange={handleChange} className={`form-input ${errors.water_price ? 'error' : ''}`} placeholder="VD: 100000 / người" min="0" />
+                    {errors.water_price && <p className="form-error">{errors.water_price}</p>}
+                  </div>
+                </div>
+                <div className="form-row-3">
+                  <div className="form-group">
+                    <label className="form-label">Wifi/tháng</label>
+                    <input name="internet_fee" type="number" value={form.internet_fee} onChange={handleChange} className={`form-input ${errors.internet_fee ? 'error' : ''}`} placeholder="0" min="0" />
+                  </div>
+                  <div className="form-group">
+                    <label className="form-label">Gửi xe/tháng</label>
+                    <input name="parking_fee" type="number" value={form.parking_fee} onChange={handleChange} className={`form-input ${errors.parking_fee ? 'error' : ''}`} placeholder="0" min="0" />
+                  </div>
+                  <div className="form-group">
+                    <label className="form-label">Dịch vụ/tháng</label>
+                    <input name="service_fee" type="number" value={form.service_fee} onChange={handleChange} className={`form-input ${errors.service_fee ? 'error' : ''}`} placeholder="0" min="0" />
+                  </div>
+                </div>
+              </div>
+
               {/* Mô tả + AI */}
               <div className="pr-section animate-slideUp" style={{ animationDelay: '0.1s' }}>
                 <div className="pr-section-title-row">
@@ -292,6 +370,34 @@ const PostRoom = () => {
 
             {/* ── RIGHT: Tiện ích + Ảnh ── */}
             <div className="pr-col">
+              <div className="pr-section animate-slideUp" style={{ animationDelay: '0.12s' }}>
+                <h2 className="pr-section-title">📌 Nội quy phòng</h2>
+                <div className="pr-rule-grid">
+                  {[
+                    ['is_owner_occupied', 'Có chung chủ'],
+                    ['has_private_hours', 'Giờ giấc tự do'],
+                    ['allow_cooking', 'Cho nấu ăn'],
+                    ['allow_pets', 'Cho nuôi thú cưng'],
+                    ['allow_visitors', 'Cho tiếp khách'],
+                    ['has_parking', 'Có chỗ để xe'],
+                  ].map(([name, label]) => (
+                    <label key={name} className="pr-rule-toggle">
+                      <input type="checkbox" name={name} checked={form[name]} onChange={handleChange} />
+                      <span>{label}</span>
+                    </label>
+                  ))}
+                </div>
+                <div className="form-group">
+                  <label className="form-label">Số người ở tối đa</label>
+                  <input name="max_occupants" type="number" value={form.max_occupants} onChange={handleChange} className={`form-input ${errors.max_occupants ? 'error' : ''}`} placeholder="VD: 2" min="1" />
+                  {errors.max_occupants && <p className="form-error">{errors.max_occupants}</p>}
+                </div>
+                <div className="form-group">
+                  <label className="form-label">Nội quy khác</label>
+                  <textarea name="house_rules" value={form.house_rules} onChange={handleChange} className="form-input pr-small-textarea" rows={3} placeholder="VD: giữ yên lặng sau 22h, không hút thuốc trong phòng..." />
+                </div>
+              </div>
+
               {/* Tiện ích */}
               <div className="pr-section animate-slideUp" style={{ animationDelay: '0.15s' }}>
                 <h2 className="pr-section-title">⚡ Tiện ích</h2>
@@ -378,6 +484,12 @@ const postRoomStyles = `
   .btn-ai:disabled { opacity:.5;cursor:not-allowed;transform:none; }
   .btn-ai-secondary { background:var(--primary-50);color:var(--primary-dark);border:1px solid var(--primary-100); }
   .pr-textarea { resize:vertical;min-height:140px; }
+  .pr-small-textarea { resize:vertical;min-height:88px; }
+  .form-row-3 { display:grid;grid-template-columns:repeat(3,1fr);gap:12px; }
+  @media(max-width:640px){ .form-row-3{grid-template-columns:1fr;} }
+  .pr-rule-grid { display:grid;grid-template-columns:1fr 1fr;gap:10px; }
+  .pr-rule-toggle { display:flex;align-items:center;gap:8px;padding:10px 12px;border:1px solid var(--border);border-radius:var(--radius-md);background:var(--bg-surface);font-size:13px;color:var(--text-secondary);cursor:pointer; }
+  .pr-rule-toggle input { accent-color:var(--primary); }
   .ai-analysis-panel { margin-top:4px;padding:18px;border-radius:var(--radius-lg);background:var(--bg-surface);border:1px solid var(--border);display:flex;flex-direction:column;gap:14px; }
   .ai-analysis-panel__head { display:flex;align-items:flex-start;justify-content:space-between;gap:12px; }
   .ai-analysis-panel__label { font-size:12px;font-weight:700;color:var(--primary-dark);text-transform:uppercase;letter-spacing:.04em;margin-bottom:4px; }

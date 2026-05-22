@@ -1,6 +1,33 @@
 const { summarizeRooms } = require('./assistantUtils');
 
-const buildDescriptionPrompt = ({ title, numericPrice, area, address, city, amenityList }) => `
+const buildCostSummary = (costs = {}) => {
+  const items = [
+    ['Tiền cọc', costs.deposit_amount ? `${Number(costs.deposit_amount).toLocaleString('vi-VN')} VNĐ` : null],
+    ['Điện', costs.electricity_price ? `${Number(costs.electricity_price).toLocaleString('vi-VN')} VNĐ/kWh` : null],
+    ['Nước', costs.water_price ? `${Number(costs.water_price).toLocaleString('vi-VN')} VNĐ` : null],
+    ['Wifi', costs.internet_fee ? `${Number(costs.internet_fee).toLocaleString('vi-VN')} VNĐ/tháng` : null],
+    ['Gửi xe', costs.parking_fee ? `${Number(costs.parking_fee).toLocaleString('vi-VN')} VNĐ/tháng` : null],
+    ['Dịch vụ', costs.service_fee ? `${Number(costs.service_fee).toLocaleString('vi-VN')} VNĐ/tháng` : null],
+    ['Chu kỳ thanh toán', costs.payment_cycle || null],
+  ].filter(([, value]) => value);
+  return items.length ? items.map(([label, value]) => `${label}: ${value}`).join('; ') : 'chưa cung cấp';
+};
+
+const buildRuleSummary = (rules = {}) => {
+  const items = [
+    rules.is_owner_occupied === true ? 'chung chủ' : 'không chung chủ',
+    rules.has_private_hours === true ? 'giờ giấc tự do' : 'có quy định giờ giấc',
+    rules.allow_cooking === true ? 'cho nấu ăn' : 'không cho nấu ăn',
+    rules.allow_pets === true ? 'cho nuôi thú cưng' : 'không cho nuôi thú cưng',
+    rules.allow_visitors === true ? 'cho tiếp khách' : 'hạn chế tiếp khách',
+    rules.has_parking === true ? 'có chỗ để xe' : 'chưa rõ chỗ để xe',
+    rules.max_occupants ? `tối đa ${rules.max_occupants} người` : null,
+    rules.house_rules ? `nội quy thêm: ${rules.house_rules}` : null,
+  ].filter(Boolean);
+  return items.length ? items.join('; ') : 'chưa cung cấp';
+};
+
+const buildDescriptionPrompt = ({ title, numericPrice, area, address, city, amenityList, costs, rules }) => `
 Bạn là chuyên gia viết mô tả bất động sản cho thuê tại Việt Nam.
 Hãy viết một đoạn mô tả phòng trọ hấp dẫn, chân thật bằng tiếng Việt dựa trên thông tin sau:
 
@@ -9,6 +36,8 @@ Hãy viết một đoạn mô tả phòng trọ hấp dẫn, chân thật bằng
 - Giá thuê: ${numericPrice.toLocaleString('vi-VN')} VNĐ/tháng
 - Diện tích: ${area ? `${area} m²` : 'chưa cung cấp'}
 - Tiện ích: ${amenityList.length > 0 ? amenityList.join(', ') : 'không có tiện ích đặc biệt'}
+- Chi phí khác: ${buildCostSummary(costs)}
+- Nội quy: ${buildRuleSummary(rules)}
 
 Yêu cầu:
 1. Viết 3-5 câu, tự nhiên, hấp dẫn người thuê
@@ -28,6 +57,8 @@ const buildListingAnalysisPrompt = ({
   amenityList,
   numericSlots,
   numericImages,
+  costs,
+  rules,
 }) => `
 Bạn là chuyên gia thẩm định tin đăng phòng trọ tại Việt Nam.
 Hãy đánh giá tin đăng bên dưới và trả về DUY NHẤT một JSON hợp lệ theo schema:
@@ -57,6 +88,8 @@ Dữ liệu:
 - Tiện ích: ${amenityList.length > 0 ? amenityList.join(', ') : 'chưa có tiện ích'}
 - Số chỗ ở ghép: ${numericSlots !== null ? numericSlots : 'chưa rõ'}
 - Số ảnh: ${numericImages !== null ? numericImages : 'chưa rõ'}
+- Chi phí khác: ${buildCostSummary(costs)}
+- Nội quy: ${buildRuleSummary(rules)}
 
 Hãy viết ngắn gọn, thực tế, ưu tiên những góp ý có thể hành động ngay.
 `.trim();

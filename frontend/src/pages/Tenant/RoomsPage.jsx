@@ -28,6 +28,10 @@ const RoomsPage = () => {
   const [areaMin, setAreaMin] = useState(searchParams.get('areaMin') || '');
   const [areaMax, setAreaMax] = useState(searchParams.get('areaMax') || '');
   const [hasSlots, setHasSlots] = useState(searchParams.get('hasSlots') === 'true');
+  const [noOwner, setNoOwner] = useState(searchParams.get('noOwner') === 'true');
+  const [privateHours, setPrivateHours] = useState(searchParams.get('privateHours') === 'true');
+  const [allowPets, setAllowPets] = useState(searchParams.get('allowPets') === 'true');
+  const [hasParking, setHasParking] = useState(searchParams.get('hasParking') === 'true');
   const [selectedAmenities, setSelectedAmenities] = useState(
     searchParams.get('amenities') ? searchParams.get('amenities').split(',') : []
   );
@@ -53,6 +57,10 @@ const RoomsPage = () => {
       if (areaMin) params.area_min = +areaMin;
       if (areaMax) params.area_max = +areaMax;
       if (hasSlots) params.has_slots = 'true';
+      if (noOwner) params.no_owner = 'true';
+      if (privateHours) params.private_hours = 'true';
+      if (allowPets) params.allow_pets = 'true';
+      if (hasParking) params.has_parking = 'true';
       if (selectedAmenities.length > 0) params.amenities = selectedAmenities.join(',');
 
       const data = await roomService.getApprovedRooms(params);
@@ -69,7 +77,7 @@ const RoomsPage = () => {
     } finally {
       setLoading(false);
     }
-  }, [search, city, sort, priceMin, priceMax, areaMin, areaMax, hasSlots, selectedAmenities]);
+  }, [search, city, sort, priceMin, priceMax, areaMin, areaMax, hasSlots, noOwner, privateHours, allowPets, hasParking, selectedAmenities]);
 
   useEffect(() => { fetchRooms(1); }, [fetchRooms]);
 
@@ -84,9 +92,13 @@ const RoomsPage = () => {
     if (areaMin) p.areaMin = areaMin;
     if (areaMax) p.areaMax = areaMax;
     if (hasSlots) p.hasSlots = 'true';
+    if (noOwner) p.noOwner = 'true';
+    if (privateHours) p.privateHours = 'true';
+    if (allowPets) p.allowPets = 'true';
+    if (hasParking) p.hasParking = 'true';
     if (selectedAmenities.length > 0) p.amenities = selectedAmenities.join(',');
     setSearchParams(p, { replace: true });
-  }, [search, city, sort, priceMin, priceMax, areaMin, areaMax, hasSlots, selectedAmenities, setSearchParams]);
+  }, [search, city, sort, priceMin, priceMax, areaMin, areaMax, hasSlots, noOwner, privateHours, allowPets, hasParking, selectedAmenities, setSearchParams]);
 
   const clearFilters = () => {
     setSearch('');
@@ -97,6 +109,10 @@ const RoomsPage = () => {
     setAreaMin('');
     setAreaMax('');
     setHasSlots(false);
+    setNoOwner(false);
+    setPrivateHours(false);
+    setAllowPets(false);
+    setHasParking(false);
     setSelectedAmenities([]);
   };
 
@@ -106,7 +122,7 @@ const RoomsPage = () => {
     );
   };
 
-  const hasActiveFilters = search || city !== 'Tất cả' || priceMin || priceMax || areaMin || areaMax || hasSlots || selectedAmenities.length > 0;
+  const hasActiveFilters = search || city !== 'Tất cả' || priceMin || priceMax || areaMin || areaMax || hasSlots || noOwner || privateHours || allowPets || hasParking || selectedAmenities.length > 0;
   const hasMore = rooms.length < total;
 
   return (
@@ -245,6 +261,22 @@ const RoomsPage = () => {
                 />
                 <span>Chỉ phòng còn chỗ ở ghép</span>
               </label>
+              <label className="rooms-slot-toggle">
+                <input type="checkbox" checked={noOwner} onChange={(e) => setNoOwner(e.target.checked)} />
+                <span>Không chung chủ</span>
+              </label>
+              <label className="rooms-slot-toggle">
+                <input type="checkbox" checked={privateHours} onChange={(e) => setPrivateHours(e.target.checked)} />
+                <span>Giờ giấc tự do</span>
+              </label>
+              <label className="rooms-slot-toggle">
+                <input type="checkbox" checked={allowPets} onChange={(e) => setAllowPets(e.target.checked)} />
+                <span>Cho nuôi thú cưng</span>
+              </label>
+              <label className="rooms-slot-toggle">
+                <input type="checkbox" checked={hasParking} onChange={(e) => setHasParking(e.target.checked)} />
+                <span>Có chỗ để xe</span>
+              </label>
 
               {hasActiveFilters && (
                 <button className="btn btn-ghost btn-sm" onClick={clearFilters} style={{ marginLeft: 'auto' }}>
@@ -317,6 +349,13 @@ const RoomsPage = () => {
                       <div className="room-card__meta">
                         {room.area && <span>📐 {room.area} m²</span>}
                         {room.available_slots > 0 && <span>👥 {room.available_slots} chỗ</span>}
+                        {room.deposit_amount && <span>💰 Cọc {formatCurrency(room.deposit_amount)}</span>}
+                      </div>
+                      <div className="room-card__rule-tags">
+                        {!room.is_owner_occupied && <span>Không chung chủ</span>}
+                        {room.has_private_hours && <span>Giờ tự do</span>}
+                        {room.has_parking && <span>Có xe</span>}
+                        {room.allow_pets && <span>Pet-friendly</span>}
                       </div>
                       {amenities.length > 0 && (
                         <div className="room-card__amenities">
@@ -590,6 +629,14 @@ const roomsStyles = `
   }
   .room-card__amenities {
     display: flex; gap: 4px; flex-wrap: wrap; margin-top: 4px;
+  }
+  .room-card__rule-tags {
+    display: flex; gap: 4px; flex-wrap: wrap; margin-top: 4px;
+  }
+  .room-card__rule-tags span {
+    padding: 3px 8px; border-radius: var(--radius-full);
+    background: var(--bg-warm); border: 1px solid var(--border-subtle);
+    font-size: 11px; color: var(--text-secondary); font-weight: 600;
   }
   .room-card__amenity-tag {
     padding: 2px 8px; border-radius: var(--radius-full);
