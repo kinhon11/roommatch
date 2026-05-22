@@ -22,7 +22,7 @@ const AppointmentsPage = () => {
   const [loading, setLoading] = useState(true);
   const [actionId, setActionId] = useState(null);
   const [filter, setFilter] = useState('all');
-  const isLandlord = user?.role === 'landlord';
+  const isManager = user?.role === 'landlord' || user?.role === 'broker';
   const dialog = useDialog();
   const toast = useToast();
 
@@ -44,10 +44,10 @@ const AppointmentsPage = () => {
     let reason;
     if (status === 'cancelled') {
       reason = await dialog.prompt({
-        title: isLandlord && appointment.status === 'pending' ? 'Từ chối lịch hẹn' : 'Hủy lịch hẹn',
+        title: isManager && appointment.status === 'pending' ? 'Từ chối lịch hẹn' : 'Hủy lịch hẹn',
         label: 'Lý do',
         placeholder: 'Nhập lý do để người còn lại nắm được thông tin...',
-        confirmText: isLandlord && appointment.status === 'pending' ? 'Từ chối' : 'Hủy lịch',
+        confirmText: isManager && appointment.status === 'pending' ? 'Từ chối' : 'Hủy lịch',
         tone: 'danger',
       });
       if (!reason?.trim()) return;
@@ -105,9 +105,9 @@ const AppointmentsPage = () => {
         <div className="appt-header">
           <div>
             <h1 className="appt-title">Lich hen xem phong</h1>
-            <p className="appt-sub">{isLandlord ? 'Quan ly lich hen cua tenant' : 'Cac lich hen ban da dat'}</p>
+            <p className="appt-sub">{isManager ? 'Quan ly lich hen cua tenant' : 'Cac lich hen ban da dat'}</p>
           </div>
-          {!isLandlord && <Link to="/rooms" className="btn btn-primary">Tim phong</Link>}
+          {!isManager && <Link to="/rooms" className="btn btn-primary">Tim phong</Link>}
         </div>
 
         <div className="appt-tabs">
@@ -144,7 +144,7 @@ const AppointmentsPage = () => {
                       {appt.room?.title || `Phong #${appt.room_id?.slice(0, 8)}`}
                     </Link>
                     <p className="appt-meta">
-                      {isLandlord
+                      {isManager
                         ? `Tenant: ${appt.tenant?.full_name || appt.tenant_id?.slice(0, 8)}`
                         : `Landlord: ${appt.landlord?.full_name || appt.landlord_id?.slice(0, 8)}`}
                       <span className="appt-create"> · Dat lich {formatDate(appt.created_at)}</span>
@@ -154,10 +154,10 @@ const AppointmentsPage = () => {
 
                   {active && (
                     <div className="appt-actions">
-                      {isLandlord && appt.status === 'pending' && (
+                      {isManager && appt.status === 'pending' && (
                         <button className="btn btn-sm" disabled={busy} onClick={() => updateStatus(appt, 'confirmed')}>Xac nhan</button>
                       )}
-                      {isLandlord && appt.status === 'confirmed' && (
+                      {isManager && appt.status === 'confirmed' && (
                         <>
                           <button className="btn btn-sm" disabled={busy} onClick={() => updateStatus(appt, 'completed')}>Hoan thanh</button>
                           <button className="btn btn-sm" disabled={busy} onClick={() => updateStatus(appt, 'no_show')}>Khong den</button>
@@ -165,7 +165,7 @@ const AppointmentsPage = () => {
                       )}
                       <button className="btn btn-ghost btn-sm" disabled={busy} onClick={() => reschedule(appt)}>Doi lich</button>
                       <button className="btn btn-danger btn-sm" disabled={busy} onClick={() => updateStatus(appt, 'cancelled')}>
-                        {isLandlord && appt.status === 'pending' ? 'Tu choi' : 'Huy lich'}
+                        {isManager && appt.status === 'pending' ? 'Tu choi' : 'Huy lich'}
                       </button>
                     </div>
                   )}

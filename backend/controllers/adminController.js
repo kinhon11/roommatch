@@ -303,9 +303,10 @@ const getBrokerDashboard = async (req, res) => {
     let requests = [];
     let appointments = [];
     let activities = [];
+    let leads = [];
 
     if (roomIds.length) {
-      const [requestRes, appointmentRes, activityRes] = await Promise.all([
+      const [requestRes, appointmentRes, activityRes, leadRes] = await Promise.all([
         supabase
           .from('roommate_requests')
           .select('id, room_id, status, occupants, created_at, tenant:users!tenant_id (full_name, phone)')
@@ -324,14 +325,31 @@ const getBrokerDashboard = async (req, res) => {
           .eq('actor_id', brokerId)
           .order('created_at', { ascending: false })
           .limit(10),
+        supabase
+          .from('broker_leads')
+          .select('id, full_name, phone, status, budget_min, budget_max, preferred_area, updated_at')
+          .eq('broker_id', brokerId)
+          .order('updated_at', { ascending: false })
+          .limit(8),
       ]);
 
       if (requestRes.error) return res.status(500).json({ error: requestRes.error.message });
       if (appointmentRes.error) return res.status(500).json({ error: appointmentRes.error.message });
       if (activityRes.error) return res.status(500).json({ error: activityRes.error.message });
+      if (leadRes.error) return res.status(500).json({ error: leadRes.error.message });
       requests = requestRes.data || [];
       appointments = appointmentRes.data || [];
       activities = activityRes.data || [];
+      leads = leadRes.data || [];
+    } else {
+      const leadRes = await supabase
+        .from('broker_leads')
+        .select('id, full_name, phone, status, budget_min, budget_max, preferred_area, updated_at')
+        .eq('broker_id', brokerId)
+        .order('updated_at', { ascending: false })
+        .limit(8);
+      if (leadRes.error) return res.status(500).json({ error: leadRes.error.message });
+      leads = leadRes.data || [];
     }
 
     return res.status(200).json({
@@ -342,8 +360,10 @@ const getBrokerDashboard = async (req, res) => {
         pendingRequests: requests.filter(request => request.status === 'pending').length,
         acceptedRequests: requests.filter(request => request.status === 'accepted').length,
         upcomingAppointments: appointments.filter(appt => ['pending', 'confirmed'].includes(appt.status)).length,
+        activeLeads: leads.filter(lead => !['closed', 'lost'].includes(lead.status)).length,
       },
       rooms: rooms || [],
+      leads,
       requests,
       appointments,
       activities,

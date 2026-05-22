@@ -20,6 +20,7 @@ const BrokerDashboard = () => {
   const statItems = [
     ['Phong duoc giao', stats.assignedRooms || 0],
     ['Dang con cho', stats.availableRooms || 0],
+    ['Lead dang cham soc', stats.activeLeads || 0],
     ['Het cho', stats.fullRooms || 0],
     ['Yeu cau cho xu ly', stats.pendingRequests || 0],
     ['Lich hen sap toi', stats.upcomingAppointments || 0],
@@ -35,6 +36,7 @@ const BrokerDashboard = () => {
           </div>
           <div className="broker-actions">
             <Link to="/landlord/my-rooms" className="btn btn-primary">Phong duoc giao</Link>
+            <Link to="/broker/leads" className="btn btn-secondary">Quan ly lead</Link>
             <Link to="/landlord/requests" className="btn btn-secondary">Yeu cau o ghep</Link>
           </div>
         </header>
@@ -49,6 +51,18 @@ const BrokerDashboard = () => {
         </section>
 
         <section className="broker-grid">
+          <div className="broker-panel">
+            <h2>Lead can cham soc</h2>
+            {loading ? <p>Dang tai...</p> : data?.leads?.length ? (
+              data.leads.slice(0, 6).map(lead => (
+                <Link to="/broker/leads" className="broker-row" key={lead.id}>
+                  <span>{lead.full_name} - {lead.status}</span>
+                  <small>{lead.phone}{lead.preferred_area ? `, ${lead.preferred_area}` : ''}</small>
+                </Link>
+              ))
+            ) : <p>Chua co lead.</p>}
+          </div>
+
           <div className="broker-panel">
             <h2>Phong phu trach</h2>
             {loading ? <p>Dang tai...</p> : data?.rooms?.length ? (
@@ -105,7 +119,7 @@ const BrokerDashboard = () => {
         .broker-head h1 { font-size:26px; font-weight:800; color:var(--text-primary); }
         .broker-head p { color:var(--text-secondary); margin-top:4px; }
         .broker-actions { display:flex; gap:10px; flex-wrap:wrap; }
-        .broker-stats { display:grid; grid-template-columns:repeat(5,1fr); gap:12px; margin-bottom:24px; }
+        .broker-stats { display:grid; grid-template-columns:repeat(6,1fr); gap:12px; margin-bottom:24px; }
         .broker-stat { background:var(--bg-card); border:1px solid var(--border); border-radius:var(--radius-lg); padding:16px; }
         .broker-stat strong { display:block; font-size:24px; color:var(--primary); font-weight:800; }
         .broker-stat span { font-size:12px; color:var(--text-muted); }
