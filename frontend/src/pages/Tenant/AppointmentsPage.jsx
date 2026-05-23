@@ -7,11 +7,11 @@ import { useDialog } from '../../context/DialogContext';
 import { useToast } from '../../context/ToastContext';
 
 const STATUS_MAP = {
-  pending: { label: 'Cho xac nhan', cls: 'badge-pending' },
-  confirmed: { label: 'Da xac nhan', cls: 'badge-approved' },
-  completed: { label: 'Hoan thanh', cls: 'badge-approved' },
-  cancelled: { label: 'Da huy', cls: 'badge-rejected' },
-  no_show: { label: 'Khong den', cls: 'badge-rejected' },
+  pending: { label: 'Ch? x?c nh?n', cls: 'badge-pending' },
+  confirmed: { label: '?? x?c nh?n', cls: 'badge-approved' },
+  completed: { label: 'Ho?n th?nh', cls: 'badge-approved' },
+  cancelled: { label: '?? h?y', cls: 'badge-rejected' },
+  no_show: { label: 'Kh?ng ??n', cls: 'badge-rejected' },
 };
 
 const FILTERS = ['all', 'pending', 'confirmed', 'completed', 'cancelled', 'no_show'];
@@ -104,27 +104,27 @@ const AppointmentsPage = () => {
       <div className="container">
         <div className="appt-header">
           <div>
-            <h1 className="appt-title">Lich hen xem phong</h1>
-            <p className="appt-sub">{isManager ? 'Quan ly lich hen cua tenant' : 'Cac lich hen ban da dat'}</p>
+            <h1 className="appt-title">L?ch h?n xem ph?ng</h1>
+            <p className="appt-sub">{isManager ? 'Qu?n l? l?ch h?n c?a tenant' : 'C?c l?ch h?n b?n ?? ??t'}</p>
           </div>
-          {!isManager && <Link to="/rooms" className="btn btn-primary">Tim phong</Link>}
+          {!isManager && <Link to="/rooms" className="btn btn-primary">T?m ph?ng</Link>}
         </div>
 
         <div className="appt-tabs">
           {FILTERS.map(key => (
             <button key={key} className={`appt-tab ${filter === key ? 'appt-tab--active' : ''}`} onClick={() => setFilter(key)}>
-              {key === 'all' ? 'Tat ca' : STATUS_MAP[key].label}
+              {key === 'all' ? 'T?t c?' : STATUS_MAP[key].label}
               <span className="appt-tab-count">{counts[key] || 0}</span>
             </button>
           ))}
         </div>
 
         {loading ? (
-          <p className="appt-muted">Dang tai...</p>
+          <p className="appt-muted">?ang t?i...</p>
         ) : filtered.length === 0 ? (
           <div className="appt-empty">
-            <h3>Chua co lich hen</h3>
-            <p>{filter === 'all' ? 'Chua co du lieu lich hen.' : `Khong co lich o trang thai ${STATUS_MAP[filter]?.label}.`}</p>
+            <h3>Ch?a c? l?ch h?n</h3>
+            <p>{filter === 'all' ? 'Ch?a c? d? li?u l?ch h?n.' : `Kh?ng c? l?ch ? tr?ng th?i ${STATUS_MAP[filter]?.label}.`}</p>
           </div>
         ) : (
           <div className="appt-list">
@@ -141,31 +141,31 @@ const AppointmentsPage = () => {
                       <span className="appt-time">{new Date(appt.scheduled_at).toLocaleString('vi-VN', { dateStyle: 'medium', timeStyle: 'short' })}</span>
                     </div>
                     <Link to={`/rooms/${appt.room_id}`} className="appt-room-link">
-                      {appt.room?.title || `Phong #${appt.room_id?.slice(0, 8)}`}
+                      {appt.room?.title || `Ph?ng #${appt.room_id?.slice(0, 8)}`}
                     </Link>
                     <p className="appt-meta">
                       {isManager
                         ? `Tenant: ${appt.tenant?.full_name || appt.tenant_id?.slice(0, 8)}`
                         : `Landlord: ${appt.landlord?.full_name || appt.landlord_id?.slice(0, 8)}`}
-                      <span className="appt-create"> · Dat lich {formatDate(appt.created_at)}</span>
+                      <span className="appt-create"> · ??t l?ch {formatDate(appt.created_at)}</span>
                     </p>
-                    {appt.cancellation_reason && <p className="appt-meta">Ly do huy: {appt.cancellation_reason}</p>}
+                    {appt.cancellation_reason && <p className="appt-meta">L? do h?y: {appt.cancellation_reason}</p>}
                   </div>
 
                   {active && (
                     <div className="appt-actions">
                       {isManager && appt.status === 'pending' && (
-                        <button className="btn btn-sm" disabled={busy} onClick={() => updateStatus(appt, 'confirmed')}>Xac nhan</button>
+                        <button className="btn btn-sm" disabled={busy} onClick={() => updateStatus(appt, 'confirmed')}>X?c nh?n</button>
                       )}
                       {isManager && appt.status === 'confirmed' && (
                         <>
-                          <button className="btn btn-sm" disabled={busy} onClick={() => updateStatus(appt, 'completed')}>Hoan thanh</button>
-                          <button className="btn btn-sm" disabled={busy} onClick={() => updateStatus(appt, 'no_show')}>Khong den</button>
+                          <button className="btn btn-sm" disabled={busy} onClick={() => updateStatus(appt, 'completed')}>Ho?n th?nh</button>
+                          <button className="btn btn-sm" disabled={busy} onClick={() => updateStatus(appt, 'no_show')}>Kh?ng ??n</button>
                         </>
                       )}
-                      <button className="btn btn-ghost btn-sm" disabled={busy} onClick={() => reschedule(appt)}>Doi lich</button>
+                      <button className="btn btn-ghost btn-sm" disabled={busy} onClick={() => reschedule(appt)}>??i l?ch</button>
                       <button className="btn btn-danger btn-sm" disabled={busy} onClick={() => updateStatus(appt, 'cancelled')}>
-                        {isManager && appt.status === 'pending' ? 'Tu choi' : 'Huy lich'}
+                        {isManager && appt.status === 'pending' ? 'T? ch?i' : 'H?y l?ch'}
                       </button>
                     </div>
                   )}

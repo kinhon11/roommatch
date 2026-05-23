@@ -27,7 +27,6 @@ const RoomsPage = () => {
   const [priceMax, setPriceMax] = useState(searchParams.get('priceMax') || '');
   const [areaMin, setAreaMin] = useState(searchParams.get('areaMin') || '');
   const [areaMax, setAreaMax] = useState(searchParams.get('areaMax') || '');
-  const [hasSlots, setHasSlots] = useState(searchParams.get('hasSlots') === 'true');
   const [noOwner, setNoOwner] = useState(searchParams.get('noOwner') === 'true');
   const [privateHours, setPrivateHours] = useState(searchParams.get('privateHours') === 'true');
   const [allowPets, setAllowPets] = useState(searchParams.get('allowPets') === 'true');
@@ -56,7 +55,6 @@ const RoomsPage = () => {
       if (priceMax) params.price_max = +priceMax;
       if (areaMin) params.area_min = +areaMin;
       if (areaMax) params.area_max = +areaMax;
-      if (hasSlots) params.has_slots = 'true';
       if (noOwner) params.no_owner = 'true';
       if (privateHours) params.private_hours = 'true';
       if (allowPets) params.allow_pets = 'true';
@@ -77,7 +75,7 @@ const RoomsPage = () => {
     } finally {
       setLoading(false);
     }
-  }, [search, city, sort, priceMin, priceMax, areaMin, areaMax, hasSlots, noOwner, privateHours, allowPets, hasParking, selectedAmenities]);
+  }, [search, city, sort, priceMin, priceMax, areaMin, areaMax, noOwner, privateHours, allowPets, hasParking, selectedAmenities]);
 
   useEffect(() => { fetchRooms(1); }, [fetchRooms]);
 
@@ -91,14 +89,13 @@ const RoomsPage = () => {
     if (priceMax) p.priceMax = priceMax;
     if (areaMin) p.areaMin = areaMin;
     if (areaMax) p.areaMax = areaMax;
-    if (hasSlots) p.hasSlots = 'true';
     if (noOwner) p.noOwner = 'true';
     if (privateHours) p.privateHours = 'true';
     if (allowPets) p.allowPets = 'true';
     if (hasParking) p.hasParking = 'true';
     if (selectedAmenities.length > 0) p.amenities = selectedAmenities.join(',');
     setSearchParams(p, { replace: true });
-  }, [search, city, sort, priceMin, priceMax, areaMin, areaMax, hasSlots, noOwner, privateHours, allowPets, hasParking, selectedAmenities, setSearchParams]);
+  }, [search, city, sort, priceMin, priceMax, areaMin, areaMax, noOwner, privateHours, allowPets, hasParking, selectedAmenities, setSearchParams]);
 
   const clearFilters = () => {
     setSearch('');
@@ -108,7 +105,6 @@ const RoomsPage = () => {
     setPriceMax('');
     setAreaMin('');
     setAreaMax('');
-    setHasSlots(false);
     setNoOwner(false);
     setPrivateHours(false);
     setAllowPets(false);
@@ -122,7 +118,7 @@ const RoomsPage = () => {
     );
   };
 
-  const hasActiveFilters = search || city !== 'Tất cả' || priceMin || priceMax || areaMin || areaMax || hasSlots || noOwner || privateHours || allowPets || hasParking || selectedAmenities.length > 0;
+  const hasActiveFilters = search || city !== 'Tất cả' || priceMin || priceMax || areaMin || areaMax || noOwner || privateHours || allowPets || hasParking || selectedAmenities.length > 0;
   const hasMore = rooms.length < total;
 
   return (
@@ -253,14 +249,6 @@ const RoomsPage = () => {
 
             {/* Has Slots + Clear */}
             <div className="rooms-filters__row" style={{ alignItems: 'center' }}>
-              <label className="rooms-slot-toggle">
-                <input
-                  type="checkbox"
-                  checked={hasSlots}
-                  onChange={(e) => setHasSlots(e.target.checked)}
-                />
-                <span>Chỉ phòng còn chỗ ở ghép</span>
-              </label>
               <label className="rooms-slot-toggle">
                 <input type="checkbox" checked={noOwner} onChange={(e) => setNoOwner(e.target.checked)} />
                 <span>Không chung chủ</span>

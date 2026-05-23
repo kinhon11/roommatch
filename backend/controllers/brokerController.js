@@ -34,22 +34,22 @@ const normalizeLeadPayload = (body) => {
   };
 
   if (!payload.full_name || !payload.phone) {
-    return { error: 'Ten khach va so dien thoai la bat buoc.' };
+    return { error: 'T?n kh?ch v? s? ?i?n tho?i l? b?t bu?c.' };
   }
   if (!LEAD_STATUSES.includes(payload.status)) {
-    return { error: 'Trang thai lead khong hop le.' };
+    return { error: 'Tr?ng th?i lead kh?ng h?p l?.' };
   }
   if (payload.budget_min !== null && (Number.isNaN(payload.budget_min) || payload.budget_min < 0)) {
-    return { error: 'Ngan sach toi thieu khong hop le.' };
+    return { error: 'Ng?n s?ch t?i thi?u kh?ng h?p l?.' };
   }
   if (payload.budget_max !== null && (Number.isNaN(payload.budget_max) || payload.budget_max < 0)) {
-    return { error: 'Ngan sach toi da khong hop le.' };
+    return { error: 'Ng?n s?ch t?i ?a kh?ng h?p l?.' };
   }
   if (payload.budget_min !== null && payload.budget_max !== null && payload.budget_min > payload.budget_max) {
-    return { error: 'Ngan sach toi thieu khong duoc lon hon toi da.' };
+    return { error: 'Ng?n s?ch t?i thi?u kh?ng ???c l?n h?n t?i ?a.' };
   }
   if (!payload.occupants || Number.isNaN(payload.occupants) || payload.occupants < 1) {
-    return { error: 'So nguoi o phai lon hon 0.' };
+    return { error: 'S? ng??i ? ph?i l?n h?n 0.' };
   }
   if (payload.status !== 'lost') payload.lost_reason = null;
 
@@ -65,8 +65,8 @@ const ensureAssignedRoom = async (roomId, brokerId) => {
     .eq('id', roomId)
     .single();
 
-  if (error || !room) return { error: 'Phong khong ton tai.' };
-  if (room.broker_id !== brokerId) return { error: 'Broker chi duoc chon phong da duoc admin phan cong.' };
+  if (error || !room) return { error: 'Ph?ng kh?ng t?n t?i.' };
+  if (room.broker_id !== brokerId) return { error: 'Broker ch? ???c ch?n ph?ng ?? ???c admin ph?n c?ng.' };
   return null;
 };
 
@@ -115,7 +115,7 @@ const createLead = async (req, res) => {
       targetId: data.id,
       newValue: { status: data.status, phone: data.phone },
     });
-    return res.status(201).json({ message: 'Da tao lead khach thue.', lead: data });
+    return res.status(201).json({ message: '?? t?o lead kh?ch thu?.', lead: data });
   } catch (err) {
     return res.status(500).json({ error: err.message });
   }
@@ -136,7 +136,7 @@ const updateLead = async (req, res) => {
       .eq('broker_id', req.user.id)
       .single();
 
-    if (!existing) return res.status(404).json({ error: 'Lead khong ton tai.' });
+    if (!existing) return res.status(404).json({ error: 'Lead kh?ng t?n t?i.' });
 
     const { data, error } = await supabase
       .from('broker_leads')
@@ -166,9 +166,9 @@ const updateLead = async (req, res) => {
 const updateLeadStatus = async (req, res) => {
   try {
     const { status, lost_reason } = req.body;
-    if (!LEAD_STATUSES.includes(status)) return res.status(400).json({ error: 'Trang thai lead khong hop le.' });
+    if (!LEAD_STATUSES.includes(status)) return res.status(400).json({ error: 'Tr?ng th?i lead kh?ng h?p l?.' });
     if (status === 'lost' && !lost_reason?.trim()) {
-      return res.status(400).json({ error: 'Can nhap ly do that bai.' });
+      return res.status(400).json({ error: 'C?n nh?p l? do th?t b?i.' });
     }
 
     const { data: existing } = await supabase
@@ -178,7 +178,7 @@ const updateLeadStatus = async (req, res) => {
       .eq('broker_id', req.user.id)
       .single();
 
-    if (!existing) return res.status(404).json({ error: 'Lead khong ton tai.' });
+    if (!existing) return res.status(404).json({ error: 'Lead kh?ng t?n t?i.' });
 
     const { data, error } = await supabase
       .from('broker_leads')
@@ -216,7 +216,7 @@ const deleteLead = async (req, res) => {
       .eq('broker_id', req.user.id);
 
     if (error) return res.status(400).json({ error: error.message });
-    if (!count) return res.status(404).json({ error: 'Lead khong ton tai.' });
+    if (!count) return res.status(404).json({ error: 'Lead kh?ng t?n t?i.' });
     return res.status(200).json({ message: 'Da xoa lead.' });
   } catch (err) {
     return res.status(500).json({ error: err.message });
@@ -226,9 +226,9 @@ const deleteLead = async (req, res) => {
 const recommendRoom = async (req, res) => {
   try {
     const { room_id, match_reason, tenant_feedback, status = 'suggested' } = req.body;
-    if (!room_id) return res.status(400).json({ error: 'room_id la bat buoc.' });
+    if (!room_id) return res.status(400).json({ error: 'room_id l? b?t bu?c.' });
     if (!RECOMMENDATION_STATUSES.includes(status)) {
-      return res.status(400).json({ error: 'Trang thai phong goi y khong hop le.' });
+      return res.status(400).json({ error: 'Tr?ng th?i ph?ng g?i ? kh?ng h?p l?.' });
     }
 
     const { data: lead } = await supabase
@@ -238,7 +238,7 @@ const recommendRoom = async (req, res) => {
       .eq('broker_id', req.user.id)
       .single();
 
-    if (!lead) return res.status(404).json({ error: 'Lead khong ton tai.' });
+    if (!lead) return res.status(404).json({ error: 'Lead kh?ng t?n t?i.' });
 
     const roomError = await ensureAssignedRoom(room_id, req.user.id);
     if (roomError) return res.status(400).json({ error: roomError.error });
@@ -268,7 +268,7 @@ const recommendRoom = async (req, res) => {
       targetId: req.params.id,
       newValue: { room_id, status },
     });
-    return res.status(200).json({ message: 'Da goi y phong cho lead.', recommendation: data });
+    return res.status(200).json({ message: '?? g?i ? ph?ng cho lead.', recommendation: data });
   } catch (err) {
     return res.status(500).json({ error: err.message });
   }
@@ -278,7 +278,7 @@ const updateRecommendation = async (req, res) => {
   try {
     const { status, match_reason, tenant_feedback } = req.body;
     if (status && !RECOMMENDATION_STATUSES.includes(status)) {
-      return res.status(400).json({ error: 'Trang thai phong goi y khong hop le.' });
+      return res.status(400).json({ error: 'Tr?ng th?i ph?ng g?i ? kh?ng h?p l?.' });
     }
 
     const { data, error } = await supabase
@@ -299,7 +299,7 @@ const updateRecommendation = async (req, res) => {
       .single();
 
     if (error) return res.status(400).json({ error: error.message });
-    return res.status(200).json({ message: 'Da cap nhat phong goi y.', recommendation: data });
+    return res.status(200).json({ message: '?? c?p nh?t ph?ng g?i ?.', recommendation: data });
   } catch (err) {
     return res.status(500).json({ error: err.message });
   }
@@ -315,8 +315,8 @@ const deleteRecommendation = async (req, res) => {
       .eq('broker_id', req.user.id);
 
     if (error) return res.status(400).json({ error: error.message });
-    if (!count) return res.status(404).json({ error: 'Phong goi y khong ton tai.' });
-    return res.status(200).json({ message: 'Da xoa phong goi y.' });
+    if (!count) return res.status(404).json({ error: 'Ph?ng g?i ? kh?ng t?n t?i.' });
+    return res.status(200).json({ message: '?? x?a ph?ng g?i ?.' });
   } catch (err) {
     return res.status(500).json({ error: err.message });
   }
