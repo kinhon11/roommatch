@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import apiClient from '../../api/apiClient';
 import { useAuth } from '../../hooks/useAuth';
-import { formatDate } from '../../utils/format';
+import { formatCurrency, formatDate } from '../../utils/format';
 
 const BrokerDashboard = () => {
   const { user } = useAuth();
@@ -24,6 +24,8 @@ const BrokerDashboard = () => {
     ['Het cho', stats.fullRooms || 0],
     ['Yeu cau cho xu ly', stats.pendingRequests || 0],
     ['Lich hen sap toi', stats.upcomingAppointments || 0],
+    ['Hoa hong cho thu', formatCurrency(stats.pendingCommissionAmount || 0)],
+    ['Hoa hong da thu', formatCurrency(stats.collectedCommissionAmount || 0)],
   ];
 
   return (
@@ -37,6 +39,7 @@ const BrokerDashboard = () => {
           <div className="broker-actions">
             <Link to="/landlord/my-rooms" className="btn btn-primary">Phong duoc giao</Link>
             <Link to="/broker/leads" className="btn btn-secondary">Quan ly lead</Link>
+            <Link to="/broker/commissions" className="btn btn-secondary">Hoa hong</Link>
             <Link to="/landlord/requests" className="btn btn-secondary">Yeu cau o ghep</Link>
           </div>
         </header>
@@ -97,6 +100,18 @@ const BrokerDashboard = () => {
                 </div>
               ))
             ) : <p>Chua co lich hen.</p>}
+          </div>
+
+          <div className="broker-panel">
+            <h2>Hoa hong</h2>
+            {loading ? <p>Dang tai...</p> : data?.commissions?.length ? (
+              data.commissions.slice(0, 6).map(item => (
+                <div className="broker-row" key={item.id}>
+                  <span>{formatCurrency(item.amount)} - {item.status}</span>
+                  <small>{item.lead?.full_name || 'Lead'} · {item.room?.title || 'Phong'}</small>
+                </div>
+              ))
+            ) : <p>Chua co hoa hong.</p>}
           </div>
 
           <div className="broker-panel">

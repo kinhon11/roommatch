@@ -6,6 +6,7 @@ import PendingRooms from './PendingRooms';
 import AdminAllRooms from './AllRooms';
 import AdminUsers from './Users';
 import AdminReports from './Reports';
+import AdminCommissions from './Commissions';
 
 const AdminDashboard = () => {
   const { user } = useAuth();
@@ -38,6 +39,7 @@ const AdminDashboard = () => {
             { to: '/admin/pending',   icon: '⏳', label: 'Duyệt phòng' },
             { to: '/admin/users',     icon: '👥', label: 'Người dùng' },
             { to: '/admin/reports',   icon: '🚨', label: 'Báo cáo' },
+            { to: '/admin/commissions', icon: '💼', label: 'Hoa hồng' },
           ].map(({ to, icon, label }) => (
             <NavLink
               key={to}
@@ -102,6 +104,8 @@ const AdminDashboard = () => {
             ['Phong con cho', stats?.availableRooms],
             ['Phong het cho', stats?.fullRooms],
             ['Yeu cau thanh cong', stats?.acceptedRequests],
+            ['Hoa hong cho thu', stats?.pendingCommissions],
+            ['Hoa hong da thu', stats?.collectedCommissions],
           ].map(([label, value]) => (
             <div className="admin-ops-stat" key={label}>
               <strong>{statsLoading ? '-' : (value ?? 0)}</strong>
@@ -118,6 +122,7 @@ const AdminDashboard = () => {
             <Route path="pending"         element={<PendingRooms />} />
             <Route path="users"           element={<AdminUsers />} />
             <Route path="reports"         element={<AdminReports />} />
+            <Route path="commissions"     element={<AdminCommissions />} />
             <Route path="*"               element={<AdminOverview stats={stats} loading={statsLoading} activityLogs={activityLogs} />} />
           </Routes>
         </div>
