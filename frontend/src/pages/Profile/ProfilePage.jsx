@@ -7,7 +7,7 @@ import { profileService } from '../../services/profileService';
 const AVATARS = ['😊','😎','🧑','👩','🧔','👨','🦸','🧝','🧙','🦊','🐱','🐶'];
 const getInitials = (name = '') =>
   name.split(' ').map(w => w[0]).filter(Boolean).slice(0, 2).join('').toUpperCase();
-const ROLE_MAP = { tenant: '🔍 Người tìm phòng', landlord: '🏠 Chủ nhà', broker: '🤝 Môi giới', admin: '👑 Quản trị viên' };
+const ROLE_MAP = { tenant: '🔍 Người tìm phòng', landlord: '🏠 Chủ nhà', admin: '👑 Quản trị viên' };
 
 /* ─── Tab component ─── */
 const TAB_ITEMS = [
@@ -239,7 +239,7 @@ const ProfilePage = () => {
                 </div>
 
                 <div className="prof-form-group">
-                  <label htmlFor="contact_email">Email liên hệ</label>
+                  <label htmlFor="address">📍 Địa chỉ</label>
                   <input
                     id="contact_email"
                     name="contact_email"

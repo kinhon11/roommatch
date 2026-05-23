@@ -58,14 +58,14 @@ const createAppointment = async (req, res) => {
       .eq('id', room_id)
       .single();
 
-    if (!room) return res.status(404).json({ error: 'Ph?ng kh?ng t?n t?i.' });
+    if (!room) return res.status(404).json({ error: 'Phong khong ton tai.' });
     const responsibleUserId = room.broker_id || room.host_id;
     if (req.user.role === 'broker' && room.broker_id !== req.user.id) {
-      return res.status(403).json({ error: 'Broker ch? ???c t?o l?ch cho ph?ng ???c ph?n c?ng.' });
+      return res.status(403).json({ error: 'Broker chi duoc tao lich cho phong duoc phan cong.' });
     }
     if (room.host_id === req.user.id || room.broker_id === req.user.id) {
       if (req.user.role !== 'broker') {
-        return res.status(400).json({ error: 'B?n kh?ng th? ??t l?ch cho ph?ng c?a m?nh.' });
+        return res.status(400).json({ error: 'Ban khong the dat lich cho phong cua minh.' });
       }
     }
     if (room.status !== 'approved' || room.is_hidden === true || room.is_available === false) {
@@ -73,7 +73,7 @@ const createAppointment = async (req, res) => {
     }
 
     if (await hasDuplicateAppointment({ roomId: room_id, landlordId: responsibleUserId, scheduledAt: scheduled_at })) {
-      return res.status(409).json({ error: 'Khung gi? n?y ?? c? l?ch h?n cho ph?ng ho?c landlord.' });
+      return res.status(409).json({ error: 'Khung gio nay da co lich hen cho phong hoac landlord.' });
     }
 
     const appointmentTenantId = req.user.role === 'broker' ? tenant_id : req.user.id;
@@ -103,19 +103,19 @@ const createAppointment = async (req, res) => {
     if (error) return res.status(400).json({ error: error.message });
 
     await createNotification(responsibleUserId, 'appointment', {
-      message: `C? l?ch h?n xem ph?ng "${room.title}" vao ${scheduledDate.toLocaleString('vi-VN')}`,
+      message: `Co lich hen xem phong "${room.title}" vao ${scheduledDate.toLocaleString('vi-VN')}`,
       appointment_id: data.id,
       room_id,
     });
     if (req.user.role === 'broker') {
       await createNotification(appointmentTenantId, 'appointment', {
-        message: `M?i gi?i ?? t?o l?ch xem ph?ng "${room.title}" vao ${scheduledDate.toLocaleString('vi-VN')}`,
+        message: `Moi gioi da tao lich xem phong "${room.title}" vao ${scheduledDate.toLocaleString('vi-VN')}`,
         appointment_id: data.id,
         room_id,
       });
     }
 
-    return res.status(201).json({ message: '?? g?i l?ch h?n, ?ang ch? landlord x?c nh?n.', appointment: data });
+    return res.status(201).json({ message: 'Da gui lich hen, dang cho landlord xac nhan.', appointment: data });
   } catch (err) {
     return res.status(500).json({ error: err.message });
   }
@@ -129,7 +129,7 @@ const updateAppointmentStatus = async (req, res) => {
   try {
     const { status, cancellation_reason } = req.body;
     if (!['confirmed', 'completed', 'cancelled', 'no_show'].includes(status)) {
-      return res.status(400).json({ error: 'Tr?ng th?i kh?ng h?p l?.' });
+      return res.status(400).json({ error: 'Trang thai khong hop le.' });
     }
 
     const { data: appointment } = await supabase
@@ -138,7 +138,7 @@ const updateAppointmentStatus = async (req, res) => {
       .eq('id', req.params.id)
       .single();
 
-    if (!appointment) return res.status(404).json({ error: 'L?ch h?n kh?ng t?n t?i.' });
+    if (!appointment) return res.status(404).json({ error: 'Lich hen khong ton tai.' });
     if (!ACTIVE_APPOINTMENT_STATUSES.includes(appointment.status)) {
       return res.status(400).json({ error: 'Only active appointments can be updated.' });
     }
@@ -150,16 +150,16 @@ const updateAppointmentStatus = async (req, res) => {
       return res.status(403).json({ error: 'Chi landlord moi co quyen cap nhat trang thai nay.' });
     }
     if (status === 'confirmed' && appointment.status !== 'pending') {
-      return res.status(400).json({ error: 'Ch? l?ch pending m?i ???c x?c nh?n.' });
+      return res.status(400).json({ error: 'Chi lich pending moi duoc xac nhan.' });
     }
     if (['completed', 'no_show'].includes(status) && appointment.status !== 'confirmed') {
       return res.status(400).json({ error: 'Chi lich confirmed moi duoc hoan tat hoac danh dau vang mat.' });
     }
     if (status === 'cancelled' && !isLandlord && !isTenant) {
-      return res.status(403).json({ error: 'B?n kh?ng c? quy?n h?y l?ch h?n n?y.' });
+      return res.status(403).json({ error: 'Ban khong co quyen huy lich hen nay.' });
     }
     if (status === 'cancelled' && !cancellation_reason?.trim()) {
-      return res.status(400).json({ error: 'L? do h?y l?ch l? b?t bu?c.' });
+      return res.status(400).json({ error: 'Ly do huy lich la bat buoc.' });
     }
 
     const { data, error } = await supabase
@@ -176,7 +176,7 @@ const updateAppointmentStatus = async (req, res) => {
 
     const notifyUserId = isLandlord ? appointment.tenant_id : appointment.landlord_id;
     await createNotification(notifyUserId, 'appointment', {
-      message: `L?ch h?n c?a b?n ?? c?p nh?t sang ${status}`,
+      message: `Lich hen cua ban da cap nhat sang ${status}`,
       appointment_id: req.params.id,
       room_id: appointment.room_id,
     });
@@ -207,15 +207,15 @@ const rescheduleAppointment = async (req, res) => {
       .eq('id', req.params.id)
       .single();
 
-    if (!appointment) return res.status(404).json({ error: 'L?ch h?n kh?ng t?n t?i.' });
+    if (!appointment) return res.status(404).json({ error: 'Lich hen khong ton tai.' });
 
     const isLandlord = appointment.landlord_id === req.user.id;
     const isTenant = appointment.tenant_id === req.user.id;
     if (!isLandlord && !isTenant) {
-      return res.status(403).json({ error: 'B?n kh?ng c? quy?n ??i l?ch h?n n?y.' });
+      return res.status(403).json({ error: 'Ban khong co quyen doi lich hen nay.' });
     }
     if (!ACTIVE_APPOINTMENT_STATUSES.includes(appointment.status)) {
-      return res.status(400).json({ error: 'Ch? l?ch active m?i ???c ??i l?ch.' });
+      return res.status(400).json({ error: 'Chi lich active moi duoc doi lich.' });
     }
 
     if (await hasDuplicateAppointment({
@@ -224,7 +224,7 @@ const rescheduleAppointment = async (req, res) => {
       scheduledAt: scheduled_at,
       excludeId: appointment.id,
     })) {
-      return res.status(409).json({ error: 'Khung gi? n?y ?? c? l?ch h?n cho ph?ng ho?c landlord.' });
+      return res.status(409).json({ error: 'Khung gio nay da co lich hen cho phong hoac landlord.' });
     }
 
     const { data, error } = await supabase
@@ -242,12 +242,12 @@ const rescheduleAppointment = async (req, res) => {
 
     const notifyUserId = isLandlord ? appointment.tenant_id : appointment.landlord_id;
     await createNotification(notifyUserId, 'appointment', {
-      message: `L?ch h?n xem ph?ng da doi sang ${scheduledDate.toLocaleString('vi-VN')}`,
+      message: `Lich hen xem phong da doi sang ${scheduledDate.toLocaleString('vi-VN')}`,
       appointment_id: req.params.id,
       room_id: appointment.room_id,
     });
 
-    return res.status(200).json({ message: '?? ??i l?ch h?n.', appointment: data });
+    return res.status(200).json({ message: 'Da doi lich hen.', appointment: data });
   } catch (err) {
     return res.status(500).json({ error: err.message });
   }
@@ -272,12 +272,12 @@ const getAppointments = async (req, res) => {
 
     if (tenantId) {
       if (tenantId !== req.user.id) {
-        return res.status(403).json({ error: 'B?n kh?ng ???c xem l?ch c?a ng??i kh?c.' });
+        return res.status(403).json({ error: 'Ban khong duoc xem lich cua nguoi khac.' });
       }
       query = query.eq('tenant_id', tenantId);
     } else if (landlordId) {
       if (landlordId !== req.user.id) {
-        return res.status(403).json({ error: 'B?n kh?ng ???c xem l?ch c?a ng??i kh?c.' });
+        return res.status(403).json({ error: 'Ban khong duoc xem lich cua nguoi khac.' });
       }
       query = query.eq('landlord_id', landlordId);
     } else if (req.user.role === 'tenant') {

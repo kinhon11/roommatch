@@ -61,14 +61,14 @@ const createRoommateRequest = async (req, res) => {
       .eq('id', room_id)
       .single();
 
-    if (!room) return res.status(404).json({ error: 'Ph?ng kh?ng t?n t?i.' });
+    if (!room) return res.status(404).json({ error: 'Phong khong ton tai.' });
 
     if (room.host_id === req.user.id) {
-      return res.status(400).json({ error: 'B?n kh?ng th? g?i y?u c?u ? gh?p v?o ph?ng c?a ch?nh m?nh.' });
+      return res.status(400).json({ error: 'Ban khong the gui yeu cau o ghep vao phong cua chinh minh.' });
     }
 
     if (room.status !== 'approved') {
-      return res.status(400).json({ error: 'Ph?ng ch?a ???c duy?t.' });
+      return res.status(400).json({ error: 'Phong chua duoc duyet.' });
     }
 
     if (room.is_hidden === true || room.is_available === false) {
@@ -77,11 +77,11 @@ const createRoommateRequest = async (req, res) => {
 
     const availableSlots = Number(room.available_slots) || 0;
     if (availableSlots <= 0) {
-      return res.status(400).json({ error: 'Ph?ng da het cho o ghep.' });
+      return res.status(400).json({ error: 'Phong da het cho o ghep.' });
     }
     if (availableSlots < requestedOccupants) {
       return res.status(400).json({
-        error: `Ph?ng ch? c?n ${availableSlots} ch? tr?ng, kh?ng ?? cho ${requestedOccupants} nguoi.`,
+        error: `Phong chi con ${availableSlots} cho trong, khong du cho ${requestedOccupants} nguoi.`,
       });
     }
 
@@ -94,7 +94,7 @@ const createRoommateRequest = async (req, res) => {
       .maybeSingle();
 
     if (existing) {
-      return res.status(409).json({ error: 'B?n ?? g?i y?u c?u ? gh?p cho ph?ng n?y r?i.' });
+      return res.status(409).json({ error: 'Ban da gui yeu cau o ghep cho phong nay roi.' });
     }
 
     const { data, error } = await supabase
@@ -116,12 +116,12 @@ const createRoommateRequest = async (req, res) => {
     const tenantName = req.user.full_name || req.user.email;
     const responsibleUserId = room.broker_id || room.host_id;
     await createNotification(responsibleUserId, 'request', {
-      message: `${tenantName} g?i y?u c?u ? gh?p cho ph?ng "${room.title}"`,
+      message: `${tenantName} gui yeu cau o ghep cho phong "${room.title}"`,
       request_id: data.id,
       room_id,
     });
 
-    return res.status(201).json({ message: 'Y?u c?u ? gh?p ?? g?i th?nh c?ng.', request: data });
+    return res.status(201).json({ message: 'Yeu cau o ghep da gui thanh cong.', request: data });
   } catch (err) {
     return res.status(500).json({ error: err.message });
   }
@@ -144,7 +144,7 @@ const updateRoommateRequestStatus = async (req, res) => {
       .eq('id', req.params.id)
       .single();
 
-    if (!request) return res.status(404).json({ error: 'Y?u c?u kh?ng t?n t?i.' });
+    if (!request) return res.status(404).json({ error: 'Yeu cau khong ton tai.' });
 
     const { data: room } = await supabase
       .from('rooms')
@@ -153,11 +153,11 @@ const updateRoommateRequestStatus = async (req, res) => {
       .single();
 
     if (!room || (room.host_id !== req.user.id && room.broker_id !== req.user.id)) {
-      return res.status(403).json({ error: 'B?n kh?ng c? quy?n x? l? y?u c?u n?y.' });
+      return res.status(403).json({ error: 'Ban khong co quyen xu ly yeu cau nay.' });
     }
 
     if (request.status !== 'pending') {
-      return res.status(400).json({ error: 'Y?u c?u n?y ?? ???c x? l? r?i.' });
+      return res.status(400).json({ error: 'Yeu cau nay da duoc xu ly roi.' });
     }
 
     const acceptedOccupants = normalizeOccupants(request.occupants) || 1;
@@ -168,7 +168,7 @@ const updateRoommateRequestStatus = async (req, res) => {
     }
     if (status === 'accepted' && availableSlots < acceptedOccupants) {
       return res.status(400).json({
-        error: `Ph?ng ch? c?n ${availableSlots} ch? tr?ng, kh?ng ?? cho ${acceptedOccupants} nguoi.`,
+        error: `Phong chi con ${availableSlots} cho trong, khong du cho ${acceptedOccupants} nguoi.`,
       });
     }
 
@@ -210,7 +210,7 @@ const updateRoommateRequestStatus = async (req, res) => {
 
     const statusText = status === 'accepted' ? 'chap nhan' : 'tu choi';
     await createNotification(request.tenant_id, 'request', {
-      message: `Y?u c?u ? gh?p t?i "${room.title}" da duoc ${statusText}`,
+      message: `Yeu cau o ghep tai "${room.title}" da duoc ${statusText}`,
       request_id: req.params.id,
       room_id: request.room_id,
     });
@@ -242,9 +242,9 @@ const cancelRoommateRequest = async (req, res) => {
       .eq('id', req.params.id)
       .single();
 
-    if (!request) return res.status(404).json({ error: 'Y?u c?u kh?ng t?n t?i.' });
+    if (!request) return res.status(404).json({ error: 'Yeu cau khong ton tai.' });
     if (request.tenant_id !== req.user.id) {
-      return res.status(403).json({ error: 'B?n kh?ng c? quy?n h?y y?u c?u n?y.' });
+      return res.status(403).json({ error: 'Ban khong co quyen huy yeu cau nay.' });
     }
     if (request.status !== 'pending') {
       return res.status(400).json({ error: 'Chi co the huy yeu cau dang cho xu ly.' });
@@ -256,7 +256,7 @@ const cancelRoommateRequest = async (req, res) => {
       .eq('id', req.params.id);
 
     if (error) return res.status(400).json({ error: error.message });
-    return res.status(200).json({ message: '?? h?y y?u c?u ? gh?p.' });
+    return res.status(200).json({ message: 'Da huy yeu cau o ghep.' });
   } catch (err) {
     return res.status(500).json({ error: err.message });
   }
@@ -288,7 +288,7 @@ const getRoommateRequests = async (req, res) => {
         .eq('id', roomId)
         .single();
       if (!room || (room.host_id !== req.user.id && room.broker_id !== req.user.id)) {
-        return res.status(403).json({ error: 'B?n kh?ng c? quy?n xem y?u c?u cho ph?ng n?y.' });
+        return res.status(403).json({ error: 'Ban khong co quyen xem yeu cau cho phong nay.' });
       }
       query = query.eq('room_id', roomId);
     } else if (req.user.role === 'tenant') {

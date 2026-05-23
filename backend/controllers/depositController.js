@@ -92,12 +92,12 @@ const createDeposit = async (req, res) => {
       .eq('id', room_id)
       .single();
 
-    if (!room) return res.status(404).json({ error: 'Ph?ng kh?ng t?n t?i.' });
+    if (!room) return res.status(404).json({ error: 'Phong khong ton tai.' });
     if (room.host_id === req.user.id) {
-      return res.status(400).json({ error: 'B?n kh?ng th? c?c ph?ng c?a ch?nh m?nh.' });
+      return res.status(400).json({ error: 'Ban khong the coc phong cua chinh minh.' });
     }
     if (room.status !== 'approved' || room.is_hidden === true || room.is_available === false) {
-      return res.status(400).json({ error: 'Ph?ng n?y hi?n kh?ng nh?n c?c.' });
+      return res.status(400).json({ error: 'Phong nay hien khong nhan coc.' });
     }
 
     const eligibility = await hasDepositEligibility({ roomId: room_id, tenantId: req.user.id });
@@ -115,7 +115,7 @@ const createDeposit = async (req, res) => {
       .maybeSingle();
     if (existingError) return res.status(400).json({ error: existingError.message });
     if (existing) {
-      return res.status(409).json({ error: 'Ph?ng nay dang co yeu cau coc hoac da duoc giu.' });
+      return res.status(409).json({ error: 'Phong nay dang co yeu cau coc hoac da duoc giu.' });
     }
 
     const { data, error } = await supabase
@@ -145,7 +145,7 @@ const createDeposit = async (req, res) => {
     });
 
     await createNotification(room.host_id, 'deposit', {
-      message: `${req.user.full_name || req.user.email} g?i y?u c?u c?c ph?ng "${room.title}".`,
+      message: `${req.user.full_name || req.user.email} gui yeu cau coc phong "${room.title}".`,
       deposit_id: data.id,
       room_id,
     });
@@ -160,7 +160,7 @@ const updateDepositStatus = async (req, res) => {
   try {
     const { status, note } = req.body;
     if (!DEPOSIT_STATUSES.includes(status) || status === 'pending_payment') {
-      return res.status(400).json({ error: 'Tr?ng th?i c?c kh?ng h?p l?.' });
+      return res.status(400).json({ error: 'Trang thai coc khong hop le.' });
     }
 
     const { data: deposit } = await supabase
@@ -169,29 +169,29 @@ const updateDepositStatus = async (req, res) => {
       .eq('id', req.params.id)
       .single();
 
-    if (!deposit) return res.status(404).json({ error: 'Y?u c?u c?c kh?ng t?n t?i.' });
+    if (!deposit) return res.status(404).json({ error: 'Yeu cau coc khong ton tai.' });
 
     const isTenant = deposit.tenant_id === req.user.id;
     const isLandlord = deposit.landlord_id === req.user.id;
     const isAdmin = req.user.role === 'admin';
     if (!isTenant && !isLandlord && !isAdmin) {
-      return res.status(403).json({ error: 'B?n kh?ng c? quy?n c?p nh?t y?u c?u c?c n?y.' });
+      return res.status(403).json({ error: 'Ban khong co quyen cap nhat yeu cau coc nay.' });
     }
 
     if (isTenant && !isAdmin && status !== 'cancelled') {
-      return res.status(403).json({ error: 'Tenant ch? c? th? h?y y?u c?u c?c ?ang ch? thanh to?n.' });
+      return res.status(403).json({ error: 'Tenant chi co the huy yeu cau coc dang cho thanh toan.' });
     }
     if (status === 'cancelled' && deposit.status !== 'pending_payment') {
-      return res.status(400).json({ error: 'Ch? c? th? h?y y?u c?u c?c ?ang ch? thanh to?n.' });
+      return res.status(400).json({ error: 'Chi co the huy yeu cau coc dang cho thanh toan.' });
     }
     if (status === 'paid' && deposit.status !== 'pending_payment') {
-      return res.status(400).json({ error: 'Ch? c? th? x?c nh?n thanh to?n t? pending_payment.' });
+      return res.status(400).json({ error: 'Chi co the xac nhan thanh toan tu pending_payment.' });
     }
     if (status === 'refunded' && deposit.status !== 'paid') {
-      return res.status(400).json({ error: 'Ch? c? th? ho?n c?c sau khi ?? thanh to?n.' });
+      return res.status(400).json({ error: 'Chi co the hoan coc sau khi da thanh toan.' });
     }
     if (['cancelled', 'refunded'].includes(status) && !note?.trim()) {
-      return res.status(400).json({ error: 'L? do h?y/ho?n c?c l? b?t bu?c.' });
+      return res.status(400).json({ error: 'Ly do huy/hoan coc la bat buoc.' });
     }
 
     const timestamp = new Date().toISOString();
@@ -232,7 +232,7 @@ const updateDepositStatus = async (req, res) => {
         .update({
           is_hidden: true,
           is_available: false,
-          auto_hidden_reason: `?? gi? ph?ng b?ng c?c ${deposit.id}`,
+          auto_hidden_reason: `Da giu phong bang coc ${deposit.id}`,
           hidden_at: timestamp,
         })
         .eq('id', deposit.room_id);
@@ -240,7 +240,7 @@ const updateDepositStatus = async (req, res) => {
 
     const notifyUserId = isLandlord || isAdmin ? deposit.tenant_id : deposit.landlord_id;
     await createNotification(notifyUserId, 'deposit', {
-      message: `Y?u c?u c?c ph?ng "${deposit.room?.title || 'Ph?ng'}" da cap nhat sang ${status}.`,
+      message: `Yeu cau coc phong "${deposit.room?.title || 'Phong'}" da cap nhat sang ${status}.`,
       deposit_id: deposit.id,
       room_id: deposit.room_id,
     });

@@ -293,7 +293,7 @@ const RoomDetail = () => {
         setDepositState({ loading: false, error: null, success: false });
       }, 1800);
     } catch (err) {
-      setDepositState({ loading: false, error: err.response?.data?.error || 'G?i y?u c?u c?c th?t b?i.', success: false });
+      setDepositState({ loading: false, error: err.response?.data?.error || 'Gui yeu cau coc that bai.', success: false });
     }
   };
 
@@ -370,7 +370,7 @@ const RoomDetail = () => {
   const amenities = room.room_amenities?.map(ra => ra.amenities) || [];
   const reviews = room.reviews || [];
   const contactUser = room.broker || room.users;
-  const contactLabel = room.broker ? 'M?i gi?i ph? tr?ch' : 'Ch? nh?';
+  const contactLabel = room.broker ? 'Moi gioi phu trach' : 'Chu nha';
   const contactProfilePath = `/landlords/${room.users?.id}`;
   const paymentCycleLabel = {
     monthly: 'Hàng tháng',
@@ -505,13 +505,13 @@ const RoomDetail = () => {
             </Link>
 
             <div className="contact-detail-box">
-              <div className="contact-detail-box__title">Ng??i ph? tr?ch</div>
-              <div className="contact-detail-box__name">{contactLabel}: {contactUser?.full_name || 'Ch?a c?p nh?t'}</div>
+              <div className="contact-detail-box__title">Nguoi phu trach</div>
+              <div className="contact-detail-box__name">{contactLabel}: {contactUser?.full_name || 'Chua cap nhat'}</div>
               <div className="contact-detail-box__grid">
                 {contactUser?.phone && <span>SDT: {contactUser.phone}</span>}
                 {contactUser?.zalo && <span>Zalo: {contactUser.zalo}</span>}
                 {contactUser?.contact_email && <span>Email: {contactUser.contact_email}</span>}
-                {contactUser?.contact_hours && <span>Gi? li?n h?: {contactUser.contact_hours}</span>}
+                {contactUser?.contact_hours && <span>Gio lien he: {contactUser.contact_hours}</span>}
                 {contactUser?.facebook_url && <a href={contactUser.facebook_url} target="_blank" rel="noreferrer">Facebook</a>}
               </div>
             </div>
@@ -837,10 +837,10 @@ const RoomDetail = () => {
         {/* ── Reviews ── */}
         {isAuthenticated && user?.role === 'tenant' && room.status === 'approved' && room.is_hidden !== true && room.is_available !== false && (
           <section className="room-section animate-fadeIn">
-            <h2 className="room-section__title">C?c / gi? ph?ng</h2>
+            <h2 className="room-section__title">Coc / giu phong</h2>
             <div className="deposit-box">
               <div>
-                <p className="deposit-box__title">C?c / gi? ph?ng</p>
+                <p className="deposit-box__title">Coc / giu phong</p>
                 <p className="deposit-box__desc">Chi tenant co request accepted hoac lich hen hop le moi duoc gui yeu cau coc.</p>
               </div>
               {!showDeposit ? (
@@ -868,10 +868,10 @@ const RoomDetail = () => {
                     placeholder="Ghi chu"
                   />
                   {depositState.error && <p className="form-error">{depositState.error}</p>}
-                  {depositState.success && <p style={{color:'var(--success)', fontSize:14}}>?? g?i y?u c?u c?c ph?ng.</p>}
+                  {depositState.success && <p style={{color:'var(--success)', fontSize:14}}>Da gui yeu cau coc phong.</p>}
                   <div style={{display:'flex', gap:8}}>
                     <button type="submit" className="btn btn-primary btn-sm" disabled={depositState.loading}>
-                      {depositState.loading ? '?ang g?i...' : 'G?i c?c'}
+                      {depositState.loading ? 'Dang gui...' : 'Gui coc'}
                     </button>
                     <button type="button" className="btn btn-ghost btn-sm" onClick={() => setShowDeposit(false)}>Huy</button>
                   </div>

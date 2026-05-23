@@ -18,12 +18,12 @@ const BrokerDashboard = () => {
 
   const stats = data?.stats || {};
   const statItems = [
-    ['Ph?ng ???c giao', stats.assignedRooms || 0],
-    ['?ang c?n ch?', stats.availableRooms || 0],
-    ['Lead ?ang ch?m s?c', stats.activeLeads || 0],
-    ['H?t ch?', stats.fullRooms || 0],
-    ['Y?u c?u ch? x? l?', stats.pendingRequests || 0],
-    ['L?ch h?n s?p t?i', stats.upcomingAppointments || 0],
+    ['Phong duoc giao', stats.assignedRooms || 0],
+    ['Dang con cho', stats.availableRooms || 0],
+    ['Lead dang cham soc', stats.activeLeads || 0],
+    ['Het cho', stats.fullRooms || 0],
+    ['Yeu cau cho xu ly', stats.pendingRequests || 0],
+    ['Lich hen sap toi', stats.upcomingAppointments || 0],
   ];
 
   return (
@@ -31,13 +31,13 @@ const BrokerDashboard = () => {
       <div className="container">
         <header className="broker-head">
           <div>
-            <h1>Dashboard m?i gi?i</h1>
-            <p>Xin ch?o {user?.full_name}. Theo d?i ph?ng ???c ph?n c?ng v? vi?c c?n x? l?.</p>
+            <h1>Dashboard moi gioi</h1>
+            <p>Xin chao {user?.full_name}. Theo doi phong duoc phan cong va viec can xu ly.</p>
           </div>
           <div className="broker-actions">
-            <Link to="/landlord/my-rooms" className="btn btn-primary">Ph?ng ???c giao</Link>
-            <Link to="/broker/leads" className="btn btn-secondary">Qu?n l? lead</Link>
-            <Link to="/landlord/requests" className="btn btn-secondary">Y?u c?u ? gh?p</Link>
+            <Link to="/landlord/my-rooms" className="btn btn-primary">Phong duoc giao</Link>
+            <Link to="/broker/leads" className="btn btn-secondary">Quan ly lead</Link>
+            <Link to="/landlord/requests" className="btn btn-secondary">Yeu cau o ghep</Link>
           </div>
         </header>
 
@@ -52,63 +52,63 @@ const BrokerDashboard = () => {
 
         <section className="broker-grid">
           <div className="broker-panel">
-            <h2>Lead c?n ch?m s?c</h2>
-            {loading ? <p>?ang t?i...</p> : data?.leads?.length ? (
+            <h2>Lead can cham soc</h2>
+            {loading ? <p>Dang tai...</p> : data?.leads?.length ? (
               data.leads.slice(0, 6).map(lead => (
                 <Link to="/broker/leads" className="broker-row" key={lead.id}>
                   <span>{lead.full_name} - {lead.status}</span>
                   <small>{lead.phone}{lead.preferred_area ? `, ${lead.preferred_area}` : ''}</small>
                 </Link>
               ))
-            ) : <p>Ch?a c? lead.</p>}
+            ) : <p>Chua co lead.</p>}
           </div>
 
           <div className="broker-panel">
-            <h2>Ph?ng ph? tr?ch</h2>
-            {loading ? <p>?ang t?i...</p> : data?.rooms?.length ? (
+            <h2>Phong phu trach</h2>
+            {loading ? <p>Dang tai...</p> : data?.rooms?.length ? (
               data.rooms.slice(0, 6).map(room => (
                 <Link to={`/rooms/${room.id}`} className="broker-row" key={room.id}>
                   <span>{room.title}</span>
-                  <small>{room.available_slots ?? 0} ch?, {room.status}</small>
+                  <small>{room.available_slots ?? 0} chỗ, {room.status}</small>
                 </Link>
               ))
-            ) : <p>Ch?a c? ph?ng ???c ph?n c?ng.</p>}
+            ) : <p>Chua co phong duoc phan cong.</p>}
           </div>
 
           <div className="broker-panel">
-            <h2>Y?u c?u m?i</h2>
-            {loading ? <p>?ang t?i...</p> : data?.requests?.length ? (
+            <h2>Yeu cau moi</h2>
+            {loading ? <p>Dang tai...</p> : data?.requests?.length ? (
               data.requests.slice(0, 6).map(req => (
                 <div className="broker-row" key={req.id}>
                   <span>{req.tenant?.full_name || 'Tenant'} - {req.status}</span>
-                  <small>{req.occupants || 1} ng??i, {formatDate(req.created_at)}</small>
+                  <small>{req.occupants || 1} nguoi, {formatDate(req.created_at)}</small>
                 </div>
               ))
-            ) : <p>Kh?ng c? y?u c?u m?i.</p>}
+            ) : <p>Khong co yeu cau moi.</p>}
           </div>
 
           <div className="broker-panel">
-            <h2>L?ch h?n</h2>
-            {loading ? <p>?ang t?i...</p> : data?.appointments?.length ? (
+            <h2>Lich hen</h2>
+            {loading ? <p>Dang tai...</p> : data?.appointments?.length ? (
               data.appointments.slice(0, 6).map(appt => (
                 <div className="broker-row" key={appt.id}>
-                  <span>{appt.room?.title || 'Ph?ng'} - {appt.status}</span>
+                  <span>{appt.room?.title || 'Phong'} - {appt.status}</span>
                   <small>{new Date(appt.scheduled_at).toLocaleString('vi-VN')}</small>
                 </div>
               ))
-            ) : <p>Ch?a c? l?ch h?n.</p>}
+            ) : <p>Chua co lich hen.</p>}
           </div>
 
           <div className="broker-panel">
-            <h2>L?ch s? x? l?</h2>
-            {loading ? <p>?ang t?i...</p> : data?.activities?.length ? (
+            <h2>Lich su xu ly</h2>
+            {loading ? <p>Dang tai...</p> : data?.activities?.length ? (
               data.activities.map(item => (
                 <div className="broker-row" key={item.id}>
                   <span>{item.action}</span>
                   <small>{formatDate(item.created_at)}</small>
                 </div>
               ))
-            ) : <p>Ch?a c? ho?t ??ng n?o.</p>}
+            ) : <p>Chua co hoat dong nao.</p>}
           </div>
         </section>
       </div>

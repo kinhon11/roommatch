@@ -96,56 +96,8 @@ const getApprovedRooms = async (req, res) => {
       page = 1, limit = 12,
     } = req.query;
 
-    const pageNumber = Number(page) || 1;
-    const limitNumber = Number(limit) || 12;
-    const from = (pageNumber - 1) * limitNumber;
-    const to   = pageNumber * limitNumber - 1;
-
-    let allowedRoomIds = null;
-    if (amenityFilter) {
-      const wantedAmenities = amenityFilter
-        .split(',')
-        .map(s => s.trim().toLowerCase())
-        .filter(Boolean);
-
-      if (!wantedAmenities.length) {
-        return res.status(200).json({
-          rooms: [],
-          total: 0,
-          page: pageNumber,
-          limit: limitNumber,
-        });
-      }
-
-      const { data: amenityRows, error: amenityErr } = await supabase
-        .from('room_amenities')
-        .select('room_id, amenities(name)')
-        .in('amenities.name', wantedAmenities);
-
-      if (amenityErr) return res.status(500).json({ error: amenityErr.message });
-
-      const roomToAmenities = new Map();
-      (amenityRows || []).forEach((row) => {
-        const roomId = row.room_id;
-        const name = row.amenities?.name?.toLowerCase();
-        if (!roomId || !name) return;
-        if (!roomToAmenities.has(roomId)) roomToAmenities.set(roomId, new Set());
-        roomToAmenities.get(roomId).add(name);
-      });
-
-      allowedRoomIds = Array.from(roomToAmenities.entries())
-        .filter(([, names]) => wantedAmenities.every(amenity => names.has(amenity)))
-        .map(([roomId]) => roomId);
-
-      if (!allowedRoomIds.length) {
-        return res.status(200).json({
-          rooms: [],
-          total: 0,
-          page: pageNumber,
-          limit: limitNumber,
-        });
-      }
-    }
+    const from = (page - 1) * limit;
+    const to   = page * limit - 1;
 
     let query = supabase
       .from('rooms')
@@ -159,7 +111,8 @@ const getApprovedRooms = async (req, res) => {
       .eq('status', 'approved')
       .eq('is_hidden', false)
       .eq('is_available', true)
-      .gt('available_slots', 0);
+      .gt('available_slots', 0)
+      .range(from, to);
 
     if (sort === 'price_asc') {
       query = query.order('price', { ascending: true });
@@ -180,18 +133,27 @@ const getApprovedRooms = async (req, res) => {
     if (private_hours === 'true') query = query.eq('has_private_hours', true);
     if (allow_pets === 'true') query = query.eq('allow_pets', true);
     if (has_parking === 'true') query = query.eq('has_parking', true);
-    if (allowedRoomIds) query = query.in('id', allowedRoomIds);
-
-    query = query.range(from, to);
 
     const { data, error, count } = await query;
     if (error) return res.status(500).json({ error: error.message });
 
+    // Post-filter by amenities (Supabase doesn't support filtering on nested joins easily)
+    let filteredData = data;
+    if (amenityFilter) {
+      const wantedAmenities = amenityFilter.split(',').map(s => s.trim().toLowerCase());
+      filteredData = data.filter(room => {
+        const roomAmenityNames = (room.room_amenities || [])
+          .map(ra => ra.amenities?.name?.toLowerCase())
+          .filter(Boolean);
+        return wantedAmenities.every(wa => roomAmenityNames.includes(wa));
+      });
+    }
+
     return res.status(200).json({
-      rooms: data || [],
-      total: count ?? (data || []).length,
-      page: pageNumber,
-      limit: limitNumber,
+      rooms: filteredData,
+      total: amenityFilter ? filteredData.length : (count ?? data.length),
+      page: Number(page),
+      limit: Number(limit),
     });
   } catch (err) {
     return res.status(500).json({ error: err.message });
@@ -420,7 +382,7 @@ const toggleRoomAvailable = async (req, res) => {
     if (newAvail) {
       const slots = normalizeSlots(available_slots, existing.last_available_slots || existing.available_slots || 0);
       if (slots <= 0) {
-        return res.status(400).json({ error: 'C?n nh?p s? slot m?i l?n h?n 0 khi m? l?i ph?ng.' });
+        return res.status(400).json({ error: 'Can nhap so slot moi lon hon 0 khi mo lai phong.' });
       }
       updateFields.is_available = true;
       updateFields.available_slots = slots;
@@ -522,7 +484,7 @@ const updateRoomStatus = async (req, res) => {
 
     const reason = rejection_reason?.trim();
     if (status === 'rejected' && !reason) {
-      return res.status(400).json({ error: 'L? do t? ch?i l? b?t bu?c.' });
+      return res.status(400).json({ error: 'Ly do tu choi la bat buoc.' });
     }
 
     const { data: existing, error: existingError } = await supabase
@@ -759,7 +721,7 @@ const moderateReview = async (req, res) => {
     const reason = hidden_reason?.trim();
 
     if (hide && !reason) {
-      return res.status(400).json({ error: 'L? do ?n review l? b?t bu?c.' });
+      return res.status(400).json({ error: 'Ly do an review la bat buoc.' });
     }
 
     const { data, error } = await supabase
@@ -798,7 +760,7 @@ const respondToReview = async (req, res) => {
       .single();
 
     if (!room || room.host_id !== req.user.id) {
-      return res.status(403).json({ error: 'B?n kh?ng c? quy?n ph?n h?i review n?y.' });
+      return res.status(403).json({ error: 'Ban khong co quyen phan hoi review nay.' });
     }
 
     const { data, error } = await supabase
