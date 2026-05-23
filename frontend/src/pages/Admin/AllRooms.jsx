@@ -60,7 +60,7 @@ const AdminAllRooms = () => {
     if (!rejectModal) return;
     const { roomId, reason } = rejectModal;
     if (!reason.trim()) {
-      setRejectModal(m => ({ ...m, error: 'Vui long nhap ly do tu choi.' }));
+      setRejectModal(m => ({ ...m, error: 'Vui l?ng nh?p l? do t? ch?i.' }));
       return;
     }
     setActionState(s => ({ ...s, [roomId]: { loading: true } }));
@@ -69,7 +69,7 @@ const AdminAllRooms = () => {
       setRejectModal(null);
       fetchRooms(page);
     } catch {
-      setActionState(s => ({ ...s, [roomId]: { error: 'Loi tu choi' } }));
+      setActionState(s => ({ ...s, [roomId]: { error: 'L?i t? ch?i' } }));
       setRejectModal(null);
     }
   };
@@ -86,7 +86,7 @@ const AdminAllRooms = () => {
           : room
       )));
     } catch (e) {
-      setActionState(s => ({ ...s, [roomId]: { error: e.response?.data?.error || 'Loi gan moi gioi' } }));
+      setActionState(s => ({ ...s, [roomId]: { error: e.response?.data?.error || 'L?i g?n m?i gi?i' } }));
     } finally {
       setActionState(s => ({ ...s, [roomId]: { loading: false } }));
     }
@@ -95,26 +95,26 @@ const AdminAllRooms = () => {
   const primaryImg = (rm) =>
     rm.room_images?.find(i => i.is_primary)?.image_url || rm.room_images?.[0]?.image_url || null;
 
-  const hasMore = rooms.length < total && rooms.length === 20;
+  const hasMore = rooms.length < total;
 
   return (
     <div className="admin-allrooms">
       {rejectModal && (
         <div className="modal-overlay" onClick={() => setRejectModal(null)}>
           <div className="modal-box" onClick={e => e.stopPropagation()}>
-            <h3>Tu choi phong</h3>
-            <p>Nhap ly do bat buoc de chu nha biet can sua gi.</p>
+            <h3>T? ch?i ph?ng</h3>
+            <p>Nh?p l? do b?t bu?c ?? ch? nh? bi?t c?n s?a g?.</p>
             <textarea
               className="form-input"
               rows={3}
               value={rejectModal.reason}
               onChange={e => setRejectModal(m => ({ ...m, reason: e.target.value, error: '' }))}
-              placeholder="VD: Anh khong ro, thieu dia chi, noi dung sai quy dinh..."
+              placeholder="VD: ?nh kh?ng r?, thi?u ??a ch?, n?i dung sai quy ??nh..."
             />
             {rejectModal.error && <p className="form-error">{rejectModal.error}</p>}
             <div className="modal-actions">
-              <button className="btn btn-danger" onClick={handleReject}>Xac nhan tu choi</button>
-              <button className="btn btn-ghost" onClick={() => setRejectModal(null)}>Huy</button>
+              <button className="btn btn-danger" onClick={handleReject}>X?c nh?n t? ch?i</button>
+              <button className="btn btn-ghost" onClick={() => setRejectModal(null)}>H?y</button>
             </div>
           </div>
         </div>
@@ -172,13 +172,13 @@ const AdminAllRooms = () => {
                   👤 {room.users?.full_name} ({room.users?.email})
                 </p>
                 <label className="broker-assign">
-                  <span>Moi gioi phu trach</span>
+                  <span>M?i gioi phu trach</span>
                   <select
                     value={room.broker_id || ''}
                     disabled={actionState[room.id]?.loading}
                     onChange={e => handleBrokerChange(room.id, e.target.value)}
                   >
-                    <option value="">Chua phan cong</option>
+                    <option value="">Ch?a ph?n c?ng</option>
                     {brokers.map(broker => (
                       <option key={broker.id} value={broker.id}>
                         {broker.full_name} ({broker.email})
@@ -196,14 +196,14 @@ const AdminAllRooms = () => {
                 </div>
                 <p className="pending-card__date">📅 {formatDate(room.created_at)}</p>
                 {room.rejection_reason && (
-                  <p className="pending-card__date">Ly do tu choi: {room.rejection_reason}</p>
+                  <p className="pending-card__date">L? do tu choi: {room.rejection_reason}</p>
                 )}
                 {room.auto_hidden_reason && (
                   <p className="pending-card__date">Tu dong an: {room.auto_hidden_reason}</p>
                 )}
                 {room.room_approval_history?.length > 0 && (
                   <p className="pending-card__date">
-                    Lich su gan nhat: {room.room_approval_history[0].to_status}
+                    L?ch s? g?n nh?t: {room.room_approval_history[0].to_status}
                     {room.room_approval_history[0].reason ? ` - ${room.room_approval_history[0].reason}` : ''}
                   </p>
                 )}

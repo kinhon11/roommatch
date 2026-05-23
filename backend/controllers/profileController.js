@@ -42,7 +42,7 @@ const updateProfile = async (req, res) => {
     }
 
     if (contact_email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(contact_email.trim())) {
-      return res.status(400).json({ error: 'Email lien he khong hop le.' });
+      return res.status(400).json({ error: 'Email li?n h? kh?ng h?p l?.' });
     }
     if (facebook_url && !/^https?:\/\/(www\.)?facebook\.com\/.+/i.test(facebook_url.trim())) {
       return res.status(400).json({ error: 'Facebook URL phai la lien ket facebook hop le.' });

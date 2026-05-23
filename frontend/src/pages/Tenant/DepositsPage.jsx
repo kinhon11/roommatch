@@ -7,10 +7,10 @@ import { useDialog } from '../../context/DialogContext';
 import { useToast } from '../../context/ToastContext';
 
 const statusLabels = {
-  pending_payment: 'Cho thanh toan',
-  paid: 'Da coc / giu phong',
-  cancelled: 'Da huy',
-  refunded: 'Da hoan coc',
+  pending_payment: 'Ch? thanh to?n',
+  paid: '?? c?c / gi? ph?ng',
+  cancelled: '?? h?y',
+  refunded: '?? ho?n c?c',
 };
 
 const statusClass = {
@@ -36,7 +36,7 @@ const DepositsPage = () => {
       const res = await depositService.list();
       setDeposits(Array.isArray(res.data) ? res.data : []);
     } catch (err) {
-      setError(err.response?.data?.error || 'Khong tai duoc danh sach coc phong.');
+      setError(err.response?.data?.error || 'Kh?ng t?i ???c danh s?ch c?c ph?ng.');
     } finally {
       setLoading(false);
     }
@@ -87,28 +87,28 @@ const DepositsPage = () => {
   };
 
   if (loading) {
-    return <div className="deposits-page container"><p>Dang tai coc phong...</p><style>{styles}</style></div>;
+    return <div className="deposits-page container"><p>?ang t?i c?c ph?ng...</p><style>{styles}</style></div>;
   }
 
   return (
     <div className="deposits-page container">
       <div className="deposits-header">
         <div>
-          <h1>Coc phong</h1>
-          <p>{user?.role === 'landlord' ? 'Quan ly yeu cau coc va giu phong.' : 'Theo doi cac yeu cau coc phong cua ban.'}</p>
+          <h1>C?c ph?ng</h1>
+          <p>{user?.role === 'landlord' ? 'Qu?n l? y?u c?u c?c v? gi? ph?ng.' : 'Theo d?i c?c y?u c?u c?c ph?ng c?a b?n.'}</p>
         </div>
         <div className="deposit-stats">
-          <span>Cho thanh toan: <strong>{counts.pending_payment || 0}</strong></span>
-          <span>Da coc: <strong>{counts.paid || 0}</strong></span>
+          <span>Ch? thanh to?n: <strong>{counts.pending_payment || 0}</strong></span>
+          <span>?? c?c: <strong>{counts.paid || 0}</strong></span>
         </div>
       </div>
 
       {error && <div className="alert alert-error">{error}</div>}
       {!deposits.length ? (
         <div className="empty-state">
-          <h2>Chua co yeu cau coc phong</h2>
-          <p>{user?.role === 'tenant' ? 'Khi duoc chap nhan o ghep hoac co lich hen hop le, ban co the gui yeu cau coc tu trang chi tiet phong.' : 'Yeu cau coc cua tenant se hien thi tai day.'}</p>
-          {user?.role === 'tenant' && <Link to="/rooms" className="btn btn-primary">Tim phong</Link>}
+          <h2>Ch?a c? y?u c?u c?c ph?ng</h2>
+          <p>{user?.role === 'tenant' ? 'Khi ???c ch?p nh?n ? gh?p ho?c c? l?ch h?n h?p l?, b?n c? th? g?i y?u c?u c?c t? trang chi ti?t ph?ng.' : 'Y?u c?u c?c c?a tenant s? hi?n th? t?i ??y.'}</p>
+          {user?.role === 'tenant' && <Link to="/rooms" className="btn btn-primary">T?m ph?ng</Link>}
         </div>
       ) : (
         <div className="deposit-list">
@@ -118,49 +118,49 @@ const DepositsPage = () => {
                 <span className={`deposit-badge deposit-badge--${statusClass[deposit.status] || 'muted'}`}>
                   {statusLabels[deposit.status] || deposit.status}
                 </span>
-                <h2><Link to={`/rooms/${deposit.room_id}`}>{deposit.room?.title || 'Phong'}</Link></h2>
+                <h2><Link to={`/rooms/${deposit.room_id}`}>{deposit.room?.title || 'Ph?ng'}</Link></h2>
                 <p className="deposit-meta">{deposit.room?.address}, {deposit.room?.city}</p>
                 <p className="deposit-amount">{formatCurrency(deposit.amount)}</p>
                 <p className="deposit-meta">
                   {user?.role === 'landlord'
                     ? `Tenant: ${deposit.tenant?.full_name || deposit.tenant?.email || 'Tenant'}`
-                    : `Chu nha: ${deposit.landlord?.full_name || deposit.landlord?.email || 'Landlord'}`}
+                    : `Ch? nh?: ${deposit.landlord?.full_name || deposit.landlord?.email || 'Landlord'}`}
                 </p>
-                {deposit.note && <p className="deposit-note">Ghi chu tenant: {deposit.note}</p>}
-                {deposit.landlord_note && <p className="deposit-note">Ghi chu landlord: {deposit.landlord_note}</p>}
+                {deposit.note && <p className="deposit-note">Ghi ch? tenant: {deposit.note}</p>}
+                {deposit.landlord_note && <p className="deposit-note">Ghi ch? landlord: {deposit.landlord_note}</p>}
                 {(deposit.cancel_reason || deposit.refund_reason) && (
-                  <p className="deposit-note">Ly do: {deposit.cancel_reason || deposit.refund_reason}</p>
+                  <p className="deposit-note">L? do: {deposit.cancel_reason || deposit.refund_reason}</p>
                 )}
               </div>
 
               <div className="deposit-card__side">
-                <p>Tao luc: {formatDate(deposit.created_at)}</p>
-                {deposit.paid_at && <p>Da coc: {formatDate(deposit.paid_at)}</p>}
+                <p>T?o l?c: {formatDate(deposit.created_at)}</p>
+                {deposit.paid_at && <p>?? c?c: {formatDate(deposit.paid_at)}</p>}
                 {deposit.status === 'pending_payment' && user?.role === 'tenant' && (
                   <button className="btn btn-ghost btn-sm" disabled={busyId === deposit.id} onClick={() => updateStatus(deposit, 'cancelled')}>
-                    Huy yeu cau
+                    H?y y?u c?u
                   </button>
                 )}
                 {deposit.status === 'pending_payment' && user?.role === 'landlord' && (
                   <>
                     <button className="btn btn-primary btn-sm" disabled={busyId === deposit.id} onClick={() => updateStatus(deposit, 'paid')}>
-                      Xac nhan da nhan coc
+                      X?c nh?n ?? nh?n c?c
                     </button>
                     <button className="btn btn-ghost btn-sm" disabled={busyId === deposit.id} onClick={() => updateStatus(deposit, 'cancelled')}>
-                      Tu choi / huy
+                      T? ch?i / h?y
                     </button>
                   </>
                 )}
                 {deposit.status === 'paid' && ['landlord', 'admin'].includes(user?.role) && (
                   <button className="btn btn-ghost btn-sm" disabled={busyId === deposit.id} onClick={() => updateStatus(deposit, 'refunded')}>
-                    Hoan coc
+                    Ho?n c?c
                   </button>
                 )}
               </div>
 
               {deposit.transactions?.length > 0 && (
                 <div className="deposit-history">
-                  <strong>Lich su</strong>
+                  <strong>L?ch s?</strong>
                   {deposit.transactions.map((tx) => (
                     <span key={tx.id}>{formatDate(tx.created_at)}: {tx.from_status || 'new'} {'->'} {tx.to_status}</span>
                   ))}

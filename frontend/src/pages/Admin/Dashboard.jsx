@@ -99,13 +99,13 @@ const AdminDashboard = () => {
 
         <div className="admin-ops-stats animate-fadeIn">
           {[
-            ['Moi gioi', stats?.totalBrokers],
-            ['Phong da gan moi gioi', stats?.brokerAssignedRooms],
-            ['Phong con cho', stats?.availableRooms],
-            ['Phong het cho', stats?.fullRooms],
-            ['Yeu cau thanh cong', stats?.acceptedRequests],
-            ['Hoa hong cho thu', stats?.pendingCommissions],
-            ['Hoa hong da thu', stats?.collectedCommissions],
+            ['Môi giới', stats?.totalBrokers],
+            ['Phòng đã gán môi giới', stats?.brokerAssignedRooms],
+            ['Phòng còn chỗ', stats?.availableRooms],
+            ['Phòng hết chỗ', stats?.fullRooms],
+            ['Yêu cầu thành công', stats?.acceptedRequests],
+            ['Hoa hồng chờ thu', stats?.pendingCommissions],
+            ['Hoa hồng đã thu', stats?.collectedCommissions],
           ].map(([label, value]) => (
             <div className="admin-ops-stat" key={label}>
               <strong>{statsLoading ? '-' : (value ?? 0)}</strong>
@@ -173,13 +173,13 @@ const AdminOverview = ({ stats, loading, activityLogs = [] }) => (
       marginTop: 20, padding: 16, background: 'var(--bg-warm)',
       border: '1px solid var(--border)', borderRadius: 'var(--radius-sm)',
     }}>
-      <h3 style={{ fontSize: 15, fontWeight: 800, color: 'var(--text-primary)', marginBottom: 10 }}>Lich su xu ly gan day</h3>
+      <h3 style={{ fontSize: 15, fontWeight: 800, color: 'var(--text-primary)', marginBottom: 10 }}>L?ch s? x? l? g?n ??y</h3>
       {activityLogs.length === 0 ? (
-        <p style={{ color: 'var(--text-secondary)', fontSize: 13 }}>Chua co hoat dong nao.</p>
+        <p style={{ color: 'var(--text-secondary)', fontSize: 13 }}>Ch?a c? ho?t ??ng n?o.</p>
       ) : activityLogs.slice(0, 8).map(log => (
         <div key={log.id} style={{ display: 'flex', justifyContent: 'space-between', gap: 12, padding: '8px 0', borderTop: '1px solid var(--border)' }}>
           <span style={{ color: 'var(--text-primary)', fontSize: 13 }}>{log.action}</span>
-          <span style={{ color: 'var(--text-muted)', fontSize: 12 }}>{log.actor?.full_name || 'He thong'} - {new Date(log.created_at).toLocaleString('vi-VN')}</span>
+          <span style={{ color: 'var(--text-muted)', fontSize: 12 }}>{log.actor?.full_name || 'H? th?ng'} - {new Date(log.created_at).toLocaleString('vi-VN')}</span>
         </div>
       ))}
     </div>

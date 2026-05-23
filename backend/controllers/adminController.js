@@ -189,7 +189,7 @@ const getPendingRooms = async (req, res) => {
       .from('rooms')
       .select(`*, users:users!rooms_host_id_fkey (full_name, email), broker:users!rooms_broker_id_fkey (id, full_name, email, phone), room_images (image_url, is_primary), room_approval_history (${APPROVAL_HISTORY_SELECT})`)
       .eq('status', 'pending')
-      .order('created_at', { ascending: true })
+      .order('created_at', { ascending: false })
       .order('created_at', { foreignTable: 'room_approval_history', ascending: false });
 
     if (error) return res.status(500).json({ error: error.message });
@@ -257,10 +257,10 @@ const assignRoomBroker = async (req, res) => {
         .single();
 
       if (brokerError || !broker || broker.role !== 'broker') {
-        return res.status(400).json({ error: 'Tai khoan duoc gan phai co vai tro broker.' });
+        return res.status(400).json({ error: 'Tài khoản được gán phải có vai trò broker.' });
       }
       if (broker.is_locked) {
-        return res.status(400).json({ error: 'Khong the gan moi gioi dang bi khoa.' });
+        return res.status(400).json({ error: 'Không thể gán môi giới đang bị khóa.' });
       }
     }
 
@@ -282,7 +282,7 @@ const assignRoomBroker = async (req, res) => {
     });
 
     return res.status(200).json({
-      message: brokerId ? 'Da phan cong moi gioi cho phong.' : 'Da bo phan cong moi gioi.',
+      message: brokerId ? 'Đã phân công môi giới cho phòng.' : 'Đã bỏ phân công môi giới.',
       room: data,
     });
   } catch (err) {
