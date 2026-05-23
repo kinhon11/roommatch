@@ -438,6 +438,7 @@ test('favorite only adds public approved rooms and filters stale favorites', asy
 
 test('deposit rejects invalid lifecycle changes and hides room after payment', async () => {
   const updates = [];
+  let depositStatus = 'pending_payment';
   const { updateDepositStatus } = loadController('controllers/depositController.js', (query) => {
     if (query.table === 'room_deposits' && query.operation === 'select') {
       return {
@@ -446,15 +447,16 @@ test('deposit rejects invalid lifecycle changes and hides room after payment', a
           room_id: 'room-1',
           tenant_id: 'tenant-1',
           landlord_id: 'landlord-1',
-          status: 'pending_payment',
+          status: depositStatus,
           amount: 500000,
-          room: { id: 'room-1', title: 'Phòng A' },
+          room: { id: 'room-1', title: 'Phòng A', available_slots: 1 },
         },
         error: null,
       };
     }
     if (query.operation === 'update') {
       updates.push({ table: query.table, payload: query.payload });
+      if (query.table === 'room_deposits') depositStatus = query.payload.status;
       return { data: { id: 'dep-1', ...query.payload }, error: null };
     }
     return { data: query.payload || null, error: null };
@@ -467,13 +469,21 @@ test('deposit rejects invalid lifecycle changes and hides room after payment', a
   });
   assert.equal(missingReason.statusCode, 400);
 
+  const adminConfirmed = await callController(updateDepositStatus, {
+    user: { id: 'admin-1', role: 'admin' },
+    params: { id: 'dep-1' },
+    body: { status: 'admin_confirmed', note: 'Đã nhận tiền' },
+  });
+  assert.equal(adminConfirmed.statusCode, 200);
+  assert.equal(updates.find(u => u.table === 'room_deposits').payload.status, 'admin_confirmed');
+
   const paid = await callController(updateDepositStatus, {
     user: { id: 'landlord-1', role: 'landlord' },
     params: { id: 'dep-1' },
-    body: { status: 'paid', note: 'Đã nhận tiền' },
+    body: { status: 'landlord_accepted', note: 'Đồng ý nhận cọc' },
   });
   assert.equal(paid.statusCode, 200);
-  assert.equal(updates.find(u => u.table === 'room_deposits').payload.status, 'paid');
+  assert.equal(updates.filter(u => u.table === 'room_deposits').at(-1).payload.status, 'landlord_accepted');
   assert.equal(updates.find(u => u.table === 'rooms').payload.is_hidden, true);
   assert.equal(updates.find(u => u.table === 'rooms').payload.is_available, false);
 });
@@ -489,7 +499,7 @@ test('deposit payment for accepted roommate request keeps shared room visible wh
           tenant_id: 'tenant-1',
           landlord_id: 'landlord-1',
           roommate_request_id: 'req-1',
-          status: 'pending_payment',
+          status: 'admin_confirmed',
           amount: 500000,
           deposit_scope: 'slot',
           deposit_slots: 1,
@@ -515,7 +525,7 @@ test('deposit payment for accepted roommate request keeps shared room visible wh
   const paid = await callController(updateDepositStatus, {
     user: { id: 'landlord-1', role: 'landlord' },
     params: { id: 'dep-slot-1' },
-    body: { status: 'paid', note: 'Da nhan coc slot' },
+    body: { status: 'landlord_accepted', note: 'Dong y nhan coc slot' },
   });
 
   const roomUpdate = updates.find(update => update.table === 'rooms');

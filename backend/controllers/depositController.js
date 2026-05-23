@@ -4,8 +4,17 @@ const {
   createBrokerCommissionFromDeposit,
 } = require('../utils/brokerLeadSync');
 
-const ACTIVE_DEPOSIT_STATUSES = ['pending_payment', 'paid'];
-const DEPOSIT_STATUSES = ['pending_payment', 'paid', 'cancelled', 'refunded'];
+const ACTIVE_DEPOSIT_STATUSES = ['pending_payment', 'admin_confirmed', 'landlord_accepted', 'paid'];
+const DEPOSIT_STATUSES = [
+  'pending_payment',
+  'admin_confirmed',
+  'landlord_accepted',
+  'refund_pending',
+  'paid',
+  'cancelled',
+  'refunded',
+];
+const COMMISSION_RATE = 0.5;
 const DEPOSIT_SCOPES = {
   FULL_ROOM: 'full_room',
   SLOT: 'slot',
@@ -65,6 +74,38 @@ const hasDepositEligibility = async ({ roomId, tenantId, requestedScope }) => {
   }
 
   return { eligible: false };
+};
+
+const notifyAdmins = async (type, payload) => {
+  const { data: admins, error } = await supabase
+    .from('users')
+    .select('id, is_locked')
+    .eq('role', 'admin');
+
+  if (error) {
+    console.warn('Failed to find admins for deposit notification:', error.message);
+    return;
+  }
+
+  await Promise.all((admins || [])
+    .filter(admin => admin.is_locked !== true)
+    .map(admin => createNotification(admin.id, type, payload)));
+};
+
+const getCommissionAmount = (deposit) => {
+  if (!deposit?.room?.broker_id) return 0;
+  const amount = Number(deposit.amount || 0);
+  return Number.isFinite(amount) ? Math.round(amount * COMMISSION_RATE) : 0;
+};
+
+const attachDepositMoneySummary = (deposit) => {
+  const commissionAmount = getCommissionAmount(deposit);
+  const amount = Number(deposit.amount || 0);
+  return {
+    ...deposit,
+    broker_commission_amount: commissionAmount,
+    landlord_receive_amount: Math.max(amount - commissionAmount, 0),
+  };
 };
 
 const getActiveDepositsForRoom = async (roomId) => {
@@ -151,7 +192,7 @@ const getDeposits = async (req, res) => {
 
     const { data, error } = await query;
     if (error) return res.status(500).json({ error: error.message });
-    return res.status(200).json(data || []);
+    return res.status(200).json((data || []).map(attachDepositMoneySummary));
   } catch (err) {
     return res.status(500).json({ error: err.message });
   }
@@ -261,8 +302,8 @@ const createDeposit = async (req, res) => {
       note: note || 'Tenant gui yeu cau dat coc.',
     });
 
-    await createNotification(room.host_id, 'deposit', {
-      message: `${req.user.full_name || req.user.email} gui yeu cau coc phong "${room.title}".`,
+    await notifyAdmins('deposit', {
+      message: `${req.user.full_name || req.user.email} gui yeu cau coc phong "${room.title}", cho admin xac nhan tien.`,
       deposit_id: data.id,
       room_id,
     });
@@ -273,36 +314,13 @@ const createDeposit = async (req, res) => {
         deposit_id: data.id,
         room_id,
       });
-      const syncedLead = await syncBrokerLeadFromTenantAction({
+      await syncBrokerLeadFromTenantAction({
         brokerId: room.broker_id,
         tenantId: req.user.id,
         roomId: room_id,
         status: 'deposit_ready',
-        note: `Khách đã gửi yêu cầu cọc phòng "${room.title}".`,
+        note: `Khach da gui yeu cau coc phong "${room.title}", cho admin xac nhan tien.`,
       });
-    }
-
-    if (room.broker_id) {
-      const commissionLead = await syncBrokerLeadFromTenantAction({
-        brokerId: room.broker_id,
-        tenantId: req.user.id,
-        roomId: room_id,
-        status: 'deposit_ready',
-        note: `Khach gui yeu cau coc phong "${room.title}".`,
-      });
-      if (commissionLead.lead?.id) {
-        const commissionResult = await createBrokerCommissionFromDeposit({
-          brokerId: room.broker_id,
-          tenantId: req.user.id,
-          roomId: room_id,
-          leadId: commissionLead.lead.id,
-          amount: depositAmount,
-          note: `Du kien hoa hong khi khach gui yeu cau coc phong "${room.title}".`,
-        });
-        if (commissionResult.error) {
-          console.warn('Failed to create broker commission from deposit request:', commissionResult.error.message);
-        }
-      }
     }
 
     return res.status(201).json({ message: 'Da gui yeu cau dat coc.', deposit: data });
@@ -333,30 +351,35 @@ const updateDepositStatus = async (req, res) => {
       return res.status(403).json({ error: 'Ban khong co quyen cap nhat yeu cau coc nay.' });
     }
 
-    if (isTenant && !isAdmin && status !== 'cancelled') {
-      return res.status(403).json({ error: 'Tenant chi co the huy yeu cau coc dang cho thanh toan.' });
+    const validTransition =
+      (status === 'cancelled' && isTenant && deposit.status === 'pending_payment')
+      || (status === 'admin_confirmed' && isAdmin && deposit.status === 'pending_payment')
+      || (status === 'landlord_accepted' && isLandlord && deposit.status === 'admin_confirmed')
+      || (status === 'refund_pending' && isLandlord && deposit.status === 'admin_confirmed')
+      || (status === 'refunded' && isAdmin && ['refund_pending', 'landlord_accepted', 'paid'].includes(deposit.status))
+      || (status === 'paid' && isAdmin && deposit.status === 'pending_payment');
+
+    if (!validTransition) {
+      return res.status(403).json({ error: 'Trang thai nay khong dung vai tro hoac khong dung buoc xu ly.' });
     }
-    if (status === 'cancelled' && deposit.status !== 'pending_payment') {
-      return res.status(400).json({ error: 'Chi co the huy yeu cau coc dang cho thanh toan.' });
-    }
-    if (status === 'paid' && deposit.status !== 'pending_payment') {
-      return res.status(400).json({ error: 'Chi co the xac nhan thanh toan tu pending_payment.' });
-    }
-    if (status === 'refunded' && deposit.status !== 'paid') {
-      return res.status(400).json({ error: 'Chi co the hoan coc sau khi da thanh toan.' });
-    }
-    if (['cancelled', 'refunded'].includes(status) && !note?.trim()) {
-      return res.status(400).json({ error: 'Ly do huy/hoan coc la bat buoc.' });
+    if (['cancelled', 'refund_pending', 'refunded'].includes(status) && !note?.trim()) {
+      return res.status(400).json({ error: 'Ly do la bat buoc.' });
     }
 
     const timestamp = new Date().toISOString();
     const updateData = { status };
-    if (status === 'paid') {
+    if (status === 'admin_confirmed' || status === 'paid') {
       updateData.paid_at = timestamp;
       updateData.landlord_note = note?.trim() || null;
     }
+    if (status === 'landlord_accepted') {
+      updateData.landlord_note = note?.trim() || 'Chu nha dong y nhan coc.';
+    }
     if (status === 'cancelled') {
       updateData.cancelled_at = timestamp;
+      updateData.cancel_reason = note.trim();
+    }
+    if (status === 'refund_pending') {
       updateData.cancel_reason = note.trim();
     }
     if (status === 'refunded') {
@@ -381,7 +404,7 @@ const updateDepositStatus = async (req, res) => {
       note,
     });
 
-    if (status === 'paid') {
+    if (status === 'landlord_accepted' || status === 'paid') {
       const depositScope = deposit.deposit_scope || DEPOSIT_SCOPES.FULL_ROOM;
       const depositSlots = Math.max(Number(deposit.deposit_slots) || 1, 1);
       const currentSlots = Number(deposit.room?.available_slots) || 0;
@@ -418,7 +441,7 @@ const updateDepositStatus = async (req, res) => {
           tenantId: deposit.tenant_id,
           roomId: deposit.room_id,
           status: 'closed',
-          note: `Khách đã cọc thành công phòng "${deposit.room?.title || 'Phòng'}".`,
+          note: `Chu nha da dong y nhan coc phong "${deposit.room?.title || 'Phong'}".`,
         });
 
         if (syncedLead.lead?.id) {
@@ -428,13 +451,13 @@ const updateDepositStatus = async (req, res) => {
             roomId: deposit.room_id,
             leadId: syncedLead.lead.id,
             amount: deposit.amount,
-            note: `Tự tạo khi xác nhận cọc phòng "${deposit.room?.title || 'Phòng'}".`,
+            note: `Tu dong tao khi admin da nhan coc va chu nha dong y phong "${deposit.room?.title || 'Phong'}".`,
           });
         }
       }
     }
 
-    if (status === 'refunded') {
+    if (status === 'refunded' && ['landlord_accepted', 'paid'].includes(deposit.status)) {
       const depositScope = deposit.deposit_scope || DEPOSIT_SCOPES.FULL_ROOM;
       const depositSlots = Math.max(Number(deposit.deposit_slots) || 1, 1);
       const currentSlots = Number(deposit.room?.available_slots) || 0;
@@ -467,25 +490,49 @@ const updateDepositStatus = async (req, res) => {
       }
     }
 
-    if (['cancelled', 'refunded'].includes(status) && deposit.room?.broker_id) {
+    if (['cancelled', 'refund_pending', 'refunded'].includes(status) && deposit.room?.broker_id) {
       await cancelBrokerCommissionForDeposit({
         brokerId: deposit.room.broker_id,
         tenantId: deposit.tenant_id,
         roomId: deposit.room_id,
-        note: status === 'cancelled'
-          ? `Huy hoa hong do yeu cau coc bi huy: ${note}`
-          : `Huy hoa hong do da hoan coc: ${note}`,
+        note: status === 'refunded'
+          ? `Huy hoa hong do da hoan coc: ${note}`
+          : `Huy hoa hong do yeu cau coc khong thanh cong: ${note}`,
       });
     }
 
-    const notifyUserId = isLandlord || isAdmin ? deposit.tenant_id : deposit.landlord_id;
-    await createNotification(notifyUserId, 'deposit', {
-      message: `Yeu cau coc phong "${deposit.room?.title || 'Phong'}" da cap nhat sang ${status}.`,
-      deposit_id: deposit.id,
-      room_id: deposit.room_id,
-    });
+    if (status === 'admin_confirmed') {
+      await createNotification(deposit.landlord_id, 'deposit', {
+        message: `Admin da xac nhan nhan ${deposit.amount} tien coc phong "${deposit.room?.title || 'Phong'}". Vui long dong y hoac khong dong y nhan coc.`,
+        deposit_id: deposit.id,
+        room_id: deposit.room_id,
+      });
+      await createNotification(deposit.tenant_id, 'deposit', {
+        message: `Admin da xac nhan tien coc phong "${deposit.room?.title || 'Phong'}", dang cho chu nha quyet dinh.`,
+        deposit_id: deposit.id,
+        room_id: deposit.room_id,
+      });
+    } else if (status === 'refund_pending') {
+      await notifyAdmins('deposit', {
+        message: `Chu nha khong dong y nhan coc phong "${deposit.room?.title || 'Phong'}". Can hoan coc cho khach. Ly do: ${note}`,
+        deposit_id: deposit.id,
+        room_id: deposit.room_id,
+      });
+      await createNotification(deposit.tenant_id, 'deposit', {
+        message: `Chu nha khong dong y nhan coc phong "${deposit.room?.title || 'Phong'}". Admin se xu ly hoan coc.`,
+        deposit_id: deposit.id,
+        room_id: deposit.room_id,
+      });
+    } else {
+      const notifyUserId = isLandlord || isAdmin ? deposit.tenant_id : deposit.landlord_id;
+      await createNotification(notifyUserId, 'deposit', {
+        message: `Yeu cau coc phong "${deposit.room?.title || 'Phong'}" da cap nhat sang ${status}.`,
+        deposit_id: deposit.id,
+        room_id: deposit.room_id,
+      });
+    }
 
-    return res.status(200).json({ message: 'Da cap nhat yeu cau coc.', deposit: data });
+    return res.status(200).json({ message: 'Da cap nhat yeu cau coc.', deposit: attachDepositMoneySummary({ ...data, room: deposit.room }) });
   } catch (err) {
     return res.status(500).json({ error: err.message });
   }

@@ -11,7 +11,7 @@ const run = async () => {
       id, room_id, tenant_id, amount, status, deposit_scope, deposit_slots,
       room:rooms (id, title, broker_id)
     `)
-    .in('status', ['pending_payment', 'paid'])
+    .in('status', ['landlord_accepted', 'paid'])
     .not('room.broker_id', 'is', null);
 
   if (error) throw error;
@@ -32,7 +32,7 @@ const run = async () => {
       brokerId,
       tenantId: deposit.tenant_id,
       roomId: deposit.room_id,
-      status: deposit.status === 'paid' ? 'closed' : 'deposit_ready',
+      status: 'closed',
       note: `Backfill hoa hong tu yeu cau coc phong "${deposit.room?.title || deposit.room_id}".`,
     });
 

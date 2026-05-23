@@ -7,7 +7,10 @@ import { useDialog } from '../../context/DialogContext';
 import { useToast } from '../../context/ToastContext';
 
 const statusLabels = {
-  pending_payment: 'Chờ thanh toán',
+  pending_payment: 'Chờ admin xác nhận tiền',
+  admin_confirmed: 'Chờ chủ nhà quyết định',
+  landlord_accepted: 'Chủ nhà đã đồng ý',
+  refund_pending: 'Chờ admin hoàn cọc',
   paid: 'Đã cọc / giữ phòng',
   cancelled: 'Đã hủy',
   refunded: 'Đã hoàn cọc',
@@ -15,6 +18,9 @@ const statusLabels = {
 
 const statusClass = {
   pending_payment: 'warning',
+  admin_confirmed: 'warning',
+  landlord_accepted: 'success',
+  refund_pending: 'warning',
   paid: 'success',
   cancelled: 'muted',
   refunded: 'info',
@@ -61,23 +67,35 @@ const DepositsPage = () => {
 
   const updateStatus = async (deposit, status) => {
     let note = '';
-    if (status === 'paid') {
-      const paidNote = await dialog.prompt({
-        title: 'Xác nhận đã nhận cọc',
+    if (status === 'admin_confirmed') {
+      const adminNote = await dialog.prompt({
+        title: 'Xác nhận công ty đã nhận tiền',
         label: 'Ghi chú tùy chọn',
-        placeholder: 'Ví dụ: Đã nhận chuyển khoản...',
+        placeholder: 'Ví dụ: Đã nhận chuyển khoản từ khách...',
         required: false,
         confirmText: 'Xác nhận',
       });
-      if (paidNote === null) return;
-      note = paidNote;
+      if (adminNote === null) return;
+      note = adminNote;
+    } else if (status === 'landlord_accepted') {
+      const acceptedNote = await dialog.prompt({
+        title: 'Đồng ý nhận cọc',
+        label: 'Ghi chú tùy chọn',
+        placeholder: 'Ví dụ: Tôi đồng ý giữ phòng cho khách này.',
+        required: false,
+        confirmText: 'Đồng ý',
+      });
+      if (acceptedNote === null) return;
+      note = acceptedNote;
     } else {
+      const isCancel = status === 'cancelled';
+      const isReject = status === 'refund_pending';
       note = await dialog.prompt({
-        title: status === 'cancelled' ? 'Hủy yêu cầu cọc' : 'Hoàn cọc',
-        label: status === 'cancelled' ? 'Lý do hủy' : 'Lý do hoàn cọc',
+        title: isCancel ? 'Hủy yêu cầu cọc' : isReject ? 'Không đồng ý nhận cọc' : 'Hoàn cọc',
+        label: isCancel ? 'Lý do hủy' : isReject ? 'Lý do không đồng ý' : 'Lý do hoàn cọc',
         placeholder: 'Nhập lý do để lưu vào lịch sử...',
-        confirmText: status === 'cancelled' ? 'Hủy yêu cầu' : 'Hoàn cọc',
-        tone: status === 'cancelled' ? 'danger' : 'primary',
+        confirmText: isCancel ? 'Hủy yêu cầu' : isReject ? 'Không đồng ý' : 'Hoàn cọc',
+        tone: isCancel || isReject ? 'danger' : 'primary',
       });
       if (!note?.trim()) return;
     }
@@ -106,8 +124,10 @@ const DepositsPage = () => {
           <p>{user?.role === 'broker' ? 'Theo dõi khách muốn cọc các phòng bạn phụ trách.' : user?.role === 'landlord' ? 'Quản lý yêu cầu cọc và giữ phòng.' : 'Theo dõi các yêu cầu cọc phòng của bạn.'}</p>
         </div>
         <div className="deposit-stats">
-          <span>Chờ thanh toán: <strong>{counts.pending_payment || 0}</strong></span>
-          <span>Đã cọc: <strong>{counts.paid || 0}</strong></span>
+          <span>Chờ admin: <strong>{counts.pending_payment || 0}</strong></span>
+          <span>Chờ chủ nhà: <strong>{counts.admin_confirmed || 0}</strong></span>
+          <span>Đã đồng ý: <strong>{(counts.landlord_accepted || 0) + (counts.paid || 0)}</strong></span>
+          <span>Chờ hoàn: <strong>{counts.refund_pending || 0}</strong></span>
         </div>
       </div>
 
@@ -129,6 +149,12 @@ const DepositsPage = () => {
                 <h2><Link to={`/rooms/${deposit.room_id}`}>{deposit.room?.title || 'Phòng'}</Link></h2>
                 <p className="deposit-meta">{deposit.room?.address}, {deposit.room?.city}</p>
                 <p className="deposit-amount">{formatCurrency(deposit.amount)}</p>
+                {['landlord', 'admin'].includes(user?.role) && (
+                  <div className="deposit-money-summary">
+                    <span>Hoa hồng môi giới: <strong>{formatCurrency(deposit.broker_commission_amount || 0)}</strong></span>
+                    <span>Chủ nhà dự kiến nhận: <strong>{formatCurrency(deposit.landlord_receive_amount ?? deposit.amount)}</strong></span>
+                  </div>
+                )}
                 <p className="deposit-meta">{getDepositScopeLabel(deposit)}</p>
                 <p className="deposit-meta">
                   {['landlord', 'broker'].includes(user?.role)
@@ -144,29 +170,48 @@ const DepositsPage = () => {
 
               <div className="deposit-card__side">
                 <p>Tạo lúc: {formatDate(deposit.created_at)}</p>
-                {deposit.paid_at && <p>Đã cọc: {formatDate(deposit.paid_at)}</p>}
+                {deposit.paid_at && <p>Admin xác nhận: {formatDate(deposit.paid_at)}</p>}
                 {deposit.status === 'pending_payment' && user?.role === 'tenant' && (
                   <button className="btn btn-ghost btn-sm" disabled={busyId === deposit.id} onClick={() => updateStatus(deposit, 'cancelled')}>
                     Hủy yêu cầu
                   </button>
                 )}
                 {deposit.status === 'pending_payment' && user?.role === 'broker' && (
-                  <p className="deposit-note">Chờ chủ nhà xác nhận cọc. Broker chỉ theo dõi và chăm sóc lead.</p>
+                  <p className="deposit-note">Chờ admin xác nhận tiền cọc. Broker chỉ theo dõi và chăm sóc lead.</p>
                 )}
-                {deposit.status === 'pending_payment' && user?.role === 'landlord' && (
+                {deposit.status === 'pending_payment' && user?.role === 'admin' && (
+                  <button className="btn btn-primary btn-sm" disabled={busyId === deposit.id} onClick={() => updateStatus(deposit, 'admin_confirmed')}>
+                    Xác nhận đã nhận tiền
+                  </button>
+                )}
+                {deposit.status === 'admin_confirmed' && user?.role === 'tenant' && (
+                  <p className="deposit-note">Công ty đã nhận tiền, đang chờ chủ nhà đồng ý hoặc không đồng ý nhận cọc.</p>
+                )}
+                {deposit.status === 'admin_confirmed' && user?.role === 'broker' && (
+                  <p className="deposit-note">Đã nhận tiền cọc, đang chờ chủ nhà quyết định.</p>
+                )}
+                {deposit.status === 'admin_confirmed' && user?.role === 'landlord' && (
                   <>
-                    <button className="btn btn-primary btn-sm" disabled={busyId === deposit.id} onClick={() => updateStatus(deposit, 'paid')}>
-                      Xác nhận đã nhận cọc
+                    <button className="btn btn-primary btn-sm" disabled={busyId === deposit.id} onClick={() => updateStatus(deposit, 'landlord_accepted')}>
+                      Đồng ý nhận cọc
                     </button>
-                    <button className="btn btn-ghost btn-sm" disabled={busyId === deposit.id} onClick={() => updateStatus(deposit, 'cancelled')}>
-                      Từ chối / hủy
+                    <button className="btn btn-ghost btn-sm" disabled={busyId === deposit.id} onClick={() => updateStatus(deposit, 'refund_pending')}>
+                      Không đồng ý
                     </button>
                   </>
                 )}
-                {deposit.status === 'paid' && user?.role === 'broker' && (
-                  <p className="deposit-note">Khách đã cọc. Hoa hồng sẽ được xử lý theo trạng thái giao dịch.</p>
+                {deposit.status === 'refund_pending' && user?.role === 'admin' && (
+                  <button className="btn btn-ghost btn-sm" disabled={busyId === deposit.id} onClick={() => updateStatus(deposit, 'refunded')}>
+                    Hoàn cọc cho khách
+                  </button>
                 )}
-                {deposit.status === 'paid' && ['landlord', 'admin'].includes(user?.role) && (
+                {deposit.status === 'refund_pending' && user?.role !== 'admin' && (
+                  <p className="deposit-note">Chờ admin xử lý hoàn cọc cho khách.</p>
+                )}
+                {['landlord_accepted', 'paid'].includes(deposit.status) && user?.role === 'broker' && (
+                  <p className="deposit-note">Giao dịch đã chốt. Hoa hồng được ghi nhận tự động theo cọc thành công.</p>
+                )}
+                {['landlord_accepted', 'paid'].includes(deposit.status) && user?.role === 'admin' && (
                   <button className="btn btn-ghost btn-sm" disabled={busyId === deposit.id} onClick={() => updateStatus(deposit, 'refunded')}>
                     Hoàn cọc
                   </button>
@@ -202,6 +247,9 @@ const styles = `
   .deposit-card h2 { font-size:18px; font-weight:700; margin:8px 0 4px; }
   .deposit-card h2 a { color:var(--text-primary); }
   .deposit-amount { color:var(--primary); font-size:20px; font-weight:800; margin:8px 0; }
+  .deposit-money-summary { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:8px; margin:10px 0; }
+  .deposit-money-summary span { padding:9px 10px; border:1px solid var(--border); border-radius:var(--radius-sm); background:var(--bg-warm); color:var(--text-secondary); font-size:13px; }
+  .deposit-money-summary strong { display:block; color:var(--text-primary); margin-top:2px; }
   .deposit-note { margin-top:6px; color:var(--text-secondary); font-size:13px; }
   .deposit-card__side { display:flex; flex-direction:column; gap:8px; align-items:flex-start; }
   .deposit-badge { display:inline-flex; padding:4px 10px; border-radius:var(--radius-full); font-size:12px; font-weight:700; }
@@ -217,6 +265,7 @@ const styles = `
   @media(max-width:720px) {
     .deposits-header, .deposit-stats { align-items:flex-start; flex-direction:column; }
     .deposit-card { grid-template-columns:1fr; }
+    .deposit-money-summary { grid-template-columns:1fr; }
   }
 `;
 
