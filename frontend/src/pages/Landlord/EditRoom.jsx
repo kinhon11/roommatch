@@ -7,6 +7,26 @@ import { useDialog } from '../../context/DialogContext';
 import { useToast } from '../../context/ToastContext';
 
 const CITIES = ['Hà Nội', 'Hồ Chí Minh', 'Đà Nẵng', 'Hải Phòng', 'Cần Thơ', 'Huế', 'Nha Trang', 'Biên Hòa', 'Vũng Tàu'];
+const PAYMENT_CYCLES = [
+  { value: 'monthly', label: 'Hàng tháng' },
+  { value: 'quarterly', label: 'Theo quý' },
+  { value: 'negotiable', label: 'Thỏa thuận' },
+];
+
+const buildRoomPayload = (form, selectedAmenities) => ({
+  ...form,
+  price: +form.price,
+  area: form.area ? +form.area : null,
+  available_slots: +form.available_slots,
+  deposit_amount: form.deposit_amount ? +form.deposit_amount : null,
+  electricity_price: form.electricity_price ? +form.electricity_price : null,
+  water_price: form.water_price ? +form.water_price : null,
+  internet_fee: form.internet_fee ? +form.internet_fee : null,
+  parking_fee: form.parking_fee ? +form.parking_fee : null,
+  service_fee: form.service_fee ? +form.service_fee : null,
+  max_occupants: form.max_occupants ? +form.max_occupants : null,
+  amenity_ids: selectedAmenities,
+});
 
 const EditRoom = () => {
   const { id } = useParams();
@@ -35,6 +55,21 @@ const EditRoom = () => {
       setForm({
         title: roomRes.title, price: roomRes.price, area: roomRes.area || '', available_slots: roomRes.available_slots ?? 1,
         address: roomRes.address, city: roomRes.city, description: roomRes.description || '',
+        deposit_amount: roomRes.deposit_amount || '',
+        electricity_price: roomRes.electricity_price || '',
+        water_price: roomRes.water_price || '',
+        internet_fee: roomRes.internet_fee || '',
+        parking_fee: roomRes.parking_fee || '',
+        service_fee: roomRes.service_fee || '',
+        payment_cycle: roomRes.payment_cycle || 'monthly',
+        is_owner_occupied: roomRes.is_owner_occupied || false,
+        has_private_hours: roomRes.has_private_hours ?? true,
+        allow_cooking: roomRes.allow_cooking ?? true,
+        allow_pets: roomRes.allow_pets || false,
+        allow_visitors: roomRes.allow_visitors ?? true,
+        has_parking: roomRes.has_parking || false,
+        max_occupants: roomRes.max_occupants || '',
+        house_rules: roomRes.house_rules || '',
       });
       setSelectedAmenities(roomRes.room_amenities?.map(ra => ra.amenities?.id).filter(Boolean) || []);
       setRoomImages(roomRes.room_images || []);
@@ -45,7 +80,8 @@ const EditRoom = () => {
   }, [id]);
 
   const handleChange = (e) => {
-    setForm(prev => ({ ...prev, [e.target.name]: e.target.value }));
+    const value = e.target.type === 'checkbox' ? e.target.checked : e.target.value;
+    setForm(prev => ({ ...prev, [e.target.name]: value }));
     if (errors[e.target.name]) setErrors(prev => ({ ...prev, [e.target.name]: '' }));
   };
 
@@ -87,7 +123,7 @@ const EditRoom = () => {
     setAiLoading(true);
     try {
       const names = amenities.filter(a => selectedAmenities.includes(a.id)).map(a => a.name);
-      const desc = await geminiService.generateDescription({ ...form, amenities: names });
+      const desc = await geminiService.generateDescription({ ...buildRoomPayload(form, selectedAmenities), amenities: names });
       setForm(prev => ({ ...prev, description: desc }));
     } catch { setApiError('AI gặp lỗi.'); }
     finally { setAiLoading(false); }
@@ -99,11 +135,12 @@ const EditRoom = () => {
     if (!form.title.trim())   errs.title   = 'Vui lòng nhập tiêu đề.';
     if (!form.price)          errs.price   = 'Vui lòng nhập giá.';
     if (!form.address.trim()) errs.address = 'Vui lòng nhập địa chỉ.';
+    if (form.max_occupants && (!Number.isInteger(+form.max_occupants) || +form.max_occupants <= 0)) errs.max_occupants = 'Nhập số nguyên lớn hơn 0.';
     if (Object.keys(errs).length) { setErrors(errs); return; }
 
     setSaving(true); setApiError('');
     try {
-      await roomService.updateRoom(id, { ...form, price: +form.price, area: form.area ? +form.area : null, available_slots: +form.available_slots, amenity_ids: selectedAmenities });
+      await roomService.updateRoom(id, buildRoomPayload(form, selectedAmenities));
       if (newImages.length > 0) {
         await roomService.uploadRoomImages(id, newImages);
       }
@@ -175,8 +212,74 @@ const EditRoom = () => {
                 <textarea name="description" value={form.description} onChange={handleChange}
                   className="form-input pr-textarea" rows={6} />
               </div>
+              <div className="pr-section">
+                <h2 className="pr-section-title">💰 Chi phí thực tế</h2>
+                <div className="form-row-2">
+                  <div className="form-group">
+                    <label className="form-label">Tiền cọc yêu cầu</label>
+                    <input name="deposit_amount" type="number" min="0" value={form.deposit_amount} onChange={handleChange} className="form-input" />
+                  </div>
+                  <div className="form-group">
+                    <label className="form-label">Chu kỳ thanh toán</label>
+                    <select name="payment_cycle" value={form.payment_cycle} onChange={handleChange} className="form-input">
+                      {PAYMENT_CYCLES.map(cycle => <option key={cycle.value} value={cycle.value}>{cycle.label}</option>)}
+                    </select>
+                  </div>
+                </div>
+                <div className="form-row-2">
+                  <div className="form-group">
+                    <label className="form-label">Giá điện</label>
+                    <input name="electricity_price" type="number" min="0" value={form.electricity_price} onChange={handleChange} className="form-input" />
+                  </div>
+                  <div className="form-group">
+                    <label className="form-label">Giá nước</label>
+                    <input name="water_price" type="number" min="0" value={form.water_price} onChange={handleChange} className="form-input" />
+                  </div>
+                </div>
+                <div className="form-row-3">
+                  <div className="form-group">
+                    <label className="form-label">Wifi/tháng</label>
+                    <input name="internet_fee" type="number" min="0" value={form.internet_fee} onChange={handleChange} className="form-input" />
+                  </div>
+                  <div className="form-group">
+                    <label className="form-label">Gửi xe/tháng</label>
+                    <input name="parking_fee" type="number" min="0" value={form.parking_fee} onChange={handleChange} className="form-input" />
+                  </div>
+                  <div className="form-group">
+                    <label className="form-label">Dịch vụ/tháng</label>
+                    <input name="service_fee" type="number" min="0" value={form.service_fee} onChange={handleChange} className="form-input" />
+                  </div>
+                </div>
+              </div>
             </div>
             <div className="pr-col">
+              <div className="pr-section">
+                <h2 className="pr-section-title">📌 Nội quy phòng</h2>
+                <div className="pr-rule-grid">
+                  {[
+                    ['is_owner_occupied', 'Có chung chủ'],
+                    ['has_private_hours', 'Giờ giấc tự do'],
+                    ['allow_cooking', 'Cho nấu ăn'],
+                    ['allow_pets', 'Cho nuôi thú cưng'],
+                    ['allow_visitors', 'Cho tiếp khách'],
+                    ['has_parking', 'Có chỗ để xe'],
+                  ].map(([name, label]) => (
+                    <label key={name} className="pr-rule-toggle">
+                      <input type="checkbox" name={name} checked={form[name]} onChange={handleChange} />
+                      <span>{label}</span>
+                    </label>
+                  ))}
+                </div>
+                <div className="form-group">
+                  <label className="form-label">Số người ở tối đa</label>
+                  <input name="max_occupants" type="number" min="1" value={form.max_occupants} onChange={handleChange} className={`form-input ${errors.max_occupants?'error':''}`} />
+                  {errors.max_occupants && <p className="form-error">{errors.max_occupants}</p>}
+                </div>
+                <div className="form-group">
+                  <label className="form-label">Nội quy khác</label>
+                  <textarea name="house_rules" value={form.house_rules} onChange={handleChange} className="form-input pr-small-textarea" rows={3} />
+                </div>
+              </div>
               <div className="pr-section">
                 <h2 className="pr-section-title">⚡ Tiện ích</h2>
                 <div className="pr-amenities">
@@ -240,6 +343,12 @@ const EditRoom = () => {
         .btn-ai{padding:8px 14px;background:linear-gradient(135deg,var(--primary),var(--info));color:#fff;border-radius:var(--radius-md);font-size:13px;font-weight:600;border:none;cursor:pointer;transition:var(--transition)}
         .btn-ai:disabled{opacity:.5;cursor:not-allowed}
         .pr-textarea{resize:vertical;min-height:140px}
+        .pr-small-textarea{resize:vertical;min-height:88px}
+        .form-row-3{display:grid;grid-template-columns:repeat(3,1fr);gap:12px}
+        @media(max-width:640px){.form-row-3{grid-template-columns:1fr}}
+        .pr-rule-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+        .pr-rule-toggle{display:flex;align-items:center;gap:8px;padding:10px 12px;border:1px solid var(--border);border-radius:var(--radius-md);background:var(--bg-surface);font-size:13px;color:var(--text-secondary);cursor:pointer}
+        .pr-rule-toggle input{accent-color:var(--primary)}
         .pr-amenities{display:flex;flex-wrap:wrap;gap:8px}
         .pr-amenity-btn{padding:8px 12px;background:var(--bg-surface);border:1.5px solid var(--border);border-radius:var(--radius-md);color:var(--text-secondary);font-size:13px;cursor:pointer;transition:var(--transition)}
         .pr-amenity-btn:hover{border-color:var(--primary);color:var(--text-primary)}

@@ -4,24 +4,16 @@ import apiClient from '../api/apiClient';
  * Gọi backend AI để sinh mô tả phòng từ Gemini
  */
 export const geminiService = {
-  generateDescription: async ({ title, price, area, address, city, amenities }) => {
+  generateDescription: async (payload) => {
     const { data } = await apiClient.post('/ai/generate-description', {
-      title, price, area, address, city, amenities,
+      ...payload,
     });
     return data.description;
   },
 
-  analyzeListing: async ({ title, price, area, address, city, description, amenities, available_slots, image_count }) => {
+  analyzeListing: async (payload) => {
     const { data } = await apiClient.post('/ai/analyze-listing', {
-      title,
-      price,
-      area,
-      address,
-      city,
-      description,
-      amenities,
-      available_slots,
-      image_count,
+      ...payload,
     });
     return data.analysis;
   },

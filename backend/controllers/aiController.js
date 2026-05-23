@@ -33,6 +33,23 @@ const generateAssistantReply = async (payload) => generateAIText(buildAssistantP
 const generateDescription = async (req, res) => {
   try {
     const { title, price, area, address, city, amenities = [] } = req.body;
+    const {
+      deposit_amount,
+      electricity_price,
+      water_price,
+      internet_fee,
+      parking_fee,
+      service_fee,
+      payment_cycle,
+      is_owner_occupied,
+      has_private_hours,
+      allow_cooking,
+      allow_pets,
+      allow_visitors,
+      has_parking,
+      max_occupants,
+      house_rules,
+    } = req.body;
     const numericPrice = safeNumber(price);
 
     if (!title || !numericPrice || !address) {
@@ -46,6 +63,25 @@ const generateDescription = async (req, res) => {
       address,
       city,
       amenityList: normalizeList(amenities),
+      costs: {
+        deposit_amount,
+        electricity_price,
+        water_price,
+        internet_fee,
+        parking_fee,
+        service_fee,
+        payment_cycle,
+      },
+      rules: {
+        is_owner_occupied,
+        has_private_hours,
+        allow_cooking,
+        allow_pets,
+        allow_visitors,
+        has_parking,
+        max_occupants,
+        house_rules,
+      },
     });
 
     const description = await generateText(prompt);
@@ -76,6 +112,21 @@ const analyzeListing = async (req, res) => {
       amenities = [],
       available_slots,
       image_count,
+      deposit_amount,
+      electricity_price,
+      water_price,
+      internet_fee,
+      parking_fee,
+      service_fee,
+      payment_cycle,
+      is_owner_occupied,
+      has_private_hours,
+      allow_cooking,
+      allow_pets,
+      allow_visitors,
+      has_parking,
+      max_occupants,
+      house_rules,
     } = req.body;
 
     const numericPrice = safeNumber(price);
@@ -93,6 +144,25 @@ const analyzeListing = async (req, res) => {
       amenityList: normalizeList(amenities),
       numericSlots: safeNumber(available_slots),
       numericImages: safeNumber(image_count),
+      costs: {
+        deposit_amount,
+        electricity_price,
+        water_price,
+        internet_fee,
+        parking_fee,
+        service_fee,
+        payment_cycle,
+      },
+      rules: {
+        is_owner_occupied,
+        has_private_hours,
+        allow_cooking,
+        allow_pets,
+        allow_visitors,
+        has_parking,
+        max_occupants,
+        house_rules,
+      },
     });
 
     const raw = await generateText(prompt);

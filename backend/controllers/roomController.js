@@ -18,6 +18,13 @@ const parseNumber = (value) => {
   return Number.isFinite(number) ? number : null;
 };
 
+const parseBoolean = (value, fallback = false) => {
+  if (value === undefined || value === null || value === '') return fallback;
+  if (typeof value === 'boolean') return value;
+  if (typeof value === 'string') return value === 'true';
+  return Boolean(value);
+};
+
 const canManageRoom = (user, room) => (
   user?.role === 'admin' || room?.host_id === user?.id || room?.broker_id === user?.id
 );
@@ -28,11 +35,26 @@ const buildRoomPayload = (body, fallbackSlots = 1) => {
     title: body.title?.trim(),
     description: body.description?.trim() || null,
     price: parseNumber(body.price),
+    deposit_amount: parseNumber(body.deposit_amount),
+    electricity_price: parseNumber(body.electricity_price),
+    water_price: parseNumber(body.water_price),
+    internet_fee: parseNumber(body.internet_fee),
+    parking_fee: parseNumber(body.parking_fee),
+    service_fee: parseNumber(body.service_fee),
+    payment_cycle: body.payment_cycle || 'monthly',
     address: body.address?.trim(),
     city: body.city?.trim(),
     area: parseNumber(body.area),
     available_slots: slots,
     is_available: slots > 0,
+    is_owner_occupied: parseBoolean(body.is_owner_occupied),
+    has_private_hours: parseBoolean(body.has_private_hours, true),
+    allow_cooking: parseBoolean(body.allow_cooking, true),
+    allow_pets: parseBoolean(body.allow_pets),
+    allow_visitors: parseBoolean(body.allow_visitors, true),
+    has_parking: parseBoolean(body.has_parking),
+    max_occupants: parseNumber(body.max_occupants),
+    house_rules: body.house_rules?.trim() || null,
   };
 };
 
@@ -42,6 +64,19 @@ const validateRoomPayload = (payload) => {
   if (!payload.city) return 'Tỉnh / thành phố là bắt buộc.';
   if (!payload.price || payload.price <= 0) return 'Giá thuê phải lớn hơn 0.';
   if (payload.area !== null && payload.area < 0) return 'Diện tích không hợp lệ.';
+  const costFields = [
+    payload.deposit_amount,
+    payload.electricity_price,
+    payload.water_price,
+    payload.internet_fee,
+    payload.parking_fee,
+    payload.service_fee,
+  ];
+  if (costFields.some(value => value !== null && value < 0)) return 'Các khoản phí không được âm.';
+  if (!['monthly', 'quarterly', 'negotiable'].includes(payload.payment_cycle)) return 'Chu kỳ thanh toán không hợp lệ.';
+  if (payload.max_occupants !== null && (!Number.isInteger(payload.max_occupants) || payload.max_occupants <= 0)) {
+    return 'Số người ở tối đa phải là số nguyên lớn hơn 0.';
+  }
   return null;
 };
 
@@ -57,6 +92,7 @@ const getApprovedRooms = async (req, res) => {
       amenities: amenityFilter,  // comma-separated amenity names
       sort = 'newest',
       has_slots,  // "true" = chỉ phòng còn chỗ ở ghép
+      no_owner, private_hours, allow_pets, has_parking,
       page = 1, limit = 12,
     } = req.query;
 
@@ -93,6 +129,10 @@ const getApprovedRooms = async (req, res) => {
     if (city)      query = query.ilike('city', `%${city}%`);
     if (search)    query = query.or(`title.ilike.%${search}%,address.ilike.%${search}%`);
     if (has_slots === 'true') query = query.gt('available_slots', 0);
+    if (no_owner === 'true') query = query.eq('is_owner_occupied', false);
+    if (private_hours === 'true') query = query.eq('has_private_hours', true);
+    if (allow_pets === 'true') query = query.eq('allow_pets', true);
+    if (has_parking === 'true') query = query.eq('has_parking', true);
 
     const { data, error, count } = await query;
     if (error) return res.status(500).json({ error: error.message });
@@ -175,7 +215,8 @@ const getSimilarRooms = async (req, res) => {
     const { data: similar, error } = await supabase
       .from('rooms')
       .select(`
-        id, title, price, address, city, area, available_slots,
+        id, title, price, deposit_amount, address, city, area, available_slots,
+        is_owner_occupied, has_private_hours, allow_pets, has_parking,
         room_images (image_url, is_primary),
         room_amenities (amenities (id, name, icon))
       `)
