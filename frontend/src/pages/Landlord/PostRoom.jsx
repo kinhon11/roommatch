@@ -13,6 +13,7 @@ const PAYMENT_CYCLES = [
 ];
 
 const MONEY_FIELDS = ['deposit_amount', 'electricity_price', 'water_price', 'internet_fee', 'parking_fee', 'service_fee'];
+const getDefaultDepositAmount = (form) => form.deposit_amount || form.price;
 const buildRoomPayload = (form) => ({
   title: form.title,
   price: +form.price,
@@ -21,7 +22,7 @@ const buildRoomPayload = (form) => ({
   city: form.city,
   description: form.description,
   available_slots: form.available_slots ? +form.available_slots : 1,
-  deposit_amount: form.deposit_amount ? +form.deposit_amount : null,
+  deposit_amount: getDefaultDepositAmount(form) ? +getDefaultDepositAmount(form) : null,
   electricity_price: form.electricity_price ? +form.electricity_price : null,
   water_price: form.water_price ? +form.water_price : null,
   internet_fee: form.internet_fee ? +form.internet_fee : null,
@@ -72,7 +73,13 @@ const PostRoom = () => {
 
   const handleChange = (e) => {
     const value = e.target.type === 'checkbox' ? e.target.checked : e.target.value;
-    setForm(prev => ({ ...prev, [e.target.name]: value }));
+    setForm(prev => {
+      const next = { ...prev, [e.target.name]: value };
+      if (e.target.name === 'price' && (prev.deposit_amount === '' || prev.deposit_amount === prev.price)) {
+        next.deposit_amount = value;
+      }
+      return next;
+    });
     if (errors[e.target.name]) setErrors(prev => ({ ...prev, [e.target.name]: '' }));
     setApiError('');
   };
@@ -254,7 +261,8 @@ const PostRoom = () => {
                 <div className="form-row-2">
                   <div className="form-group">
                     <label className="form-label">Tiền cọc yêu cầu</label>
-                    <input name="deposit_amount" type="number" value={form.deposit_amount} onChange={handleChange} className={`form-input ${errors.deposit_amount ? 'error' : ''}`} placeholder="VD: 3500000" min="0" />
+                    <input name="deposit_amount" type="number" value={form.deposit_amount} onChange={handleChange} className={`form-input ${errors.deposit_amount ? 'error' : ''}`} placeholder="Mặc định bằng 1 tháng tiền thuê" min="0" />
+                    <p className="form-hint">Thực tế thường cọc 1 tháng tiền thuê; bạn vẫn có thể sửa theo từng phòng.</p>
                     {errors.deposit_amount && <p className="form-error">{errors.deposit_amount}</p>}
                   </div>
                   <div className="form-group">
