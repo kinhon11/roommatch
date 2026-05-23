@@ -8,8 +8,7 @@ const LEAD_SELECT = `
   recommended_rooms:broker_lead_rooms (
     id, room_id, match_reason, tenant_feedback, status, created_at,
     room:rooms (id, title, price, address, city, available_slots, is_available, status, room_images (image_url, is_primary))
-  ),
-  commission:broker_commissions (id, amount, commission_rate, basis_amount, status, note, collected_at, paid_at, created_at, updated_at)
+  )
 `;
 
 const LEAD_STATUSES = ['new', 'consulted', 'scheduled', 'visited', 'deposit_ready', 'closed', 'lost'];
@@ -21,6 +20,47 @@ const normalizeCommissionAmount = (value) => {
   const amount = Number(value);
   if (!Number.isFinite(amount) || amount < 0) return null;
   return amount;
+};
+
+const COMMISSION_SELECT = 'id, lead_id, amount, commission_rate, basis_amount, status, note, collected_at, paid_at, created_at, updated_at';
+
+const isMissingBrokerCommissionsTable = (error) => {
+  const message = error?.message || '';
+  return message.includes("Could not find the table 'public.broker_commissions'")
+    || message.includes('relation "public.broker_commissions" does not exist')
+    || message.includes('schema cache');
+};
+
+const attachCommissionsToLeads = async (leads = []) => {
+  if (!leads.length) return { data: leads };
+
+  const leadIds = leads.map(lead => lead.id).filter(Boolean);
+  if (!leadIds.length) return { data: leads };
+
+  const { data: commissions, error } = await supabase
+    .from('broker_commissions')
+    .select(COMMISSION_SELECT)
+    .in('lead_id', leadIds);
+
+  if (error) {
+    if (isMissingBrokerCommissionsTable(error)) {
+      return { data: leads.map(lead => ({ ...lead, commission: [] })) };
+    }
+    return { error };
+  }
+
+  const commissionsByLead = (commissions || []).reduce((acc, item) => {
+    if (!acc[item.lead_id]) acc[item.lead_id] = [];
+    acc[item.lead_id].push(item);
+    return acc;
+  }, {});
+
+  return {
+    data: leads.map(lead => ({
+      ...lead,
+      commission: commissionsByLead[lead.id] || [],
+    })),
+  };
 };
 
 const createCommissionForLead = async ({ leadId, brokerId, amount, note }) => {
@@ -65,7 +105,12 @@ const createCommissionForLead = async ({ leadId, brokerId, amount, note }) => {
     .select('id, amount, commission_rate, basis_amount, status, note, collected_at, paid_at, created_at, updated_at')
     .single();
 
-  if (error) return { error: error.message };
+  if (error) {
+    if (isMissingBrokerCommissionsTable(error)) {
+      return { error: 'Bang hoa hong chua duoc khoi tao. Hay chay database/migration_v13_broker_commissions.sql trong Supabase.' };
+    }
+    return { error: error.message };
+  }
   return { commission: data };
 };
 
@@ -142,7 +187,9 @@ const listLeads = async (req, res) => {
 
     const { data, error } = await query;
     if (error) return res.status(500).json({ error: error.message });
-    return res.status(200).json(data || []);
+    const withCommissions = await attachCommissionsToLeads(data || []);
+    if (withCommissions.error) return res.status(500).json({ error: withCommissions.error.message });
+    return res.status(200).json(withCommissions.data);
   } catch (err) {
     return res.status(500).json({ error: err.message });
   }
@@ -170,7 +217,7 @@ const createLead = async (req, res) => {
       targetId: data.id,
       newValue: { status: data.status, phone: data.phone },
     });
-    return res.status(201).json({ message: 'Da tao lead khach thue.', lead: data });
+    return res.status(201).json({ message: 'Da tao lead khach thue.', lead: { ...data, commission: [] } });
   } catch (err) {
     return res.status(500).json({ error: err.message });
   }
@@ -225,7 +272,7 @@ const updateLead = async (req, res) => {
         newValue: { status: data.status, commission_id: commission?.id || null },
       });
     }
-    return res.status(200).json({ message: 'Da cap nhat lead.', lead: { ...data, commission } });
+    return res.status(200).json({ message: 'Da cap nhat lead.', lead: { ...data, commission: commission ? [commission] : [] } });
   } catch (err) {
     return res.status(500).json({ error: err.message });
   }
@@ -282,7 +329,7 @@ const updateLeadStatus = async (req, res) => {
       oldValue: { status: existing.status },
       newValue: { status, commission_id: commission?.id || null },
     });
-    return res.status(200).json({ message: 'Da cap nhat trang thai lead.', lead: { ...data, commission } });
+    return res.status(200).json({ message: 'Da cap nhat trang thai lead.', lead: { ...data, commission: commission ? [commission] : [] } });
   } catch (err) {
     return res.status(500).json({ error: err.message });
   }
@@ -416,9 +463,13 @@ const listCommissions = async (req, res) => {
       .eq('broker_id', req.user.id)
       .order('updated_at', { ascending: false });
 
-    if (error) return res.status(500).json({ error: error.message });
+    if (error) {
+      if (isMissingBrokerCommissionsTable(error)) return res.status(200).json([]);
+      return res.status(500).json({ error: error.message });
+    }
     return res.status(200).json(data || []);
   } catch (err) {
+    if (isMissingBrokerCommissionsTable(err)) return res.status(200).json([]);
     return res.status(500).json({ error: err.message });
   }
 };

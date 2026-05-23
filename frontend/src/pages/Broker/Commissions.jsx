@@ -5,10 +5,10 @@ import { formatCurrency, formatDate } from '../../utils/format';
 import { useToast } from '../../context/ToastContext';
 
 const statusLabels = {
-  pending_collection: 'Cho thu',
-  collected: 'Da thu',
-  paid_to_broker: 'Da tra broker',
-  cancelled: 'Da huy',
+  pending_collection: 'Chờ thu',
+  collected: 'Đã thu',
+  paid_to_broker: 'Đã trả broker',
+  cancelled: 'Đã hủy',
 };
 
 const BrokerCommissions = () => {
@@ -23,7 +23,7 @@ const BrokerCommissions = () => {
         const { data } = await brokerService.listCommissions();
         setCommissions(data || []);
       } catch (err) {
-        toast.error(err.response?.data?.error || 'Khong tai duoc hoa hong.');
+        toast.error(err.response?.data?.error || 'Không tải được hoa hồng.');
       } finally {
         setLoading(false);
       }
@@ -40,22 +40,22 @@ const BrokerCommissions = () => {
     <div className="broker-commissions container">
       <header className="bc-head">
         <div>
-          <h1>Hoa hong moi gioi</h1>
-          <p>Theo doi cac khoan hoa hong sau khi lead duoc chot.</p>
+          <h1>Hoa hồng môi giới</h1>
+          <p>Theo dõi các khoản hoa hồng sau khi lead được chốt.</p>
         </div>
-        <Link to="/broker/leads" className="btn btn-secondary">Quan ly lead</Link>
+        <Link to="/broker/leads" className="btn btn-secondary">Quản lý lead</Link>
       </header>
 
       <section className="bc-stats">
-        <div><strong>{formatCurrency(totals.pending_collection || 0)}</strong><span>Cho thu tu khach/chu nha</span></div>
-        <div><strong>{formatCurrency(totals.collected || 0)}</strong><span>Cong ty da thu</span></div>
-        <div><strong>{formatCurrency(totals.paid_to_broker || 0)}</strong><span>Da tra broker</span></div>
+        <div><strong>{formatCurrency(totals.pending_collection || 0)}</strong><span>Chờ thu từ khách/chủ nhà</span></div>
+        <div><strong>{formatCurrency(totals.collected || 0)}</strong><span>Công ty đã thu</span></div>
+        <div><strong>{formatCurrency(totals.paid_to_broker || 0)}</strong><span>Đã trả broker</span></div>
       </section>
 
-      {loading ? <p>Dang tai hoa hong...</p> : !commissions.length ? (
+      {loading ? <p>Đang tải hoa hồng...</p> : !commissions.length ? (
         <div className="bc-empty">
-          <h2>Chua co hoa hong</h2>
-          <p>Khi broker chuyen lead sang trang thai Da chot, he thong se tao hoa hong cho admin xu ly.</p>
+          <h2>Chưa có hoa hồng</h2>
+          <p>Khi broker chuyển lead sang trạng thái Đã chốt, hệ thống sẽ tạo hoa hồng cho admin xử lý.</p>
         </div>
       ) : (
         <div className="bc-list">
@@ -64,14 +64,14 @@ const BrokerCommissions = () => {
               <div>
                 <span className={`bc-badge bc-badge--${item.status}`}>{statusLabels[item.status] || item.status}</span>
                 <h2>{formatCurrency(item.amount)}</h2>
-                <p>{item.lead?.full_name || 'Lead'} · {item.lead?.phone || item.tenant?.phone || 'Chua co SĐT'}</p>
-                <p>{item.room?.title || 'Phong'}{item.room?.address ? `, ${item.room.address}` : ''}</p>
+                <p>{item.lead?.full_name || 'Lead'} · {item.lead?.phone || item.tenant?.phone || 'Chưa có SĐT'}</p>
+                <p>{item.room?.title || 'Phòng'}{item.room?.address ? `, ${item.room.address}` : ''}</p>
               </div>
               <div className="bc-meta">
-                <span>Tao: {formatDate(item.created_at)}</span>
-                {item.collected_at && <span>Da thu: {formatDate(item.collected_at)}</span>}
-                {item.paid_at && <span>Da tra: {formatDate(item.paid_at)}</span>}
-                {item.note && <span>Ghi chu: {item.note}</span>}
+                <span>Tạo: {formatDate(item.created_at)}</span>
+                {item.collected_at && <span>Đã thu: {formatDate(item.collected_at)}</span>}
+                {item.paid_at && <span>Đã trả: {formatDate(item.paid_at)}</span>}
+                {item.note && <span>Ghi chú: {item.note}</span>}
               </div>
             </article>
           ))}

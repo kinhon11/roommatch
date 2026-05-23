@@ -18,12 +18,22 @@ const parseNumber = (value) => {
   return Number.isFinite(number) ? number : null;
 };
 
+const parseNumberWithDefault = (value, fallback) => {
+  const number = parseNumber(value);
+  return number ?? fallback;
+};
+
 const parseBoolean = (value, fallback = false) => {
   if (value === undefined || value === null || value === '') return fallback;
   if (typeof value === 'boolean') return value;
   if (typeof value === 'string') return value === 'true';
   return Boolean(value);
 };
+
+const applyRecommendedRoomOrder = (query) => query
+  .order('available_slots', { ascending: false })
+  .order('price', { ascending: true })
+  .order('created_at', { ascending: true });
 
 const canManageRoom = (user, room) => (
   user?.role === 'admin' || room?.host_id === user?.id || room?.broker_id === user?.id
@@ -38,11 +48,11 @@ const buildRoomPayload = (body, fallbackSlots = 1) => {
     description: body.description?.trim() || null,
     price,
     deposit_amount: depositAmount ?? price,
-    electricity_price: parseNumber(body.electricity_price),
-    water_price: parseNumber(body.water_price),
-    internet_fee: parseNumber(body.internet_fee),
-    parking_fee: parseNumber(body.parking_fee),
-    service_fee: parseNumber(body.service_fee),
+    electricity_price: parseNumberWithDefault(body.electricity_price, 4000),
+    water_price: parseNumberWithDefault(body.water_price, 100000),
+    internet_fee: parseNumberWithDefault(body.internet_fee, 100000),
+    parking_fee: parseNumberWithDefault(body.parking_fee, 100000),
+    service_fee: parseNumberWithDefault(body.service_fee, 50000),
     payment_cycle: body.payment_cycle || 'monthly',
     address: body.address?.trim(),
     city: body.city?.trim(),
@@ -92,7 +102,7 @@ const getApprovedRooms = async (req, res) => {
       price_min, price_max, city, search,
       area_min, area_max,
       amenities: amenityFilter,  // comma-separated amenity names
-      sort = 'newest',
+      sort = 'recommended',
       has_slots,  // "true" = chỉ phòng còn chỗ ở ghép
       no_owner, private_hours, allow_pets, has_parking,
       page = 1, limit = 12,
@@ -120,8 +130,10 @@ const getApprovedRooms = async (req, res) => {
       query = query.order('price', { ascending: true });
     } else if (sort === 'price_desc') {
       query = query.order('price', { ascending: false });
-    } else {
+    } else if (sort === 'newest') {
       query = query.order('created_at', { ascending: false });
+    } else {
+      query = applyRecommendedRoomOrder(query);
     }
 
     if (price_min) query = query.gte('price', Number(price_min));
@@ -214,7 +226,7 @@ const getSimilarRooms = async (req, res) => {
     const minPrice = Math.floor(room.price * (1 - priceRange));
     const maxPrice = Math.ceil(room.price * (1 + priceRange));
 
-    const { data: similar, error } = await supabase
+    let similarQuery = supabase
       .from('rooms')
       .select(`
         id, title, price, deposit_amount, address, city, area, available_slots,
@@ -230,8 +242,11 @@ const getSimilarRooms = async (req, res) => {
       .eq('city', room.city)
       .gte('price', minPrice)
       .lte('price', maxPrice)
-      .limit(6)
-      .order('created_at', { ascending: false });
+      .limit(6);
+
+    similarQuery = applyRecommendedRoomOrder(similarQuery);
+
+    const { data: similar, error } = await similarQuery;
 
     if (error) return res.status(500).json({ error: error.message });
     return res.status(200).json(similar || []);
@@ -804,7 +819,7 @@ const getLandlordProfile = async (req, res) => {
     }
 
     // Get landlord's approved rooms
-    const { data: rooms, error: roomErr } = await supabase
+    let roomsQuery = supabase
       .from('rooms')
       .select(`
         id, title, price, address, city, area, status, available_slots, is_available, created_at,
@@ -815,8 +830,11 @@ const getLandlordProfile = async (req, res) => {
       .eq('status', 'approved')
       .eq('is_hidden', false)
       .eq('is_available', true)
-      .gt('available_slots', 0)
-      .order('created_at', { ascending: false });
+      .gt('available_slots', 0);
+
+    roomsQuery = applyRecommendedRoomOrder(roomsQuery);
+
+    const { data: rooms, error: roomErr } = await roomsQuery;
 
     if (roomErr) return res.status(500).json({ error: roomErr.message });
 

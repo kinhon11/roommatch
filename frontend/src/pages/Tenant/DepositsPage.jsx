@@ -7,10 +7,10 @@ import { useDialog } from '../../context/DialogContext';
 import { useToast } from '../../context/ToastContext';
 
 const statusLabels = {
-  pending_payment: 'Cho thanh toan',
-  paid: 'Da coc / giu phong',
-  cancelled: 'Da huy',
-  refunded: 'Da hoan coc',
+  pending_payment: 'Chờ thanh toán',
+  paid: 'Đã cọc / giữ phòng',
+  cancelled: 'Đã hủy',
+  refunded: 'Đã hoàn cọc',
 };
 
 const statusClass = {
@@ -18,6 +18,14 @@ const statusClass = {
   paid: 'success',
   cancelled: 'muted',
   refunded: 'info',
+};
+
+const getDepositScopeLabel = (deposit) => {
+  if ((deposit.deposit_scope || 'full_room') === 'slot') {
+    const slots = Math.max(Number(deposit.deposit_slots) || 1, 1);
+    return `Cọc ${slots} slot ở ghép`;
+  }
+  return 'Cọc nguyên căn';
 };
 
 const DepositsPage = () => {
@@ -36,7 +44,7 @@ const DepositsPage = () => {
       const res = await depositService.list();
       setDeposits(Array.isArray(res.data) ? res.data : []);
     } catch (err) {
-      setError(err.response?.data?.error || 'Khong tai duoc danh sach coc phong.');
+      setError(err.response?.data?.error || 'Không tải được danh sách cọc phòng.');
     } finally {
       setLoading(false);
     }
@@ -87,28 +95,28 @@ const DepositsPage = () => {
   };
 
   if (loading) {
-    return <div className="deposits-page container"><p>Dang tai coc phong...</p><style>{styles}</style></div>;
+    return <div className="deposits-page container"><p>Đang tải cọc phòng...</p><style>{styles}</style></div>;
   }
 
   return (
     <div className="deposits-page container">
       <div className="deposits-header">
         <div>
-          <h1>Coc phong</h1>
-          <p>{user?.role === 'landlord' ? 'Quan ly yeu cau coc va giu phong.' : 'Theo doi cac yeu cau coc phong cua ban.'}</p>
+          <h1>Cọc phòng</h1>
+          <p>{user?.role === 'broker' ? 'Theo dõi khách muốn cọc các phòng bạn phụ trách.' : user?.role === 'landlord' ? 'Quản lý yêu cầu cọc và giữ phòng.' : 'Theo dõi các yêu cầu cọc phòng của bạn.'}</p>
         </div>
         <div className="deposit-stats">
-          <span>Cho thanh toan: <strong>{counts.pending_payment || 0}</strong></span>
-          <span>Da coc: <strong>{counts.paid || 0}</strong></span>
+          <span>Chờ thanh toán: <strong>{counts.pending_payment || 0}</strong></span>
+          <span>Đã cọc: <strong>{counts.paid || 0}</strong></span>
         </div>
       </div>
 
       {error && <div className="alert alert-error">{error}</div>}
       {!deposits.length ? (
         <div className="empty-state">
-          <h2>Chua co yeu cau coc phong</h2>
-          <p>{user?.role === 'tenant' ? 'Khi duoc chap nhan o ghep hoac co lich hen hop le, ban co the gui yeu cau coc tu trang chi tiet phong.' : 'Yeu cau coc cua tenant se hien thi tai day.'}</p>
-          {user?.role === 'tenant' && <Link to="/rooms" className="btn btn-primary">Tim phong</Link>}
+          <h2>Chưa có yêu cầu cọc phòng</h2>
+          <p>{user?.role === 'tenant' ? 'Khi được chấp nhận ở ghép hoặc có lịch hẹn hợp lệ, bạn có thể gửi yêu cầu cọc từ trang chi tiết phòng.' : 'Yêu cầu cọc của tenant sẽ hiển thị tại đây.'}</p>
+          {user?.role === 'tenant' && <Link to="/rooms" className="btn btn-primary">Tìm phòng</Link>}
         </div>
       ) : (
         <div className="deposit-list">
@@ -118,49 +126,56 @@ const DepositsPage = () => {
                 <span className={`deposit-badge deposit-badge--${statusClass[deposit.status] || 'muted'}`}>
                   {statusLabels[deposit.status] || deposit.status}
                 </span>
-                <h2><Link to={`/rooms/${deposit.room_id}`}>{deposit.room?.title || 'Phong'}</Link></h2>
+                <h2><Link to={`/rooms/${deposit.room_id}`}>{deposit.room?.title || 'Phòng'}</Link></h2>
                 <p className="deposit-meta">{deposit.room?.address}, {deposit.room?.city}</p>
                 <p className="deposit-amount">{formatCurrency(deposit.amount)}</p>
+                <p className="deposit-meta">{getDepositScopeLabel(deposit)}</p>
                 <p className="deposit-meta">
-                  {user?.role === 'landlord'
+                  {['landlord', 'broker'].includes(user?.role)
                     ? `Tenant: ${deposit.tenant?.full_name || deposit.tenant?.email || 'Tenant'}`
-                    : `Chu nha: ${deposit.landlord?.full_name || deposit.landlord?.email || 'Landlord'}`}
+                    : `Người phụ trách: ${deposit.landlord?.full_name || deposit.landlord?.email || 'Người phụ trách'}`}
                 </p>
-                {deposit.note && <p className="deposit-note">Ghi chu tenant: {deposit.note}</p>}
-                {deposit.landlord_note && <p className="deposit-note">Ghi chu landlord: {deposit.landlord_note}</p>}
+                {deposit.note && <p className="deposit-note">Ghi chú tenant: {deposit.note}</p>}
+                {deposit.landlord_note && <p className="deposit-note">Ghi chú người phụ trách: {deposit.landlord_note}</p>}
                 {(deposit.cancel_reason || deposit.refund_reason) && (
-                  <p className="deposit-note">Ly do: {deposit.cancel_reason || deposit.refund_reason}</p>
+                  <p className="deposit-note">Lý do: {deposit.cancel_reason || deposit.refund_reason}</p>
                 )}
               </div>
 
               <div className="deposit-card__side">
-                <p>Tao luc: {formatDate(deposit.created_at)}</p>
-                {deposit.paid_at && <p>Da coc: {formatDate(deposit.paid_at)}</p>}
+                <p>Tạo lúc: {formatDate(deposit.created_at)}</p>
+                {deposit.paid_at && <p>Đã cọc: {formatDate(deposit.paid_at)}</p>}
                 {deposit.status === 'pending_payment' && user?.role === 'tenant' && (
                   <button className="btn btn-ghost btn-sm" disabled={busyId === deposit.id} onClick={() => updateStatus(deposit, 'cancelled')}>
-                    Huy yeu cau
+                    Hủy yêu cầu
                   </button>
+                )}
+                {deposit.status === 'pending_payment' && user?.role === 'broker' && (
+                  <p className="deposit-note">Chờ chủ nhà xác nhận cọc. Broker chỉ theo dõi và chăm sóc lead.</p>
                 )}
                 {deposit.status === 'pending_payment' && user?.role === 'landlord' && (
                   <>
                     <button className="btn btn-primary btn-sm" disabled={busyId === deposit.id} onClick={() => updateStatus(deposit, 'paid')}>
-                      Xac nhan da nhan coc
+                      Xác nhận đã nhận cọc
                     </button>
                     <button className="btn btn-ghost btn-sm" disabled={busyId === deposit.id} onClick={() => updateStatus(deposit, 'cancelled')}>
-                      Tu choi / huy
+                      Từ chối / hủy
                     </button>
                   </>
                 )}
+                {deposit.status === 'paid' && user?.role === 'broker' && (
+                  <p className="deposit-note">Khách đã cọc. Hoa hồng sẽ được xử lý theo trạng thái giao dịch.</p>
+                )}
                 {deposit.status === 'paid' && ['landlord', 'admin'].includes(user?.role) && (
                   <button className="btn btn-ghost btn-sm" disabled={busyId === deposit.id} onClick={() => updateStatus(deposit, 'refunded')}>
-                    Hoan coc
+                    Hoàn cọc
                   </button>
                 )}
               </div>
 
               {deposit.transactions?.length > 0 && (
                 <div className="deposit-history">
-                  <strong>Lich su</strong>
+                  <strong>Lịch sử</strong>
                   {deposit.transactions.map((tx) => (
                     <span key={tx.id}>{formatDate(tx.created_at)}: {tx.from_status || 'new'} {'->'} {tx.to_status}</span>
                   ))}

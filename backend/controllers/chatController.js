@@ -1,4 +1,19 @@
 const supabase = require('../config/supabaseClient');
+const { syncBrokerLeadFromTenantAction } = require('../utils/brokerLeadSync');
+
+const syncBrokerLeadFromChat = async ({ brokerId, tenantId, roomId, note }) => {
+  if (!brokerId || !tenantId || !roomId) return;
+  const result = await syncBrokerLeadFromTenantAction({
+    brokerId,
+    tenantId,
+    roomId,
+    status: 'consulted',
+    note,
+  });
+  if (result?.error) {
+    console.warn('Failed to sync broker lead from chat:', result.error.message);
+  }
+};
 
 /**
  * @desc  Lấy hoặc tạo conversation giữa tenant và landlord về một phòng
@@ -9,6 +24,7 @@ const getOrCreateConversation = async (req, res) => {
     const { room_id, landlord_id, tenant_id: requestedTenantId } = req.body;
     const isLandlordRequester = req.user.role === 'landlord' || req.user.role === 'broker';
     const tenant_id = isLandlordRequester ? requestedTenantId : req.user.id;
+    let roomContext = null;
 
     if (!isLandlordRequester && !landlord_id) {
       return res.status(400).json({ error: 'Thiếu landlord_id.' });
@@ -33,6 +49,7 @@ const getOrCreateConversation = async (req, res) => {
       if (!room || room.status !== 'approved' || room.is_hidden === true) {
         return res.status(404).json({ error: 'Room not found or not public.' });
       }
+      roomContext = room;
       const responsibleUserId = room.broker_id || room.host_id;
       if (responsibleUserId !== verifiedLandlordId) {
         return res.status(400).json({ error: 'Landlord does not match this room.' });
@@ -75,6 +92,14 @@ const getOrCreateConversation = async (req, res) => {
     const { data: existing } = await query.maybeSingle();
 
     if (existing) {
+      if (!isLandlordRequester && roomContext?.broker_id) {
+        await syncBrokerLeadFromChat({
+          brokerId: roomContext.broker_id,
+          tenantId: tenant_id,
+          roomId: room_id,
+          note: `Khach mo lai cuoc tro chuyen ve phong "${roomContext.title || room_id}".`,
+        });
+      }
       return res.status(200).json({ conversation: existing, isNew: false });
     }
 
@@ -86,6 +111,14 @@ const getOrCreateConversation = async (req, res) => {
       .single();
 
     if (error) return res.status(400).json({ error: error.message });
+    if (!isLandlordRequester && roomContext?.broker_id) {
+      await syncBrokerLeadFromChat({
+        brokerId: roomContext.broker_id,
+        tenantId: tenant_id,
+        roomId: room_id,
+        note: `Khach bat dau chat ve phong "${roomContext.title || room_id}".`,
+      });
+    }
     return res.status(201).json({ conversation: data, isNew: true });
   } catch (err) {
     return res.status(500).json({ error: err.message });
@@ -139,7 +172,7 @@ const getMessages = async (req, res) => {
     // Kiểm tra quyền truy cập
     const { data: conv } = await supabase
       .from('conversations')
-      .select('id, tenant_id, landlord_id')
+      .select('id, tenant_id, landlord_id, room_id, room:rooms (id, broker_id, title)')
       .eq('id', convId)
       .single();
 
@@ -215,6 +248,15 @@ const sendMessage = async (req, res) => {
       .from('conversations')
       .update({ last_message: content.trim(), last_message_at: new Date().toISOString() })
       .eq('id', convId);
+
+    if (userId === conv.tenant_id && conv.room?.broker_id) {
+      await syncBrokerLeadFromChat({
+        brokerId: conv.room.broker_id,
+        tenantId: conv.tenant_id,
+        roomId: conv.room_id,
+        note: `Khach nhan tin ve phong "${conv.room?.title || conv.room_id}". Noi dung gan nhat: ${content.trim().slice(0, 120)}`,
+      });
+    }
 
     const recipientId = conv.tenant_id === userId ? conv.landlord_id : conv.tenant_id;
     await supabase.from('notifications').insert({

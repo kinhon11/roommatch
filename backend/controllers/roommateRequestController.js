@@ -1,5 +1,6 @@
 const supabase = require('../config/supabaseClient');
 const { logActivity } = require('../utils/activityLogger');
+const { syncBrokerLeadFromTenantAction } = require('../utils/brokerLeadSync');
 
 /**
  * Helper: Create a notification record
@@ -121,6 +122,16 @@ const createRoommateRequest = async (req, res) => {
       room_id,
     });
 
+    if (room.broker_id) {
+      await syncBrokerLeadFromTenantAction({
+        brokerId: room.broker_id,
+        tenantId: req.user.id,
+        roomId: room_id,
+        status: 'new',
+        note: `Khach gui yeu cau o ghep phong "${room.title}".`,
+      });
+    }
+
     return res.status(201).json({ message: 'Yeu cau o ghep da gui thanh cong.', request: data });
   } catch (err) {
     return res.status(500).json({ error: err.message });
@@ -152,7 +163,7 @@ const updateRoommateRequestStatus = async (req, res) => {
       .eq('id', request.room_id)
       .single();
 
-    if (!room || (room.host_id !== req.user.id && room.broker_id !== req.user.id)) {
+    if (!room || (req.user.role !== 'admin' && room.host_id !== req.user.id)) {
       return res.status(403).json({ error: 'Ban khong co quyen xu ly yeu cau nay.' });
     }
 
@@ -214,6 +225,23 @@ const updateRoommateRequestStatus = async (req, res) => {
       request_id: req.params.id,
       room_id: request.room_id,
     });
+
+    if (room.broker_id) {
+      await createNotification(room.broker_id, 'request', {
+        message: `Chu nha da ${statusText} yeu cau o ghep tai "${room.title}"`,
+        request_id: req.params.id,
+        room_id: request.room_id,
+      });
+      await syncBrokerLeadFromTenantAction({
+        brokerId: room.broker_id,
+        tenantId: request.tenant_id,
+        roomId: request.room_id,
+        status: status === 'accepted' ? 'closed' : 'lost',
+        note: status === 'accepted'
+          ? `Chu nha da chap nhan yeu cau o ghep phong "${room.title}".`
+          : `Chu nha da tu choi yeu cau o ghep phong "${room.title}". ${rejection_reason?.trim() || ''}`.trim(),
+      });
+    }
 
     let conversationId = null;
     if (status === 'accepted') {
@@ -324,7 +352,7 @@ const checkRequestStatus = async (req, res) => {
   try {
     const { data } = await supabase
       .from('roommate_requests')
-      .select('id, status, rejection_reason, created_at')
+      .select('id, status, rejection_reason, occupants, created_at')
       .eq('room_id', req.params.roomId)
       .eq('tenant_id', req.user.id)
       .order('created_at', { ascending: false })

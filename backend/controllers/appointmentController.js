@@ -1,4 +1,5 @@
 const supabase = require('../config/supabaseClient');
+const { syncBrokerLeadFromTenantAction } = require('../utils/brokerLeadSync');
 
 const ACTIVE_APPOINTMENT_STATUSES = ['pending', 'confirmed'];
 
@@ -107,6 +108,17 @@ const createAppointment = async (req, res) => {
       appointment_id: data.id,
       room_id,
     });
+
+    if (room.broker_id && appointmentTenantId !== room.broker_id) {
+      await syncBrokerLeadFromTenantAction({
+        brokerId: room.broker_id,
+        tenantId: appointmentTenantId,
+        roomId: room_id,
+        status: 'scheduled',
+        note: `Khách đã đặt lịch xem phòng "${room.title}" vào ${scheduledDate.toLocaleString('vi-VN')}.`,
+      });
+    }
+
     if (req.user.role === 'broker') {
       await createNotification(appointmentTenantId, 'appointment', {
         message: `Moi gioi da tao lich xem phong "${room.title}" vao ${scheduledDate.toLocaleString('vi-VN')}`,

@@ -66,9 +66,10 @@ const Navbar = () => {
             { to: '/landlord/dashboard', label: 'Dashboard', icon: '📊' },
             { to: '/landlord/post', label: 'Đăng tin', icon: '✏️' },
             { to: '/broker/leads', label: 'Lead', icon: '📋' },
-            { to: '/broker/commissions', label: 'Hoa hong', icon: '💼' },
+            { to: '/broker/commissions', label: 'Hoa hồng', icon: '💼' },
             { to: '/assistant', label: 'AI trợ lý', icon: '🤖' },
             { to: '/appointments', label: 'Lịch hẹn', icon: '📅' },
+            { to: '/deposits', label: 'Cọc phòng', icon: '💰' },
             { to: '/chat', label: 'Chat', icon: '💬' },
           ]
         : [
@@ -77,6 +78,7 @@ const Navbar = () => {
             { to: '/assistant', label: 'AI trợ lý', icon: '🤖' },
             { to: '/my-requests', label: 'Ở ghép', icon: '🤝' },
             { to: '/appointments', label: 'Lịch hẹn', icon: '📅' },
+            { to: '/deposits', label: 'Cọc phòng', icon: '💰' },
             { to: '/chat', label: 'Chat', icon: '💬' },
           ]
     : [])

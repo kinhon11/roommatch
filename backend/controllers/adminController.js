@@ -350,12 +350,14 @@ const getBrokerDashboard = async (req, res) => {
       if (appointmentRes.error) return res.status(500).json({ error: appointmentRes.error.message });
       if (activityRes.error) return res.status(500).json({ error: activityRes.error.message });
       if (leadRes.error) return res.status(500).json({ error: leadRes.error.message });
-      if (commissionRes.error) return res.status(500).json({ error: commissionRes.error.message });
+      if (commissionRes.error && !isMissingBrokerCommissionsTable(commissionRes.error)) {
+        return res.status(500).json({ error: commissionRes.error.message });
+      }
       requests = requestRes.data || [];
       appointments = appointmentRes.data || [];
       activities = activityRes.data || [];
       leads = leadRes.data || [];
-      commissions = commissionRes.data || [];
+      commissions = commissionRes.error ? [] : (commissionRes.data || []);
     } else {
       const [leadRes, commissionRes] = await Promise.all([
         supabase
@@ -372,9 +374,11 @@ const getBrokerDashboard = async (req, res) => {
           .limit(8),
       ]);
       if (leadRes.error) return res.status(500).json({ error: leadRes.error.message });
-      if (commissionRes.error) return res.status(500).json({ error: commissionRes.error.message });
+      if (commissionRes.error && !isMissingBrokerCommissionsTable(commissionRes.error)) {
+        return res.status(500).json({ error: commissionRes.error.message });
+      }
       leads = leadRes.data || [];
-      commissions = commissionRes.data || [];
+      commissions = commissionRes.error ? [] : (commissionRes.data || []);
     }
 
     return res.status(200).json({
@@ -467,6 +471,13 @@ const handleReport = async (req, res) => {
 
 const COMMISSION_STATUSES = ['pending_collection', 'collected', 'paid_to_broker', 'cancelled'];
 
+const isMissingBrokerCommissionsTable = (error) => {
+  const message = error?.message || '';
+  return message.includes("Could not find the table 'public.broker_commissions'")
+    || message.includes('relation "public.broker_commissions" does not exist')
+    || message.includes('schema cache');
+};
+
 /**
  * @desc Admin: List broker commissions
  * @route GET /api/admin/commissions
@@ -488,7 +499,10 @@ const getBrokerCommissions = async (req, res) => {
     if (status && COMMISSION_STATUSES.includes(status)) query = query.eq('status', status);
 
     const { data, error } = await query;
-    if (error) return res.status(500).json({ error: error.message });
+    if (error) {
+      if (isMissingBrokerCommissionsTable(error)) return res.status(200).json([]);
+      return res.status(500).json({ error: error.message });
+    }
     return res.status(200).json(data || []);
   } catch (err) {
     return res.status(500).json({ error: err.message });
@@ -506,11 +520,15 @@ const updateBrokerCommissionStatus = async (req, res) => {
       return res.status(400).json({ error: 'Trang thai hoa hong khong hop le.' });
     }
 
-    const { data: existing } = await supabase
+    const { data: existing, error: existingError } = await supabase
       .from('broker_commissions')
       .select('id, status')
       .eq('id', req.params.id)
       .single();
+    if (isMissingBrokerCommissionsTable(existingError)) {
+      return res.status(404).json({ error: 'Bang hoa hong chua duoc khoi tao.' });
+    }
+    if (existingError) return res.status(400).json({ error: existingError.message });
     if (!existing) return res.status(404).json({ error: 'Hoa hong khong ton tai.' });
 
     const updatePayload = {

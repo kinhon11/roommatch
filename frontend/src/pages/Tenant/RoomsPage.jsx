@@ -6,6 +6,7 @@ import { supabase } from '../../services/supabaseClient';
 
 const CITIES = ['Tất cả', 'Hà Nội', 'Hồ Chí Minh', 'Đà Nẵng', 'Hải Phòng', 'Cần Thơ', 'Huế', 'Nha Trang', 'Biên Hòa', 'Vũng Tàu'];
 const SORTS = [
+  { value: 'recommended', label: 'Phù hợp nhất' },
   { value: 'newest',     label: 'Mới nhất' },
   { value: 'price_asc',  label: 'Giá: thấp → cao' },
   { value: 'price_desc', label: 'Giá: cao → thấp' },
@@ -22,7 +23,7 @@ const RoomsPage = () => {
 
   const [search, setSearch] = useState(searchParams.get('q') || '');
   const [city, setCity] = useState(searchParams.get('city') || 'Tất cả');
-  const [sort, setSort] = useState(searchParams.get('sort') || 'newest');
+  const [sort, setSort] = useState(searchParams.get('sort') || 'recommended');
   const [priceMin, setPriceMin] = useState(searchParams.get('priceMin') || '');
   const [priceMax, setPriceMax] = useState(searchParams.get('priceMax') || '');
   const [areaMin, setAreaMin] = useState(searchParams.get('areaMin') || '');
@@ -86,7 +87,7 @@ const RoomsPage = () => {
     const p = {};
     if (search.trim()) p.q = search;
     if (city !== 'Tất cả') p.city = city;
-    if (sort !== 'newest') p.sort = sort;
+    if (sort !== 'recommended') p.sort = sort;
     if (priceMin) p.priceMin = priceMin;
     if (priceMax) p.priceMax = priceMax;
     if (areaMin) p.areaMin = areaMin;
@@ -103,7 +104,7 @@ const RoomsPage = () => {
   const clearFilters = () => {
     setSearch('');
     setCity('Tất cả');
-    setSort('newest');
+    setSort('recommended');
     setPriceMin('');
     setPriceMax('');
     setAreaMin('');
@@ -349,7 +350,7 @@ const RoomsPage = () => {
                       <div className="room-card__meta">
                         {room.area && <span>📐 {room.area} m²</span>}
                         {room.available_slots > 0 && <span>👥 {room.available_slots} chỗ</span>}
-                        {room.deposit_amount && <span>💰 Cọc {formatCurrency(room.deposit_amount)}</span>}
+                        {(room.deposit_amount || room.price) && <span>💰 Cọc {formatCurrency(room.deposit_amount || room.price)}</span>}
                       </div>
                       <div className="room-card__rule-tags">
                         {!room.is_owner_occupied && <span>Không chung chủ</span>}

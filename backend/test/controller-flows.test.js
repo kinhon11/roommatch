@@ -3,6 +3,7 @@ const { afterEach, test } = require('node:test');
 const path = require('node:path');
 
 const supabasePath = path.resolve(__dirname, '../config/supabaseClient.js');
+const brokerLeadSyncPath = path.resolve(__dirname, '../utils/brokerLeadSync.js');
 
 class QueryBuilder {
   constructor(table, handler) {
@@ -128,6 +129,7 @@ const mockSupabase = (handler) => ({
 const loadController = (relativePath, handler) => {
   const controllerPath = path.resolve(__dirname, '..', relativePath);
   delete require.cache[controllerPath];
+  delete require.cache[brokerLeadSyncPath];
   require.cache[supabasePath] = {
     id: supabasePath,
     filename: supabasePath,
@@ -303,6 +305,62 @@ test('chat lets landlords open accepted tenant conversations by room', async () 
   assert.deepEqual(inserts[0], { tenant_id: 'tenant-1', landlord_id: 'landlord-1', room_id: 'room-1' });
 });
 
+test('chat creates broker lead when tenant starts conversation for assigned room', async () => {
+  const leadWrites = [];
+  const { getOrCreateConversation } = loadController('controllers/chatController.js', (query) => {
+    if (query.table === 'rooms') {
+      return {
+        data: {
+          id: 'room-1',
+          host_id: 'landlord-1',
+          broker_id: 'broker-1',
+          title: 'Phong broker',
+          city: 'Ha Noi',
+          area: 25,
+          price: 4000000,
+          status: 'approved',
+          is_hidden: false,
+        },
+        error: null,
+      };
+    }
+    if (query.table === 'users') {
+      return {
+        data: { id: 'tenant-1', role: 'tenant', is_locked: false, full_name: 'Tenant A', email: 'tenant@test.com', phone: '0900000000' },
+        error: null,
+      };
+    }
+    if (query.table === 'conversations' && query.operation === 'select') {
+      return { data: null, error: null };
+    }
+    if (query.table === 'conversations' && query.operation === 'insert') {
+      return { data: { id: 'conv-1', ...query.payload }, error: null };
+    }
+    if (query.table === 'broker_leads' && query.operation === 'select') {
+      return { data: null, error: null };
+    }
+    if (query.table === 'broker_leads' && query.operation === 'insert') {
+      leadWrites.push(query.payload);
+      return { data: { id: 'lead-1', status: query.payload.status }, error: null };
+    }
+    if (query.table === 'broker_lead_rooms' && query.operation === 'upsert') {
+      return { data: { id: 'lead-room-1', ...query.payload }, error: null };
+    }
+    return { data: query.payload || null, error: null };
+  });
+
+  const res = await callController(getOrCreateConversation, {
+    user: { id: 'tenant-1', role: 'tenant', full_name: 'Tenant A' },
+    body: { room_id: 'room-1', landlord_id: 'broker-1' },
+  });
+
+  assert.equal(res.statusCode, 201);
+  assert.equal(leadWrites[0].broker_id, 'broker-1');
+  assert.equal(leadWrites[0].tenant_id, 'tenant-1');
+  assert.equal(leadWrites[0].assigned_room_id, 'room-1');
+  assert.equal(leadWrites[0].status, 'consulted');
+});
+
 test('chat rejects landlord conversation creation for invalid tenants', async () => {
   const { getOrCreateConversation } = loadController('controllers/chatController.js', (query) => {
     if (query.table === 'rooms') {
@@ -420,6 +478,53 @@ test('deposit rejects invalid lifecycle changes and hides room after payment', a
   assert.equal(updates.find(u => u.table === 'rooms').payload.is_available, false);
 });
 
+test('deposit payment for accepted roommate request keeps shared room visible while slots remain', async () => {
+  const updates = [];
+  const { updateDepositStatus } = loadController('controllers/depositController.js', (query) => {
+    if (query.table === 'room_deposits' && query.operation === 'select') {
+      return {
+        data: {
+          id: 'dep-slot-1',
+          room_id: 'room-1',
+          tenant_id: 'tenant-1',
+          landlord_id: 'landlord-1',
+          roommate_request_id: 'req-1',
+          status: 'pending_payment',
+          amount: 500000,
+          deposit_scope: 'slot',
+          deposit_slots: 1,
+          room: {
+            id: 'room-1',
+            title: 'Phong ghep A',
+            available_slots: 1,
+            last_available_slots: 1,
+            is_hidden: false,
+            is_available: true,
+          },
+        },
+        error: null,
+      };
+    }
+    if (query.operation === 'update') {
+      updates.push({ table: query.table, payload: query.payload });
+      return { data: { id: 'dep-slot-1', ...query.payload }, error: null };
+    }
+    return { data: query.payload || null, error: null };
+  });
+
+  const paid = await callController(updateDepositStatus, {
+    user: { id: 'landlord-1', role: 'landlord' },
+    params: { id: 'dep-slot-1' },
+    body: { status: 'paid', note: 'Da nhan coc slot' },
+  });
+
+  const roomUpdate = updates.find(update => update.table === 'rooms');
+  assert.equal(paid.statusCode, 200);
+  assert.equal(roomUpdate.payload.is_hidden, false);
+  assert.equal(roomUpdate.payload.is_available, true);
+  assert.equal(roomUpdate.payload.available_slots, 1);
+});
+
 test('appointment validates future time and role-based status changes', async () => {
   const { createAppointment, updateAppointmentStatus } = loadController('controllers/appointmentController.js', (query) => {
     if (query.table === 'appointments' && query.operation === 'select') {
@@ -469,6 +574,43 @@ test('appointment reschedule by tenant resets appointment to pending', async () 
   assert.equal(res.statusCode, 200);
   assert.equal(updates[0].scheduled_at, scheduledAt);
   assert.equal(updates[0].status, 'pending');
+});
+
+test('roommate requests let brokers view but not decide final status', async () => {
+  const writes = [];
+  const { updateRoommateRequestStatus } = loadController('controllers/roommateRequestController.js', (query) => {
+    if (query.table === 'roommate_requests' && query.operation === 'select') {
+      return {
+        data: { room_id: 'room-1', tenant_id: 'tenant-1', status: 'pending', occupants: 1 },
+        error: null,
+      };
+    }
+    if (query.table === 'rooms' && query.operation === 'select') {
+      return {
+        data: {
+          host_id: 'landlord-1',
+          broker_id: 'broker-1',
+          title: 'Phong demo',
+          available_slots: 2,
+          is_available: true,
+        },
+        error: null,
+      };
+    }
+    if (query.operation === 'update' || query.operation === 'insert') {
+      writes.push({ table: query.table, operation: query.operation, payload: query.payload });
+    }
+    return { data: query.payload || null, error: null };
+  });
+
+  const res = await callController(updateRoommateRequestStatus, {
+    user: { id: 'broker-1', role: 'broker' },
+    params: { id: 'request-1' },
+    body: { status: 'accepted' },
+  });
+
+  assert.equal(res.statusCode, 403);
+  assert.deepEqual(writes, []);
 });
 
 test('broker leads validate assigned rooms and write lead records', async () => {
