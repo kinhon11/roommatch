@@ -16,12 +16,10 @@ entity "users" as users {
   email : TEXT <<UNIQUE>>
   full_name : TEXT
   role : TEXT
-  avatar_url : TEXT
   phone : TEXT
+  avatar_url : TEXT
   is_locked : BOOLEAN
   is_verified : BOOLEAN
-  created_at : TIMESTAMPTZ
-  updated_at : TIMESTAMPTZ
 }
 
 entity "rooms" as rooms {
@@ -31,34 +29,14 @@ entity "rooms" as rooms {
   title : TEXT
   description : TEXT
   price : INTEGER
-  deposit_amount : NUMERIC
-  electricity_price : NUMERIC
-  water_price : NUMERIC
-  internet_fee : NUMERIC
-  parking_fee : NUMERIC
-  service_fee : NUMERIC
-  payment_cycle : TEXT
   address : TEXT
   city : TEXT
   area : NUMERIC
-  is_owner_occupied : BOOLEAN
-  has_private_hours : BOOLEAN
-  allow_cooking : BOOLEAN
-  allow_pets : BOOLEAN
-  allow_visitors : BOOLEAN
-  has_parking : BOOLEAN
-  max_occupants : INT
-  house_rules : TEXT
   status : TEXT
-  rejection_reason : TEXT
   is_available : BOOLEAN
   is_hidden : BOOLEAN
   available_slots : INT
-  last_available_slots : INT
-  latitude : NUMERIC
-  longitude : NUMERIC
   created_at : TIMESTAMPTZ
-  updated_at : TIMESTAMPTZ
 }
 
 entity "room_images" as room_images {
@@ -98,12 +76,9 @@ entity "reviews" as reviews {
   rating : SMALLINT
   comment : TEXT
   is_hidden : BOOLEAN
-  hidden_reason : TEXT
-  hidden_by : UUID <<FK>>
   landlord_response : TEXT
   landlord_responded_at : TIMESTAMPTZ
   created_at : TIMESTAMPTZ
-  updated_at : TIMESTAMPTZ
 }
 
 entity "roommate_requests" as roommate_requests {
@@ -118,7 +93,6 @@ entity "roommate_requests" as roommate_requests {
   has_pet : BOOLEAN
   rejection_reason : TEXT
   created_at : TIMESTAMPTZ
-  updated_at : TIMESTAMPTZ
 }
 
 entity "appointments" as appointments {
@@ -130,9 +104,7 @@ entity "appointments" as appointments {
   scheduled_at : TIMESTAMPTZ
   status : TEXT
   cancellation_reason : TEXT
-  rescheduled_at : TIMESTAMPTZ
   created_at : TIMESTAMPTZ
-  updated_at : TIMESTAMPTZ
 }
 
 entity "conversations" as conversations {
@@ -187,7 +159,6 @@ users ||--o{ favorites : "user_id"
 rooms ||--o{ favorites : "room_id"
 
 users ||--o{ reviews : "user_id"
-users ||--o{ reviews : "hidden_by"
 rooms ||--o{ reviews : "room_id"
 
 users ||--o{ roommate_requests : "tenant_id"

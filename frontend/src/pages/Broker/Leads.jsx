@@ -7,21 +7,21 @@ import { useDialog } from '../../context/DialogContext';
 import { useToast } from '../../context/ToastContext';
 
 const LEAD_STATUSES = [
-  { value: 'new', label: 'Moi' },
-  { value: 'consulted', label: 'Da tu van' },
-  { value: 'scheduled', label: 'Da hen xem' },
-  { value: 'visited', label: 'Da xem phong' },
-  { value: 'deposit_ready', label: 'Muon coc' },
-  { value: 'closed', label: 'Da chot' },
-  { value: 'lost', label: 'That bai' },
+  { value: 'new', label: 'Mới' },
+  { value: 'consulted', label: 'Đã tư vấn' },
+  { value: 'scheduled', label: 'Đã hẹn xem' },
+  { value: 'visited', label: 'Đã xem phòng' },
+  { value: 'deposit_ready', label: 'Muốn cọc' },
+  { value: 'closed', label: 'Đã chốt' },
+  { value: 'lost', label: 'Thất bại' },
 ];
 
 const ROOM_STATUSES = [
-  { value: 'suggested', label: 'Da goi y' },
-  { value: 'interested', label: 'Khach quan tam' },
-  { value: 'visited', label: 'Da xem' },
-  { value: 'deposit_ready', label: 'Muon coc' },
-  { value: 'rejected', label: 'Khong phu hop' },
+  { value: 'suggested', label: 'Đã gợi ý' },
+  { value: 'interested', label: 'Khách quan tâm' },
+  { value: 'visited', label: 'Đã xem' },
+  { value: 'deposit_ready', label: 'Muốn cọc' },
+  { value: 'rejected', label: 'Không phù hợp' },
 ];
 
 const emptyLead = {
@@ -66,7 +66,7 @@ const BrokerLeads = () => {
       setLeads(leadRes.data || []);
       setRooms(roomRes.data || []);
     } catch (err) {
-      toast.error(err.response?.data?.error || 'Khong tai duoc du lieu broker.');
+      toast.error(err.response?.data?.error || 'Không tải được dữ liệu broker.');
     } finally {
       setLoading(false);
     }
@@ -141,15 +141,15 @@ const BrokerLeads = () => {
       };
       if (editing) {
         await brokerService.updateLead(editing.id, payload);
-        toast.success('Da cap nhat lead.');
+        toast.success('Đã cập nhật lead.');
       } else {
         await brokerService.createLead(payload);
-        toast.success('Da tao lead.');
+        toast.success('Đã tạo lead.');
       }
       closeForm();
       await load();
     } catch (err) {
-      toast.error(err.response?.data?.error || 'Luu lead that bai.');
+      toast.error(err.response?.data?.error || 'Lưu lead thất bại.');
     } finally {
       setSaving(false);
     }
@@ -159,10 +159,10 @@ const BrokerLeads = () => {
     let lostReason = '';
     if (status === 'lost') {
       lostReason = await dialog.prompt({
-        title: 'Ly do that bai',
-        label: 'Ly do',
-        placeholder: 'VD: Khach chon phong khac, vuot ngan sach...',
-        confirmText: 'Cap nhat',
+        title: 'Lý do thất bại',
+        label: 'Lý do',
+        placeholder: 'VD: Khách chọn phòng khác, vượt ngân sách...',
+        confirmText: 'Cập nhật',
       });
       if (!lostReason?.trim()) return;
     }
@@ -170,9 +170,9 @@ const BrokerLeads = () => {
     try {
       await brokerService.updateLeadStatus(lead.id, status, lostReason?.trim());
       await load();
-      toast.success('Da cap nhat trang thai lead.');
+      toast.success('Đã cập nhật trạng thái lead.');
     } catch (err) {
-      toast.error(err.response?.data?.error || 'Cap nhat trang thai that bai.');
+      toast.error(err.response?.data?.error || 'Cập nhật trạng thái thất bại.');
     } finally {
       setActiveLeadId(null);
     }
@@ -180,16 +180,16 @@ const BrokerLeads = () => {
 
   const addRecommendation = async (lead) => {
     if (!rooms.length) {
-      toast.warning('Broker chua co phong duoc admin phan cong.');
+      toast.warning('Broker chưa có phòng được admin phân công.');
       return;
     }
     const roomId = recommendationDraft[lead.id] || rooms[0]?.id;
     if (!roomId) return;
     const matchReason = await dialog.prompt({
-      title: 'Ly do phu hop',
-      label: 'Ly do',
-      placeholder: 'VD: Gan khu vuc mong muon, dung ngan sach, cho nuoi pet...',
-      confirmText: 'Goi y phong',
+      title: 'Lý do phù hợp',
+      label: 'Lý do',
+      placeholder: 'VD: Gần khu vực mong muốn, đúng ngân sách, cho nuôi pet...',
+      confirmText: 'Gợi ý phòng',
     });
     setActiveLeadId(lead.id);
     try {
@@ -198,9 +198,9 @@ const BrokerLeads = () => {
         match_reason: matchReason?.trim() || '',
       });
       await load();
-      toast.success('Da goi y phong cho lead.');
+      toast.success('Đã gợi ý phòng cho lead.');
     } catch (err) {
-      toast.error(err.response?.data?.error || 'Goi y phong that bai.');
+      toast.error(err.response?.data?.error || 'Gợi ý phòng thất bại.');
     } finally {
       setActiveLeadId(null);
     }
@@ -215,9 +215,9 @@ const BrokerLeads = () => {
         tenant_feedback: recommendation.tenant_feedback,
       });
       await load();
-      toast.success('Da cap nhat phong goi y.');
+      toast.success('Đã cập nhật phòng gợi ý.');
     } catch (err) {
-      toast.error(err.response?.data?.error || 'Cap nhat phong goi y that bai.');
+      toast.error(err.response?.data?.error || 'Cập nhật phòng gợi ý thất bại.');
     } finally {
       setActiveLeadId(null);
     }
@@ -225,14 +225,14 @@ const BrokerLeads = () => {
 
   const createAppointment = async (lead, roomId) => {
     if (!lead.tenant_id) {
-      toast.warning('Lead can lien ket tenant_id de tao lich hen tren he thong.');
+      toast.warning('Lead cần liên kết tenant_id để tạo lịch hẹn trên hệ thống.');
       return;
     }
     const scheduledAt = await dialog.prompt({
-      title: 'Tao lich xem phong',
-      label: 'Thoi gian xem phong',
+      title: 'Tạo lịch xem phòng',
+      label: 'Thời gian xem phòng',
       inputType: 'datetime-local',
-      confirmText: 'Tao lich',
+      confirmText: 'Tạo lịch',
     });
     if (!scheduledAt) return;
     setActiveLeadId(lead.id);
@@ -240,9 +240,9 @@ const BrokerLeads = () => {
       await appointmentService.create(roomId, new Date(scheduledAt).toISOString(), lead.tenant_id);
       await brokerService.updateLeadStatus(lead.id, 'scheduled');
       await load();
-      toast.success('Da tao lich xem phong.');
+      toast.success('Đã tạo lịch xem phòng.');
     } catch (err) {
-      toast.error(err.response?.data?.error || 'Tao lich xem phong that bai.');
+      toast.error(err.response?.data?.error || 'Tạo lịch xem phòng thất bại.');
     } finally {
       setActiveLeadId(null);
     }
@@ -253,14 +253,14 @@ const BrokerLeads = () => {
       <div className="container">
         <header className="bl-head">
           <div>
-            <h1>Quan ly lead khach thue</h1>
-            <p>Ghi nhan nhu cau, goi y phong duoc giao va theo doi qua trinh chot.</p>
+            <h1>Quản lý lead khách thuê</h1>
+            <p>Ghi nhận nhu cầu, gợi ý phòng được giao và theo dõi quá trình chốt.</p>
           </div>
-          <button type="button" className="btn btn-primary" onClick={openCreate}>Them lead</button>
+          <button type="button" className="btn btn-primary" onClick={openCreate}>Thêm lead</button>
         </header>
 
         <section className="bl-summary">
-          {[{ value: 'all', label: 'Tat ca' }, ...LEAD_STATUSES].map(item => (
+          {[{ value: 'all', label: 'Tất cả' }, ...LEAD_STATUSES].map(item => (
             <button
               key={item.value}
               className={`bl-chip ${filter === item.value ? 'active' : ''}`}
@@ -275,7 +275,7 @@ const BrokerLeads = () => {
         <div className="bl-toolbar">
           <input
             className="form-input"
-            placeholder="Tim ten, SDT, khu vuc..."
+            placeholder="Tìm tên, SDT, khu vực..."
             value={search}
             onChange={event => setSearch(event.target.value)}
           />
@@ -284,44 +284,44 @@ const BrokerLeads = () => {
         {formOpen && (
           <form className="bl-form" onSubmit={submitLead}>
             <div className="bl-form-head">
-              <h2>{editing ? 'Sua lead' : 'Them lead moi'}</h2>
-              <button type="button" className="btn btn-ghost btn-sm" onClick={closeForm}>Dong</button>
+              <h2>{editing ? 'Sửa lead' : 'Thêm lead mới'}</h2>
+              <button type="button" className="btn btn-ghost btn-sm" onClick={closeForm}>Đóng</button>
             </div>
             <div className="bl-form-grid">
-              <label>Ten khach<input className="form-input" required value={form.full_name} onChange={e => setForm({ ...form, full_name: e.target.value })} /></label>
-              <label>So dien thoai<input className="form-input" required value={form.phone} onChange={e => setForm({ ...form, phone: e.target.value })} /></label>
+              <label>Tên khách<input className="form-input" required value={form.full_name} onChange={e => setForm({ ...form, full_name: e.target.value })} /></label>
+              <label>Số điện thoại<input className="form-input" required value={form.phone} onChange={e => setForm({ ...form, phone: e.target.value })} /></label>
               <label>Email<input className="form-input" type="email" value={form.email} onChange={e => setForm({ ...form, email: e.target.value })} /></label>
-              <label>Tenant ID<input className="form-input" value={form.tenant_id || ''} onChange={e => setForm({ ...form, tenant_id: e.target.value })} placeholder="Neu co tai khoan tenant" /></label>
-              <label>Ngan sach tu<input className="form-input" type="number" min="0" value={form.budget_min} onChange={e => setForm({ ...form, budget_min: e.target.value })} /></label>
-              <label>Ngan sach den<input className="form-input" type="number" min="0" value={form.budget_max} onChange={e => setForm({ ...form, budget_max: e.target.value })} /></label>
-              <label>Thanh pho<input className="form-input" value={form.preferred_city} onChange={e => setForm({ ...form, preferred_city: e.target.value })} /></label>
-              <label>Khu vuc mong muon<input className="form-input" value={form.preferred_area} onChange={e => setForm({ ...form, preferred_area: e.target.value })} /></label>
-              <label>Ngay muon vao<input className="form-input" type="date" value={form.move_in_date} onChange={e => setForm({ ...form, move_in_date: e.target.value })} /></label>
-              <label>So nguoi<input className="form-input" type="number" min="1" value={form.occupants} onChange={e => setForm({ ...form, occupants: e.target.value })} /></label>
-              <label>Trang thai
+              <label>Tenant ID<input className="form-input" value={form.tenant_id || ''} onChange={e => setForm({ ...form, tenant_id: e.target.value })} placeholder="Nếu có tài khoản tenant" /></label>
+              <label>Ngân sách từ<input className="form-input" type="number" min="0" value={form.budget_min} onChange={e => setForm({ ...form, budget_min: e.target.value })} /></label>
+              <label>Ngân sách đến<input className="form-input" type="number" min="0" value={form.budget_max} onChange={e => setForm({ ...form, budget_max: e.target.value })} /></label>
+              <label>Thành phố<input className="form-input" value={form.preferred_city} onChange={e => setForm({ ...form, preferred_city: e.target.value })} /></label>
+              <label>Khu vực mong muốn<input className="form-input" value={form.preferred_area} onChange={e => setForm({ ...form, preferred_area: e.target.value })} /></label>
+              <label>Ngày muốn vào<input className="form-input" type="date" value={form.move_in_date} onChange={e => setForm({ ...form, move_in_date: e.target.value })} /></label>
+              <label>Số người<input className="form-input" type="number" min="1" value={form.occupants} onChange={e => setForm({ ...form, occupants: e.target.value })} /></label>
+              <label>Trạng thái
                 <select className="form-input" value={form.status} onChange={e => setForm({ ...form, status: e.target.value })}>
                   {LEAD_STATUSES.map(status => <option key={status.value} value={status.value}>{status.label}</option>)}
                 </select>
               </label>
-              <label>Phong dang tu van
+              <label>Phòng đang tư vấn
                 <select className="form-input" value={form.assigned_room_id} onChange={e => setForm({ ...form, assigned_room_id: e.target.value })}>
-                  <option value="">Chua chon phong</option>
+                  <option value="">Chưa chọn phòng</option>
                   {rooms.map(room => <option key={room.id} value={room.id}>{room.title}</option>)}
                 </select>
               </label>
-              <label className="bl-check"><input type="checkbox" checked={form.has_pets} onChange={e => setForm({ ...form, has_pets: e.target.checked })} /> Co thu cung</label>
-              <label className="bl-wide">Ghi chu<textarea className="form-input" rows={3} value={form.note} onChange={e => setForm({ ...form, note: e.target.value })} /></label>
+              <label className="bl-check"><input type="checkbox" checked={form.has_pets} onChange={e => setForm({ ...form, has_pets: e.target.checked })} /> Có thú cưng</label>
+              <label className="bl-wide">Ghi chú<textarea className="form-input" rows={3} value={form.note} onChange={e => setForm({ ...form, note: e.target.value })} /></label>
             </div>
-            <button className="btn btn-primary" disabled={saving}>{saving ? 'Dang luu...' : 'Luu lead'}</button>
+            <button className="btn btn-primary" disabled={saving}>{saving ? 'Đang lưu...' : 'Lưu lead'}</button>
           </form>
         )}
 
         {loading ? (
-          <p className="bl-muted">Dang tai...</p>
+          <p className="bl-muted">Đang tải...</p>
         ) : filteredLeads.length === 0 ? (
           <div className="bl-empty">
-            <h3>Chua co lead phu hop</h3>
-            <p>Broker co the them lead khach thue tu cuoc goi, chat hoac khach den xem phong.</p>
+            <h3>Chưa có lead phù hợp</h3>
+            <p>Broker có thể thêm lead khách thuê từ cuộc gọi, chat hoặc khách đến xem phòng.</p>
           </div>
         ) : (
           <div className="bl-list">
@@ -336,17 +336,17 @@ const BrokerLeads = () => {
                       <p>{lead.phone}{lead.email ? ` · ${lead.email}` : ''}</p>
                     </div>
                     <div className="bl-card-actions">
-                      <button type="button" className="btn btn-secondary btn-sm" onClick={() => openEdit(lead)}>Sua</button>
-                      <button type="button" className="btn btn-ghost btn-sm" disabled={busy} onClick={() => addRecommendation(lead)}>Goi y phong</button>
+                      <button type="button" className="btn btn-secondary btn-sm" onClick={() => openEdit(lead)}>Sửa</button>
+                      <button type="button" className="btn btn-ghost btn-sm" disabled={busy} onClick={() => addRecommendation(lead)}>Gợi ý phòng</button>
                     </div>
                   </div>
 
                   <div className="bl-meta">
-                    <span>Ngan sach: {lead.budget_min || lead.budget_max ? `${formatCurrency(lead.budget_min || 0)} - ${formatCurrency(lead.budget_max || 0)}` : 'Chua co'}</span>
-                    <span>Khu vuc: {lead.preferred_area || lead.preferred_city || 'Chua co'}</span>
-                    <span>So nguoi: {lead.occupants || 1}</span>
-                    <span>Thu cung: {lead.has_pets ? 'Co' : 'Khong'}</span>
-                    {lead.move_in_date && <span>Muon vao: {formatDate(lead.move_in_date)}</span>}
+                    <span>Ngân sách: {lead.budget_min || lead.budget_max ? `${formatCurrency(lead.budget_min || 0)} - ${formatCurrency(lead.budget_max || 0)}` : 'Chưa có'}</span>
+                    <span>Khu vực: {lead.preferred_area || lead.preferred_city || 'Chưa có'}</span>
+                    <span>Số người: {lead.occupants || 1}</span>
+                    <span>Thú cưng: {lead.has_pets ? 'Có' : 'Không'}</span>
+                    {lead.move_in_date && <span>Muốn vào: {formatDate(lead.move_in_date)}</span>}
                   </div>
 
                   {lead.note && <p className="bl-note">{lead.note}</p>}
@@ -361,32 +361,32 @@ const BrokerLeads = () => {
 
                   <div className="bl-recs">
                     <div className="bl-recs-head">
-                      <h3>Phong da goi y</h3>
+                      <h3>Phòng đã gợi ý</h3>
                       <div className="bl-add-rec">
                         <select value={recommendationDraft[lead.id] || rooms[0]?.id || ''} onChange={e => setRecommendationDraft(prev => ({ ...prev, [lead.id]: e.target.value }))}>
                           {rooms.map(room => <option key={room.id} value={room.id}>{room.title}</option>)}
                         </select>
-                        <button type="button" className="btn btn-ghost btn-sm" disabled={busy || !rooms.length} onClick={() => addRecommendation(lead)}>Them goi y</button>
+                        <button type="button" className="btn btn-ghost btn-sm" disabled={busy || !rooms.length} onClick={() => addRecommendation(lead)}>Thêm gợi ý</button>
                       </div>
                     </div>
                     {lead.recommended_rooms?.length ? lead.recommended_rooms.map(rec => (
                       <div className="bl-rec" key={rec.id}>
                         <div>
                           <Link to={`/rooms/${rec.room_id}`}>{rec.room?.title || rec.room_id}</Link>
-                          <p>{rec.room ? `${formatCurrency(rec.room.price)}/thang · ${rec.room.address}, ${rec.room.city}` : ''}</p>
-                          {rec.match_reason && <small>Ly do: {rec.match_reason}</small>}
+                          <p>{rec.room ? `${formatCurrency(rec.room.price)}/tháng · ${rec.room.address}, ${rec.room.city}` : ''}</p>
+                          {rec.match_reason && <small>Lý do: {rec.match_reason}</small>}
                         </div>
                         <div className="bl-rec-actions">
                           <select value={rec.status} disabled={busy} onChange={e => updateRecommendationStatus(lead, rec, e.target.value)}>
                             {ROOM_STATUSES.map(item => <option key={item.value} value={item.value}>{item.label}</option>)}
                           </select>
                           <button type="button" className="btn btn-sm" disabled={busy || !lead.tenant_id} onClick={() => createAppointment(lead, rec.room_id)}>
-                            Tao lich xem
+                            Tạo lịch xem
                           </button>
                         </div>
                         <span className="bl-rec-badge">{roomStatusLabel(rec.status)}</span>
                       </div>
-                    )) : <p className="bl-muted">Chua goi y phong nao.</p>}
+                    )) : <p className="bl-muted">Chưa gợi ý phòng nào.</p>}
                   </div>
                 </article>
               );

@@ -1,0 +1,42 @@
+@startuml
+title Use Case Quản lý đặt cọc phòng
+
+left to right direction
+skinparam shadowing false
+skinparam actorStyle awesome
+
+actor "Người thuê" as Tenant
+actor "Chủ trọ" as Landlord
+actor "Admin" as Admin
+
+rectangle "RoommieMatch" {
+  usecase "Gửi yêu cầu đặt cọc" as CreateDeposit
+  usecase "Xem danh sách đặt cọc" as ViewDeposits
+  usecase "Xác nhận đã thanh toán" as MarkPaid
+  usecase "Hủy yêu cầu đặt cọc" as CancelDeposit
+  usecase "Hoàn tiền đặt cọc" as RefundDeposit
+  usecase "Theo dõi lịch sử trạng thái" as TrackTransactions
+  usecase "Thông báo thay đổi đặt cọc" as NotifyDeposit
+}
+
+Tenant --> CreateDeposit
+Tenant --> ViewDeposits
+Tenant --> CancelDeposit
+Tenant --> TrackTransactions
+
+Landlord --> ViewDeposits
+Landlord --> MarkPaid
+Landlord --> RefundDeposit
+Landlord --> TrackTransactions
+
+Admin --> ViewDeposits
+Admin --> MarkPaid
+Admin --> RefundDeposit
+Admin --> TrackTransactions
+
+CreateDeposit .> NotifyDeposit : <<include>>
+MarkPaid .> NotifyDeposit : <<include>>
+CancelDeposit .> NotifyDeposit : <<include>>
+RefundDeposit .> NotifyDeposit : <<include>>
+
+@enduml

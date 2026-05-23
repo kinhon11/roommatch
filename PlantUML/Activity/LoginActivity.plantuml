@@ -1,0 +1,32 @@
+@startuml
+title Activity Diagram: Quy trình đăng nhập
+
+start
+:Người dùng nhập email và mật khẩu;
+:Gửi yêu cầu đăng nhập;
+
+if (Thiếu email hoặc mật khẩu?) then (Có)
+  :Hiển thị lỗi nhập liệu;
+  stop
+else (Không)
+endif
+
+:Xác thực với Supabase Auth;
+if (Thông tin đăng nhập đúng?) then (Không)
+  :Hiển thị lỗi sai email hoặc mật khẩu;
+  stop
+else (Có)
+endif
+
+:Lấy hồ sơ người dùng;
+if (Tài khoản bị khóa?) then (Có)
+  :Hiển thị thông báo tài khoản bị khóa;
+  stop
+else (Không)
+endif
+
+:Lưu phiên đăng nhập;
+:Điều hướng theo vai trò;
+stop
+
+@enduml

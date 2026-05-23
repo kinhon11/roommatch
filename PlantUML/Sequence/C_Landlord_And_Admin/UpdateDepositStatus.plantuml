@@ -1,0 +1,39 @@
+@startuml
+title Sequence Diagram: Update Deposit Status Process
+
+actor "Người thuê / Chủ trọ / Admin" as User
+boundary "Deposits UI" as UI
+control "Deposit Controller" as DepositCtrl
+database "Room Deposits Table" as Deposits
+database "Deposit Transactions Table" as Transactions
+database "Rooms Table" as Rooms
+database "Notifications Table" as Notifications
+
+User -> UI: Chọn yêu cầu đặt cọc
+User -> UI: Cập nhật trạng thái
+UI -> DepositCtrl: PATCH /api/deposits/{id}/status
+DepositCtrl -> Deposits: Lấy thông tin đặt cọc
+
+alt Không tìm thấy đặt cọc
+  Deposits --> DepositCtrl: Không có dữ liệu
+  DepositCtrl --> UI: 404 Not Found
+  UI --> User: Yêu cầu đặt cọc không tồn tại
+else Không có quyền cập nhật
+  Deposits --> DepositCtrl: User không phải tenant/landlord/admin liên quan
+  DepositCtrl --> UI: 403 Forbidden
+  UI --> User: Không có quyền cập nhật
+else Chuyển trạng thái không hợp lệ
+  DepositCtrl --> UI: 400 Bad Request
+  UI --> User: Trạng thái đặt cọc không hợp lệ
+else Cập nhật hợp lệ
+  DepositCtrl -> Deposits: Update status
+  DepositCtrl -> Transactions: Ghi lịch sử giao dịch
+  opt Trạng thái chuyển sang paid
+    DepositCtrl -> Rooms: Ẩn phòng / đánh dấu đã giữ phòng
+  end
+  DepositCtrl -> Notifications: Thông báo cho bên còn lại
+  DepositCtrl --> UI: 200 OK
+  UI --> User: Cập nhật đặt cọc thành công
+end
+
+@enduml

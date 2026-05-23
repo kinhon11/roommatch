@@ -1,0 +1,30 @@
+@startuml
+title Activity Diagram: Quy trình chủ trọ đăng phòng và Admin duyệt
+
+start
+:Chủ trọ nhập thông tin phòng;
+:Gửi bài đăng phòng;
+:Hệ thống kiểm tra dữ liệu;
+
+if (Dữ liệu hợp lệ?) then (Không)
+  :Thông báo lỗi nhập liệu;
+  stop
+else (Có)
+endif
+
+:Lưu phòng với trạng thái pending;
+:Admin xem danh sách phòng chờ duyệt;
+:Admin kiểm tra nội dung bài đăng;
+
+if (Bài đăng đạt yêu cầu?) then (Có)
+  :Cập nhật trạng thái approved;
+  :Hiển thị phòng trên hệ thống;
+else (Không)
+  :Cập nhật trạng thái rejected;
+  :Lưu lý do từ chối;
+endif
+
+:Thông báo kết quả cho chủ trọ;
+stop
+
+@enduml

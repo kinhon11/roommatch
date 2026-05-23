@@ -1,0 +1,35 @@
+@startuml
+title Activity Diagram: Quy trình gửi yêu cầu ở ghép
+
+start
+:Người thuê xem chi tiết phòng;
+:Nhập nội dung yêu cầu ở ghép;
+:Gửi yêu cầu;
+
+:Kiểm tra phòng tồn tại và đã duyệt;
+if (Phòng hợp lệ?) then (Không)
+  :Thông báo phòng không khả dụng;
+  stop
+else (Có)
+endif
+
+:Kiểm tra phòng còn chỗ;
+if (Còn chỗ?) then (Không)
+  :Thông báo phòng đã hết chỗ;
+  stop
+else (Có)
+endif
+
+:Kiểm tra yêu cầu đã tồn tại;
+if (Đã gửi yêu cầu trước đó?) then (Có)
+  :Thông báo yêu cầu đã tồn tại;
+  stop
+else (Không)
+endif
+
+:Tạo yêu cầu trạng thái pending;
+:Gửi thông báo cho chủ trọ;
+:Hiển thị gửi yêu cầu thành công;
+stop
+
+@enduml

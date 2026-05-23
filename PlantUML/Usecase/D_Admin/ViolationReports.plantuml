@@ -13,7 +13,7 @@ rectangle "RoommieMatch" {
   usecase "Xem chi tiết báo cáo" as ViewReportDetail
   usecase "Xử lý báo cáo" as ResolveReport
   usecase "Bỏ qua báo cáo" as DismissReport
-  usecase "Ẩn phòng bị báo cáo nhiều lần" as AutoHideRoom
+  usecase "Tự động ẩn phòng khi vượt ngưỡng" as AutoHideRoom
 }
 
 User --> CreateReport
@@ -23,7 +23,6 @@ Admin --> ViewReportDetail
 Admin --> ResolveReport
 Admin --> DismissReport
 
-CreateReport .> AutoHideRoom : <<extend>>
 FilterReports .> ViewReports : <<include>>
 ResolveReport .> AutoHideRoom : <<extend>>
 

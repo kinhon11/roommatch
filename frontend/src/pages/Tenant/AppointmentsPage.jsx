@@ -7,11 +7,11 @@ import { useDialog } from '../../context/DialogContext';
 import { useToast } from '../../context/ToastContext';
 
 const STATUS_MAP = {
-  pending: { label: 'Cho xac nhan', cls: 'badge-pending' },
-  confirmed: { label: 'Da xac nhan', cls: 'badge-approved' },
-  completed: { label: 'Hoan thanh', cls: 'badge-approved' },
-  cancelled: { label: 'Da huy', cls: 'badge-rejected' },
-  no_show: { label: 'Khong den', cls: 'badge-rejected' },
+  pending: { label: 'Chờ xác nhận', cls: 'badge-pending' },
+  confirmed: { label: 'Đã xác nhận', cls: 'badge-approved' },
+  completed: { label: 'Hoàn thành', cls: 'badge-approved' },
+  cancelled: { label: 'Đã hủy', cls: 'badge-rejected' },
+  no_show: { label: 'Không đến', cls: 'badge-rejected' },
 };
 
 const FILTERS = ['all', 'pending', 'confirmed', 'completed', 'cancelled', 'no_show'];
@@ -104,27 +104,27 @@ const AppointmentsPage = () => {
       <div className="container">
         <div className="appt-header">
           <div>
-            <h1 className="appt-title">Lich hen xem phong</h1>
-            <p className="appt-sub">{isManager ? 'Quan ly lich hen cua tenant' : 'Cac lich hen ban da dat'}</p>
+            <h1 className="appt-title">Lịch hẹn xem phòng</h1>
+            <p className="appt-sub">{isManager ? 'Quản lý lịch hẹn của tenant' : 'Các lịch hẹn bạn đã đặt'}</p>
           </div>
-          {!isManager && <Link to="/rooms" className="btn btn-primary">Tim phong</Link>}
+          {!isManager && <Link to="/rooms" className="btn btn-primary">Tìm phòng</Link>}
         </div>
 
         <div className="appt-tabs">
           {FILTERS.map(key => (
             <button key={key} className={`appt-tab ${filter === key ? 'appt-tab--active' : ''}`} onClick={() => setFilter(key)}>
-              {key === 'all' ? 'Tat ca' : STATUS_MAP[key].label}
+              {key === 'all' ? 'Tất cả' : STATUS_MAP[key].label}
               <span className="appt-tab-count">{counts[key] || 0}</span>
             </button>
           ))}
         </div>
 
         {loading ? (
-          <p className="appt-muted">Dang tai...</p>
+          <p className="appt-muted">Đang tải...</p>
         ) : filtered.length === 0 ? (
           <div className="appt-empty">
-            <h3>Chua co lich hen</h3>
-            <p>{filter === 'all' ? 'Chua co du lieu lich hen.' : `Khong co lich o trang thai ${STATUS_MAP[filter]?.label}.`}</p>
+            <h3>Chưa có lịch hẹn</h3>
+            <p>{filter === 'all' ? 'Chưa có dữ liệu lịch hẹn.' : `Không có lịch ở trạng thái ${STATUS_MAP[filter]?.label}.`}</p>
           </div>
         ) : (
           <div className="appt-list">
@@ -141,31 +141,31 @@ const AppointmentsPage = () => {
                       <span className="appt-time">{new Date(appt.scheduled_at).toLocaleString('vi-VN', { dateStyle: 'medium', timeStyle: 'short' })}</span>
                     </div>
                     <Link to={`/rooms/${appt.room_id}`} className="appt-room-link">
-                      {appt.room?.title || `Phong #${appt.room_id?.slice(0, 8)}`}
+                      {appt.room?.title || `Phòng #${appt.room_id?.slice(0, 8)}`}
                     </Link>
                     <p className="appt-meta">
                       {isManager
                         ? `Tenant: ${appt.tenant?.full_name || appt.tenant_id?.slice(0, 8)}`
                         : `Landlord: ${appt.landlord?.full_name || appt.landlord_id?.slice(0, 8)}`}
-                      <span className="appt-create"> · Dat lich {formatDate(appt.created_at)}</span>
+                      <span className="appt-create"> · Đặt lịch {formatDate(appt.created_at)}</span>
                     </p>
-                    {appt.cancellation_reason && <p className="appt-meta">Ly do huy: {appt.cancellation_reason}</p>}
+                    {appt.cancellation_reason && <p className="appt-meta">Lý do hủy: {appt.cancellation_reason}</p>}
                   </div>
 
                   {active && (
                     <div className="appt-actions">
                       {isManager && appt.status === 'pending' && (
-                        <button className="btn btn-sm" disabled={busy} onClick={() => updateStatus(appt, 'confirmed')}>Xac nhan</button>
+                        <button className="btn btn-sm" disabled={busy} onClick={() => updateStatus(appt, 'confirmed')}>Xác nhận</button>
                       )}
                       {isManager && appt.status === 'confirmed' && (
                         <>
-                          <button className="btn btn-sm" disabled={busy} onClick={() => updateStatus(appt, 'completed')}>Hoan thanh</button>
-                          <button className="btn btn-sm" disabled={busy} onClick={() => updateStatus(appt, 'no_show')}>Khong den</button>
+                          <button className="btn btn-sm" disabled={busy} onClick={() => updateStatus(appt, 'completed')}>Hoàn thành</button>
+                          <button className="btn btn-sm" disabled={busy} onClick={() => updateStatus(appt, 'no_show')}>Không đến</button>
                         </>
                       )}
-                      <button className="btn btn-ghost btn-sm" disabled={busy} onClick={() => reschedule(appt)}>Doi lich</button>
+                      <button className="btn btn-ghost btn-sm" disabled={busy} onClick={() => reschedule(appt)}>Đổi lịch</button>
                       <button className="btn btn-danger btn-sm" disabled={busy} onClick={() => updateStatus(appt, 'cancelled')}>
-                        {isManager && appt.status === 'pending' ? 'Tu choi' : 'Huy lich'}
+                        {isManager && appt.status === 'pending' ? 'Từ chối' : 'Hủy lịch'}
                       </button>
                     </div>
                   )}
@@ -188,9 +188,9 @@ const AppointmentsPage = () => {
         .appt-tab--active .appt-tab-count { background:rgba(255,255,255,.2); }
         .appt-list { display:flex; flex-direction:column; gap:12px; }
         .appt-card { display:flex; align-items:flex-start; gap:16px; background:var(--bg-card); border:1px solid var(--border); border-radius:var(--radius-lg); padding:18px 20px; }
-        .appt-card--completed, .appt-card--confirmed { border-left:3px solid var(--success); }
-        .appt-card--cancelled, .appt-card--no_show { border-left:3px solid var(--danger); opacity:.8; }
-        .appt-card--pending { border-left:3px solid var(--accent); }
+        .appt-card--completed, .appt-card--confirmed { border-color:rgba(16,185,129,.28); background:rgba(16,185,129,.04); }
+        .appt-card--cancelled, .appt-card--no_show { border-color:rgba(239,68,68,.24); background:rgba(239,68,68,.035); opacity:.88; }
+        .appt-card--pending { border-color:rgba(245,158,11,.3); background:rgba(245,158,11,.04); }
         .appt-card__body { flex:1; display:flex; flex-direction:column; gap:6px; min-width:0; }
         .appt-card__row { display:flex; align-items:center; gap:12px; flex-wrap:wrap; }
         .appt-time, .appt-meta { font-size:13px; color:var(--text-secondary); }

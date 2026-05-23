@@ -1,0 +1,116 @@
+@startuml
+title Class Diagram: Mô hình miền RoommieMatch
+
+skinparam classAttributeIconSize 0
+skinparam shadowing false
+
+class User {
+  +id: UUID
+  +email: String
+  +fullName: String
+  +role: UserRole
+  +phone: String
+  +isLocked: Boolean
+}
+
+class Room {
+  +id: UUID
+  +title: String
+  +price: Integer
+  +address: String
+  +city: String
+  +status: RoomStatus
+  +availableSlots: Integer
+}
+
+class RoomImage {
+  +id: UUID
+  +imageUrl: String
+  +isPrimary: Boolean
+}
+
+class Amenity {
+  +id: UUID
+  +name: String
+  +icon: String
+}
+
+class Favorite {
+  +id: UUID
+  +createdAt: DateTime
+}
+
+class Review {
+  +id: UUID
+  +rating: Integer
+  +comment: String
+  +landlordResponse: String
+}
+
+class RoommateRequest {
+  +id: UUID
+  +status: RequestStatus
+  +message: String
+  +moveInDate: Date
+  +occupants: Integer
+}
+
+class Appointment {
+  +id: UUID
+  +scheduledAt: DateTime
+  +status: AppointmentStatus
+  +cancellationReason: String
+}
+
+class Conversation {
+  +id: UUID
+  +lastMessage: String
+  +lastMessageAt: DateTime
+}
+
+class Message {
+  +id: UUID
+  +content: String
+  +isRead: Boolean
+}
+
+class Notification {
+  +id: UUID
+  +type: String
+  +read: Boolean
+}
+
+class Report {
+  +id: UUID
+  +reason: String
+  +status: ReportStatus
+}
+
+class RoomDeposit {
+  +id: UUID
+  +amount: Decimal
+  +status: DepositStatus
+}
+
+User "1" -- "0..*" Room : đăng phòng
+Room "1" -- "0..*" RoomImage : có
+Room "0..*" -- "0..*" Amenity : tiện ích
+User "1" -- "0..*" Favorite : lưu
+Room "1" -- "0..*" Favorite : được lưu
+User "1" -- "0..*" Review : viết
+Room "1" -- "0..*" Review : nhận
+User "1" -- "0..*" RoommateRequest : gửi
+Room "1" -- "0..*" RoommateRequest : nhận
+User "1" -- "0..*" Appointment : tenant/landlord
+Room "1" -- "0..*" Appointment : lịch xem
+User "1" -- "0..*" Conversation : tham gia
+Room "0..1" -- "0..*" Conversation : liên quan
+Conversation "1" -- "0..*" Message : chứa
+User "1" -- "0..*" Message : gửi
+User "1" -- "0..*" Notification : nhận
+User "1" -- "0..*" Report : tạo
+Room "0..1" -- "0..*" Report : bị báo cáo
+Room "1" -- "0..*" RoomDeposit : đặt cọc
+User "1" -- "0..*" RoomDeposit : tenant/landlord
+
+@enduml
