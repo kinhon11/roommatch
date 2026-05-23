@@ -66,6 +66,7 @@ const Navbar = () => {
             { to: '/landlord/dashboard', label: 'Dashboard', icon: '📊' },
             { to: '/landlord/post', label: 'Đăng tin', icon: '✏️' },
             { to: '/broker/leads', label: 'Lead', icon: '📋' },
+            { to: '/broker/commissions', label: 'Hoa hong', icon: '💼' },
             { to: '/assistant', label: 'AI trợ lý', icon: '🤖' },
             { to: '/appointments', label: 'Lịch hẹn', icon: '📅' },
             { to: '/chat', label: 'Chat', icon: '💬' },
@@ -80,7 +81,7 @@ const Navbar = () => {
           ]
     : [])
       .filter((link) => user?.role !== 'broker' || link.to !== '/landlord/post')
-      .filter((link) => user?.role === 'broker' || link.to !== '/broker/leads')
+      .filter((link) => user?.role === 'broker' || !['/broker/leads', '/broker/commissions'].includes(link.to))
       .map((link) => user?.role === 'broker' && link.to === '/landlord/dashboard' ? { ...link, to: '/broker/dashboard' } : link);
 
   return (

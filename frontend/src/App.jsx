@@ -25,6 +25,7 @@ const AdminDashboard = lazy(() => import('./pages/Admin/Dashboard'));
 const LandlordDashboard = lazy(() => import('./pages/Landlord/Dashboard'));
 const BrokerDashboard = lazy(() => import('./pages/Broker/Dashboard'));
 const BrokerLeads = lazy(() => import('./pages/Broker/Leads'));
+const BrokerCommissions = lazy(() => import('./pages/Broker/Commissions'));
 const PostRoom = lazy(() => import('./pages/Landlord/PostRoom'));
 const MyRooms = lazy(() => import('./pages/Landlord/MyRooms'));
 const EditRoom = lazy(() => import('./pages/Landlord/EditRoom'));
@@ -150,6 +151,14 @@ const App = () => {
               element={
                 <ProtectedRoute allowedRoles={['broker']}>
                   <BrokerLeads />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/broker/commissions"
+              element={
+                <ProtectedRoute allowedRoles={['broker']}>
+                  <BrokerCommissions />
                 </ProtectedRoute>
               }
             />

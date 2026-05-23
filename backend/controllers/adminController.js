@@ -30,6 +30,8 @@ const getStats = async (req, res) => {
       { count: availableRooms },
       { count: fullRooms },
       { count: acceptedRequests },
+      { count: pendingCommissions },
+      { count: collectedCommissions },
     ] = await Promise.all([
       supabase.from('users').select('*', { count: 'exact', head: true }),
       supabase.from('rooms').select('*', { count: 'exact', head: true }),
@@ -43,6 +45,8 @@ const getStats = async (req, res) => {
       supabase.from('rooms').select('*', { count: 'exact', head: true }).eq('status', 'approved').eq('is_available', true).gt('available_slots', 0),
       supabase.from('rooms').select('*', { count: 'exact', head: true }).eq('status', 'approved').or('is_available.eq.false,available_slots.lte.0'),
       supabase.from('roommate_requests').select('*', { count: 'exact', head: true }).eq('status', 'accepted'),
+      supabase.from('broker_commissions').select('*', { count: 'exact', head: true }).eq('status', 'pending_collection'),
+      supabase.from('broker_commissions').select('*', { count: 'exact', head: true }).eq('status', 'collected'),
     ]);
 
     return res.status(200).json({
@@ -55,6 +59,8 @@ const getStats = async (req, res) => {
       availableRooms,
       fullRooms,
       acceptedRequests,
+      pendingCommissions,
+      collectedCommissions,
     });
   } catch (err) {
     return res.status(500).json({ error: err.message });
@@ -304,9 +310,10 @@ const getBrokerDashboard = async (req, res) => {
     let appointments = [];
     let activities = [];
     let leads = [];
+    let commissions = [];
 
     if (roomIds.length) {
-      const [requestRes, appointmentRes, activityRes, leadRes] = await Promise.all([
+      const [requestRes, appointmentRes, activityRes, leadRes, commissionRes] = await Promise.all([
         supabase
           .from('roommate_requests')
           .select('id, room_id, status, occupants, created_at, tenant:users!tenant_id (full_name, phone)')
@@ -331,25 +338,43 @@ const getBrokerDashboard = async (req, res) => {
           .eq('broker_id', brokerId)
           .order('updated_at', { ascending: false })
           .limit(8),
+        supabase
+          .from('broker_commissions')
+          .select('id, amount, status, created_at, room:rooms (title), lead:broker_leads (full_name)')
+          .eq('broker_id', brokerId)
+          .order('updated_at', { ascending: false })
+          .limit(8),
       ]);
 
       if (requestRes.error) return res.status(500).json({ error: requestRes.error.message });
       if (appointmentRes.error) return res.status(500).json({ error: appointmentRes.error.message });
       if (activityRes.error) return res.status(500).json({ error: activityRes.error.message });
       if (leadRes.error) return res.status(500).json({ error: leadRes.error.message });
+      if (commissionRes.error) return res.status(500).json({ error: commissionRes.error.message });
       requests = requestRes.data || [];
       appointments = appointmentRes.data || [];
       activities = activityRes.data || [];
       leads = leadRes.data || [];
+      commissions = commissionRes.data || [];
     } else {
-      const leadRes = await supabase
-        .from('broker_leads')
-        .select('id, full_name, phone, status, budget_min, budget_max, preferred_area, updated_at')
-        .eq('broker_id', brokerId)
-        .order('updated_at', { ascending: false })
-        .limit(8);
+      const [leadRes, commissionRes] = await Promise.all([
+        supabase
+          .from('broker_leads')
+          .select('id, full_name, phone, status, budget_min, budget_max, preferred_area, updated_at')
+          .eq('broker_id', brokerId)
+          .order('updated_at', { ascending: false })
+          .limit(8),
+        supabase
+          .from('broker_commissions')
+          .select('id, amount, status, created_at, room:rooms (title), lead:broker_leads (full_name)')
+          .eq('broker_id', brokerId)
+          .order('updated_at', { ascending: false })
+          .limit(8),
+      ]);
       if (leadRes.error) return res.status(500).json({ error: leadRes.error.message });
+      if (commissionRes.error) return res.status(500).json({ error: commissionRes.error.message });
       leads = leadRes.data || [];
+      commissions = commissionRes.data || [];
     }
 
     return res.status(200).json({
@@ -361,12 +386,15 @@ const getBrokerDashboard = async (req, res) => {
         acceptedRequests: requests.filter(request => request.status === 'accepted').length,
         upcomingAppointments: appointments.filter(appt => ['pending', 'confirmed'].includes(appt.status)).length,
         activeLeads: leads.filter(lead => !['closed', 'lost'].includes(lead.status)).length,
+        pendingCommissionAmount: commissions.filter(item => item.status === 'pending_collection').reduce((sum, item) => sum + Number(item.amount || 0), 0),
+        collectedCommissionAmount: commissions.filter(item => item.status === 'collected').reduce((sum, item) => sum + Number(item.amount || 0), 0),
       },
       rooms: rooms || [],
       leads,
       requests,
       appointments,
       activities,
+      commissions,
     });
   } catch (err) {
     return res.status(500).json({ error: err.message });
@@ -435,8 +463,103 @@ const handleReport = async (req, res) => {
   }
 };
 
+
+
+const COMMISSION_STATUSES = ['pending_collection', 'collected', 'paid_to_broker', 'cancelled'];
+
+/**
+ * @desc Admin: List broker commissions
+ * @route GET /api/admin/commissions
+ */
+const getBrokerCommissions = async (req, res) => {
+  try {
+    const { status } = req.query;
+    let query = supabase
+      .from('broker_commissions')
+      .select(`
+        *,
+        broker:users!broker_commissions_broker_id_fkey (id, full_name, email, phone),
+        tenant:users!broker_commissions_tenant_id_fkey (id, full_name, email, phone),
+        lead:broker_leads (id, full_name, phone, status),
+        room:rooms (id, title, price, address, city)
+      `)
+      .order('updated_at', { ascending: false });
+
+    if (status && COMMISSION_STATUSES.includes(status)) query = query.eq('status', status);
+
+    const { data, error } = await query;
+    if (error) return res.status(500).json({ error: error.message });
+    return res.status(200).json(data || []);
+  } catch (err) {
+    return res.status(500).json({ error: err.message });
+  }
+};
+
+/**
+ * @desc Admin: Update broker commission collection/payment status
+ * @route PATCH /api/admin/commissions/:id/status
+ */
+const updateBrokerCommissionStatus = async (req, res) => {
+  try {
+    const { status, note } = req.body;
+    if (!COMMISSION_STATUSES.includes(status)) {
+      return res.status(400).json({ error: 'Trang thai hoa hong khong hop le.' });
+    }
+
+    const { data: existing } = await supabase
+      .from('broker_commissions')
+      .select('id, status')
+      .eq('id', req.params.id)
+      .single();
+    if (!existing) return res.status(404).json({ error: 'Hoa hong khong ton tai.' });
+
+    const updatePayload = {
+      status,
+      note: note?.trim() || null,
+      updated_at: new Date().toISOString(),
+    };
+    if (status === 'collected') updatePayload.collected_at = new Date().toISOString();
+    if (status === 'paid_to_broker') {
+      updatePayload.paid_at = new Date().toISOString();
+      if (existing.status === 'pending_collection') updatePayload.collected_at = new Date().toISOString();
+    }
+    if (status === 'cancelled') {
+      updatePayload.collected_at = null;
+      updatePayload.paid_at = null;
+    }
+
+    const { data, error } = await supabase
+      .from('broker_commissions')
+      .update(updatePayload)
+      .eq('id', req.params.id)
+      .select(`
+        *,
+        broker:users!broker_commissions_broker_id_fkey (id, full_name, email, phone),
+        tenant:users!broker_commissions_tenant_id_fkey (id, full_name, email, phone),
+        lead:broker_leads (id, full_name, phone, status),
+        room:rooms (id, title, price, address, city)
+      `)
+      .single();
+
+    if (error) return res.status(400).json({ error: error.message });
+    await logActivity({
+      actorId: req.user.id,
+      action: 'broker_commission_status_updated',
+      targetType: 'broker_commission',
+      targetId: req.params.id,
+      oldValue: { status: existing.status },
+      newValue: { status },
+    });
+    return res.status(200).json({ message: 'Da cap nhat hoa hong.', commission: data });
+  } catch (err) {
+    return res.status(500).json({ error: err.message });
+  }
+};
+
 module.exports = {
   getStats, getAllUsers, updateUserRole, toggleUserLock,
   getBrokers, getPendingRooms, getAllRooms, assignRoomBroker, getBrokerDashboard, getActivityLogs,
-  getReports, handleReport,
+  getReports,
+  getBrokerCommissions,
+  updateBrokerCommissionStatus, handleReport,
 };

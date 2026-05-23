@@ -6,6 +6,7 @@ import PendingRooms from './PendingRooms';
 import AdminAllRooms from './AllRooms';
 import AdminUsers from './Users';
 import AdminReports from './Reports';
+import AdminCommissions from './Commissions';
 
 const AdminDashboard = () => {
   const { user } = useAuth();
@@ -38,6 +39,7 @@ const AdminDashboard = () => {
             { to: '/admin/pending',   icon: '⏳', label: 'Duyệt phòng' },
             { to: '/admin/users',     icon: '👥', label: 'Người dùng' },
             { to: '/admin/reports',   icon: '🚨', label: 'Báo cáo' },
+            { to: '/admin/commissions', icon: '💼', label: 'Hoa hồng' },
           ].map(({ to, icon, label }) => (
             <NavLink
               key={to}
@@ -97,11 +99,13 @@ const AdminDashboard = () => {
 
         <div className="admin-ops-stats animate-fadeIn">
           {[
-            ['M?i gi?i', stats?.totalBrokers],
-            ['Ph?ng ?? g?n m?i gi?i', stats?.brokerAssignedRooms],
-            ['Ph?ng c?n ch?', stats?.availableRooms],
-            ['Ph?ng h?t ch?', stats?.fullRooms],
-            ['Y?u c?u th?nh c?ng', stats?.acceptedRequests],
+            ['Môi giới', stats?.totalBrokers],
+            ['Phòng đã gán môi giới', stats?.brokerAssignedRooms],
+            ['Phòng còn chỗ', stats?.availableRooms],
+            ['Phòng hết chỗ', stats?.fullRooms],
+            ['Yêu cầu thành công', stats?.acceptedRequests],
+            ['Hoa hồng chờ thu', stats?.pendingCommissions],
+            ['Hoa hồng đã thu', stats?.collectedCommissions],
           ].map(([label, value]) => (
             <div className="admin-ops-stat" key={label}>
               <strong>{statsLoading ? '-' : (value ?? 0)}</strong>
@@ -118,6 +122,7 @@ const AdminDashboard = () => {
             <Route path="pending"         element={<PendingRooms />} />
             <Route path="users"           element={<AdminUsers />} />
             <Route path="reports"         element={<AdminReports />} />
+            <Route path="commissions"     element={<AdminCommissions />} />
             <Route path="*"               element={<AdminOverview stats={stats} loading={statsLoading} activityLogs={activityLogs} />} />
           </Routes>
         </div>

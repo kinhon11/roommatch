@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import apiClient from '../../api/apiClient';
 import { useAuth } from '../../hooks/useAuth';
-import { formatDate } from '../../utils/format';
+import { formatCurrency, formatDate } from '../../utils/format';
 
 const BrokerDashboard = () => {
   const { user } = useAuth();
@@ -18,12 +18,14 @@ const BrokerDashboard = () => {
 
   const stats = data?.stats || {};
   const statItems = [
-    ['Ph?ng ???c giao', stats.assignedRooms || 0],
-    ['?ang c?n ch?', stats.availableRooms || 0],
-    ['Lead ?ang ch?m s?c', stats.activeLeads || 0],
-    ['H?t ch?', stats.fullRooms || 0],
-    ['Y?u c?u ch? x? l?', stats.pendingRequests || 0],
-    ['L?ch h?n s?p t?i', stats.upcomingAppointments || 0],
+    ['Phòng được giao', stats.assignedRooms || 0],
+    ['Đang còn chỗ', stats.availableRooms || 0],
+    ['Lead đang chăm sóc', stats.activeLeads || 0],
+    ['Hết chỗ', stats.fullRooms || 0],
+    ['Yêu cầu chờ xử lý', stats.pendingRequests || 0],
+    ['Lịch hẹn sắp tới', stats.upcomingAppointments || 0],
+    ['Hoa hồng chờ thu', formatCurrency(stats.pendingCommissionAmount || 0)],
+    ['Hoa hồng đã thu', formatCurrency(stats.collectedCommissionAmount || 0)],
   ];
 
   return (
@@ -31,13 +33,14 @@ const BrokerDashboard = () => {
       <div className="container">
         <header className="broker-head">
           <div>
-            <h1>Dashboard m?i gi?i</h1>
-            <p>Xin ch?o {user?.full_name}. Theo d?i ph?ng ???c ph?n c?ng v? vi?c c?n x? l?.</p>
+            <h1>Dashboard môi giới</h1>
+            <p>Xin chào {user?.full_name}. Theo dõi phòng được phân công và việc cần xử lý.</p>
           </div>
           <div className="broker-actions">
-            <Link to="/landlord/my-rooms" className="btn btn-primary">Ph?ng ???c giao</Link>
-            <Link to="/broker/leads" className="btn btn-secondary">Qu?n l? lead</Link>
-            <Link to="/landlord/requests" className="btn btn-secondary">Y?u c?u ? gh?p</Link>
+            <Link to="/landlord/my-rooms" className="btn btn-primary">Phòng được giao</Link>
+            <Link to="/broker/leads" className="btn btn-secondary">Quản lý lead</Link>
+            <Link to="/broker/commissions" className="btn btn-secondary">Hoa hồng</Link>
+            <Link to="/landlord/requests" className="btn btn-secondary">Yêu cầu ở ghép</Link>
           </div>
         </header>
 
@@ -52,63 +55,75 @@ const BrokerDashboard = () => {
 
         <section className="broker-grid">
           <div className="broker-panel">
-            <h2>Lead c?n ch?m s?c</h2>
-            {loading ? <p>?ang t?i...</p> : data?.leads?.length ? (
+            <h2>Lead cần chăm sóc</h2>
+            {loading ? <p>Đang tải...</p> : data?.leads?.length ? (
               data.leads.slice(0, 6).map(lead => (
                 <Link to="/broker/leads" className="broker-row" key={lead.id}>
                   <span>{lead.full_name} - {lead.status}</span>
                   <small>{lead.phone}{lead.preferred_area ? `, ${lead.preferred_area}` : ''}</small>
                 </Link>
               ))
-            ) : <p>Ch?a c? lead.</p>}
+            ) : <p>Chưa có lead.</p>}
           </div>
 
           <div className="broker-panel">
-            <h2>Ph?ng ph? tr?ch</h2>
-            {loading ? <p>?ang t?i...</p> : data?.rooms?.length ? (
+            <h2>Phòng phụ trách</h2>
+            {loading ? <p>Đang tải...</p> : data?.rooms?.length ? (
               data.rooms.slice(0, 6).map(room => (
                 <Link to={`/rooms/${room.id}`} className="broker-row" key={room.id}>
                   <span>{room.title}</span>
-                  <small>{room.available_slots ?? 0} ch?, {room.status}</small>
+                  <small>{room.available_slots ?? 0} chỗ, {room.status}</small>
                 </Link>
               ))
-            ) : <p>Ch?a c? ph?ng ???c ph?n c?ng.</p>}
+            ) : <p>Chưa có phòng được phân công.</p>}
           </div>
 
           <div className="broker-panel">
-            <h2>Y?u c?u m?i</h2>
-            {loading ? <p>?ang t?i...</p> : data?.requests?.length ? (
+            <h2>Yêu cầu mới</h2>
+            {loading ? <p>Đang tải...</p> : data?.requests?.length ? (
               data.requests.slice(0, 6).map(req => (
                 <div className="broker-row" key={req.id}>
                   <span>{req.tenant?.full_name || 'Tenant'} - {req.status}</span>
-                  <small>{req.occupants || 1} ng??i, {formatDate(req.created_at)}</small>
+                  <small>{req.occupants || 1} người, {formatDate(req.created_at)}</small>
                 </div>
               ))
-            ) : <p>Kh?ng c? y?u c?u m?i.</p>}
+            ) : <p>Không có yêu cầu mới.</p>}
           </div>
 
           <div className="broker-panel">
-            <h2>L?ch h?n</h2>
-            {loading ? <p>?ang t?i...</p> : data?.appointments?.length ? (
+            <h2>Lịch hẹn</h2>
+            {loading ? <p>Đang tải...</p> : data?.appointments?.length ? (
               data.appointments.slice(0, 6).map(appt => (
                 <div className="broker-row" key={appt.id}>
-                  <span>{appt.room?.title || 'Ph?ng'} - {appt.status}</span>
+                  <span>{appt.room?.title || 'Phòng'} - {appt.status}</span>
                   <small>{new Date(appt.scheduled_at).toLocaleString('vi-VN')}</small>
                 </div>
               ))
-            ) : <p>Ch?a c? l?ch h?n.</p>}
+            ) : <p>Chưa có lịch hẹn.</p>}
           </div>
 
           <div className="broker-panel">
-            <h2>L?ch s? x? l?</h2>
-            {loading ? <p>?ang t?i...</p> : data?.activities?.length ? (
+            <h2>Hoa hồng</h2>
+            {loading ? <p>Đang tải...</p> : data?.commissions?.length ? (
+              data.commissions.slice(0, 6).map(item => (
+                <div className="broker-row" key={item.id}>
+                  <span>{formatCurrency(item.amount)} - {item.status}</span>
+                  <small>{item.lead?.full_name || 'Lead'} · {item.room?.title || 'Phòng'}</small>
+                </div>
+              ))
+            ) : <p>Chưa có hoa hồng.</p>}
+          </div>
+
+          <div className="broker-panel">
+            <h2>Lịch sử xử lý</h2>
+            {loading ? <p>Đang tải...</p> : data?.activities?.length ? (
               data.activities.map(item => (
                 <div className="broker-row" key={item.id}>
                   <span>{item.action}</span>
                   <small>{formatDate(item.created_at)}</small>
                 </div>
               ))
-            ) : <p>Ch?a c? ho?t ??ng n?o.</p>}
+            ) : <p>Chưa có hoạt động nào.</p>}
           </div>
         </section>
       </div>
