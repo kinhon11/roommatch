@@ -233,11 +233,7 @@ const updateLead = async (req, res) => {
 
 const updateLeadStatus = async (req, res) => {
   try {
-<<<<<<< HEAD
-    const { status, lost_reason } = req.body;
-=======
     const { status, lost_reason, commission_amount, commission_note } = req.body;
->>>>>>> 68309b8f2a04c37d35a95d26e12847865cf0dae9
     if (!LEAD_STATUSES.includes(status)) return res.status(400).json({ error: 'Trang thai lead khong hop le.' });
     if (status === 'lost' && !lost_reason?.trim()) {
       return res.status(400).json({ error: 'Can nhap ly do that bai.' });

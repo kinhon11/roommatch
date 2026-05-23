@@ -99,13 +99,6 @@ const AdminDashboard = () => {
 
         <div className="admin-ops-stats animate-fadeIn">
           {[
-<<<<<<< HEAD
-            ['Moi gioi', stats?.totalBrokers],
-            ['Phong da gan moi gioi', stats?.brokerAssignedRooms],
-            ['Phong con cho', stats?.availableRooms],
-            ['Phong het cho', stats?.fullRooms],
-            ['Yeu cau thanh cong', stats?.acceptedRequests],
-=======
             ['Môi giới', stats?.totalBrokers],
             ['Phòng đã gán môi giới', stats?.brokerAssignedRooms],
             ['Phòng còn chỗ', stats?.availableRooms],
@@ -113,7 +106,6 @@ const AdminDashboard = () => {
             ['Yêu cầu thành công', stats?.acceptedRequests],
             ['Hoa hồng chờ thu', stats?.pendingCommissions],
             ['Hoa hồng đã thu', stats?.collectedCommissions],
->>>>>>> 68309b8f2a04c37d35a95d26e12847865cf0dae9
           ].map(([label, value]) => (
             <div className="admin-ops-stat" key={label}>
               <strong>{statsLoading ? '-' : (value ?? 0)}</strong>
