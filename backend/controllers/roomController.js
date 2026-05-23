@@ -31,11 +31,13 @@ const canManageRoom = (user, room) => (
 
 const buildRoomPayload = (body, fallbackSlots = 1) => {
   const slots = normalizeSlots(body.available_slots, fallbackSlots);
+  const price = parseNumber(body.price);
+  const depositAmount = parseNumber(body.deposit_amount);
   return {
     title: body.title?.trim(),
     description: body.description?.trim() || null,
-    price: parseNumber(body.price),
-    deposit_amount: parseNumber(body.deposit_amount),
+    price,
+    deposit_amount: depositAmount ?? price,
     electricity_price: parseNumber(body.electricity_price),
     water_price: parseNumber(body.water_price),
     internet_fee: parseNumber(body.internet_fee),

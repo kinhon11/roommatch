@@ -179,6 +179,7 @@ test('room CRUD creates pending room with normalized payload and amenities', asy
       assert.equal(query.payload.status, 'pending');
       assert.equal(query.payload.available_slots, 2);
       assert.equal(query.payload.is_available, true);
+      assert.equal(query.payload.deposit_amount, 2500000);
       return { data: { id: 'room-1', ...query.payload }, error: null };
     }
     if (query.table === 'room_amenities' && query.operation === 'insert') {
