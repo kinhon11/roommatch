@@ -13,6 +13,8 @@ router.get('/stats', adminController.getStats);
 router.get('/users', adminController.getAllUsers);
 router.get('/brokers', adminController.getBrokers);
 router.get('/activity-logs', adminController.getActivityLogs);
+router.get('/commissions', adminController.getBrokerCommissions);
+router.patch('/commissions/:id/status', adminController.updateBrokerCommissionStatus);
 router.patch('/users/:id/role', adminController.updateUserRole);
 router.patch('/users/:id/lock', adminController.toggleUserLock);
 router.get('/rooms/pending', adminController.getPendingRooms);

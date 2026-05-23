@@ -8,11 +8,66 @@ const LEAD_SELECT = `
   recommended_rooms:broker_lead_rooms (
     id, room_id, match_reason, tenant_feedback, status, created_at,
     room:rooms (id, title, price, address, city, available_slots, is_available, status, room_images (image_url, is_primary))
-  )
+  ),
+  commission:broker_commissions (id, amount, commission_rate, basis_amount, status, note, collected_at, paid_at, created_at, updated_at)
 `;
 
 const LEAD_STATUSES = ['new', 'consulted', 'scheduled', 'visited', 'deposit_ready', 'closed', 'lost'];
 const RECOMMENDATION_STATUSES = ['suggested', 'interested', 'visited', 'rejected', 'deposit_ready'];
+const COMMISSION_RATE_DEFAULT = 0.5;
+
+const normalizeCommissionAmount = (value) => {
+  if (value === '' || value === undefined || value === null) return null;
+  const amount = Number(value);
+  if (!Number.isFinite(amount) || amount < 0) return null;
+  return amount;
+};
+
+const createCommissionForLead = async ({ leadId, brokerId, amount, note }) => {
+  const { data: lead, error: leadError } = await supabase
+    .from('broker_leads')
+    .select(`
+      id, broker_id, tenant_id, assigned_room_id,
+      assigned_room:rooms!broker_leads_assigned_room_id_fkey (id, price),
+      recommended_rooms:broker_lead_rooms (room_id, status, room:rooms (id, price))
+    `)
+    .eq('id', leadId)
+    .eq('broker_id', brokerId)
+    .single();
+
+  if (leadError || !lead) return { error: 'Lead khong ton tai.' };
+
+  const preferredRecommendation = (lead.recommended_rooms || []).find(item => item.status === 'deposit_ready')
+    || (lead.recommended_rooms || [])[0];
+  const roomId = lead.assigned_room_id || preferredRecommendation?.room_id;
+  const roomPrice = Number(lead.assigned_room?.price || preferredRecommendation?.room?.price || 0);
+  if (!roomId) return { error: 'Can chon phong tu van hoac goi y phong truoc khi tao hoa hong.' };
+
+  const commissionAmount = normalizeCommissionAmount(amount) ?? Math.round(roomPrice * COMMISSION_RATE_DEFAULT);
+  if (!Number.isFinite(commissionAmount) || commissionAmount <= 0) {
+    return { error: 'So tien hoa hong phai lon hon 0.' };
+  }
+
+  const { data, error } = await supabase
+    .from('broker_commissions')
+    .upsert({
+      lead_id: leadId,
+      broker_id: brokerId,
+      room_id: roomId,
+      tenant_id: lead.tenant_id || null,
+      amount: commissionAmount,
+      commission_rate: amount ? null : COMMISSION_RATE_DEFAULT,
+      basis_amount: roomPrice || null,
+      status: 'pending_collection',
+      note: note?.trim() || null,
+      updated_at: new Date().toISOString(),
+    }, { onConflict: 'lead_id' })
+    .select('id, amount, commission_rate, basis_amount, status, note, collected_at, paid_at, created_at, updated_at')
+    .single();
+
+  if (error) return { error: error.message };
+  return { commission: data };
+};
 
 const normalizeLeadPayload = (body) => {
   const payload = {
@@ -147,17 +202,30 @@ const updateLead = async (req, res) => {
       .single();
 
     if (error) return res.status(400).json({ error: error.message });
+
+    let commission = null;
+    if (existing.status !== data.status && data.status === 'closed') {
+      const commissionResult = await createCommissionForLead({
+        leadId: req.params.id,
+        brokerId: req.user.id,
+        amount: req.body.commission_amount,
+        note: req.body.commission_note,
+      });
+      if (commissionResult.error) return res.status(400).json({ error: commissionResult.error });
+      commission = commissionResult.commission;
+    }
+
     if (existing.status !== data.status) {
       await logActivity({
         actorId: req.user.id,
-        action: 'broker_lead_status_updated',
+        action: data.status === 'closed' ? 'broker_commission_created' : 'broker_lead_status_updated',
         targetType: 'broker_lead',
         targetId: data.id,
         oldValue: { status: existing.status },
-        newValue: { status: data.status },
+        newValue: { status: data.status, commission_id: commission?.id || null },
       });
     }
-    return res.status(200).json({ message: 'Da cap nhat lead.', lead: data });
+    return res.status(200).json({ message: 'Da cap nhat lead.', lead: { ...data, commission } });
   } catch (err) {
     return res.status(500).json({ error: err.message });
   }
@@ -165,7 +233,11 @@ const updateLead = async (req, res) => {
 
 const updateLeadStatus = async (req, res) => {
   try {
+<<<<<<< HEAD
     const { status, lost_reason } = req.body;
+=======
+    const { status, lost_reason, commission_amount, commission_note } = req.body;
+>>>>>>> 68309b8f2a04c37d35a95d26e12847865cf0dae9
     if (!LEAD_STATUSES.includes(status)) return res.status(400).json({ error: 'Trang thai lead khong hop le.' });
     if (status === 'lost' && !lost_reason?.trim()) {
       return res.status(400).json({ error: 'Can nhap ly do that bai.' });
@@ -193,15 +265,28 @@ const updateLeadStatus = async (req, res) => {
       .single();
 
     if (error) return res.status(400).json({ error: error.message });
+
+    let commission = null;
+    if (status === 'closed') {
+      const commissionResult = await createCommissionForLead({
+        leadId: req.params.id,
+        brokerId: req.user.id,
+        amount: commission_amount,
+        note: commission_note,
+      });
+      if (commissionResult.error) return res.status(400).json({ error: commissionResult.error });
+      commission = commissionResult.commission;
+    }
+
     await logActivity({
       actorId: req.user.id,
-      action: 'broker_lead_status_updated',
+      action: status === 'closed' ? 'broker_commission_created' : 'broker_lead_status_updated',
       targetType: 'broker_lead',
       targetId: req.params.id,
       oldValue: { status: existing.status },
-      newValue: { status },
+      newValue: { status, commission_id: commission?.id || null },
     });
-    return res.status(200).json({ message: 'Da cap nhat trang thai lead.', lead: data });
+    return res.status(200).json({ message: 'Da cap nhat trang thai lead.', lead: { ...data, commission } });
   } catch (err) {
     return res.status(500).json({ error: err.message });
   }
@@ -322,6 +407,26 @@ const deleteRecommendation = async (req, res) => {
   }
 };
 
+const listCommissions = async (req, res) => {
+  try {
+    const { data, error } = await supabase
+      .from('broker_commissions')
+      .select(`
+        *,
+        lead:broker_leads (id, full_name, phone, status),
+        room:rooms (id, title, price, address, city),
+        tenant:users!broker_commissions_tenant_id_fkey (id, full_name, email, phone)
+      `)
+      .eq('broker_id', req.user.id)
+      .order('updated_at', { ascending: false });
+
+    if (error) return res.status(500).json({ error: error.message });
+    return res.status(200).json(data || []);
+  } catch (err) {
+    return res.status(500).json({ error: err.message });
+  }
+};
+
 const listAssignedRooms = async (req, res) => {
   try {
     const { data, error } = await supabase
@@ -346,5 +451,6 @@ module.exports = {
   recommendRoom,
   updateRecommendation,
   deleteRecommendation,
+  listCommissions,
   listAssignedRooms,
 };

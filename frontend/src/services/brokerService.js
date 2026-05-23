@@ -2,11 +2,12 @@ import apiClient from '../api/apiClient';
 
 export const brokerService = {
   listRooms: () => apiClient.get('/broker/rooms'),
+  listCommissions: () => apiClient.get('/broker/commissions'),
   listLeads: (params = {}) => apiClient.get('/broker/leads', { params }),
   createLead: (payload) => apiClient.post('/broker/leads', payload),
   updateLead: (id, payload) => apiClient.put(`/broker/leads/${id}`, payload),
-  updateLeadStatus: (id, status, lost_reason) =>
-    apiClient.patch(`/broker/leads/${id}/status`, { status, lost_reason }),
+  updateLeadStatus: (id, status, lost_reason, commission = {}) =>
+    apiClient.patch(`/broker/leads/${id}/status`, { status, lost_reason, ...commission }),
   deleteLead: (id) => apiClient.delete(`/broker/leads/${id}`),
   recommendRoom: (leadId, payload) => apiClient.post(`/broker/leads/${leadId}/rooms`, payload),
   updateRecommendation: (leadId, recommendationId, payload) =>

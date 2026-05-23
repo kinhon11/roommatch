@@ -14,7 +14,7 @@ class QueryBuilder {
   }
 
   select(columns, options) {
-    if (!['insert', 'update', 'delete'].includes(this.operation)) {
+    if (!['insert', 'update', 'upsert', 'delete'].includes(this.operation)) {
       this.operation = 'select';
     }
     this.columns = columns;
@@ -527,6 +527,81 @@ test('broker leads validate assigned rooms and write lead records', async () => 
   });
   assert.equal(recommendation.statusCode, 200);
 });
+
+
+test('broker closing a lead creates pending commission for assigned room', async () => {
+  const writes = [];
+  const { updateLeadStatus } = loadController('controllers/brokerController.js', (query) => {
+    if (query.table === 'broker_leads' && query.operation === 'select') {
+      const isExistingLookup = query.columns === 'id, status';
+      return {
+        data: {
+          id: 'lead-1',
+          status: isExistingLookup ? 'deposit_ready' : 'closed',
+          broker_id: 'broker-1',
+          tenant_id: 'tenant-1',
+          assigned_room_id: 'room-1',
+          assigned_room: { id: 'room-1', price: 4000000 },
+          recommended_rooms: [],
+          ...(isExistingLookup ? {} : { commission: null }),
+        },
+        error: null,
+      };
+    }
+    if (query.table === 'broker_leads' && query.operation === 'update') {
+      return { data: { id: 'lead-1', ...query.payload }, error: null };
+    }
+    if (query.table === 'broker_commissions' && query.operation === 'upsert') {
+      writes.push(query.payload);
+      return { data: { id: 'commission-1', ...query.payload }, error: null };
+    }
+    if (query.table === 'activity_logs' && query.operation === 'insert') {
+      return { data: query.payload, error: null };
+    }
+    return { data: query.payload || null, error: null };
+  });
+
+  const res = await callController(updateLeadStatus, {
+    user: { id: 'broker-1', role: 'broker' },
+    params: { id: 'lead-1' },
+    body: { status: 'closed', commission_amount: 1500000, commission_note: 'Thu khi landlord xac nhan coc' },
+  });
+
+  assert.equal(res.statusCode, 200);
+  assert.equal(writes[0].broker_id, 'broker-1');
+  assert.equal(writes[0].room_id, 'room-1');
+  assert.equal(writes[0].amount, 1500000);
+  assert.equal(writes[0].status, 'pending_collection');
+});
+
+test('admin updates broker commission payment status', async () => {
+  const updates = [];
+  const { updateBrokerCommissionStatus } = loadController('controllers/adminController.js', (query) => {
+    if (query.table === 'broker_commissions' && query.operation === 'select') {
+      return { data: { id: 'commission-1', status: 'pending_collection' }, error: null };
+    }
+    if (query.table === 'broker_commissions' && query.operation === 'update') {
+      updates.push(query.payload);
+      return { data: { id: 'commission-1', ...query.payload }, error: null };
+    }
+    if (query.table === 'activity_logs' && query.operation === 'insert') {
+      return { data: query.payload, error: null };
+    }
+    return { data: query.payload || null, count: 0, error: null };
+  });
+
+  const res = await callController(updateBrokerCommissionStatus, {
+    user: { id: 'admin-1', role: 'admin' },
+    params: { id: 'commission-1' },
+    body: { status: 'paid_to_broker', note: 'Da chuyen khoan' },
+  });
+
+  assert.equal(res.statusCode, 200);
+  assert.equal(updates[0].status, 'paid_to_broker');
+  assert.ok(updates[0].collected_at);
+  assert.ok(updates[0].paid_at);
+});
+
 
 test('assistant tool router runs search, compare, and review summary tools', async () => {
   const { routeAssistantTools } = loadController('services/ai/assistantToolRouter.js', (query) => {

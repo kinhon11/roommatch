@@ -6,6 +6,7 @@ const { protect, restrictTo } = require('../middleware/authMiddleware');
 router.use(protect, restrictTo('broker'));
 
 router.get('/rooms', brokerController.listAssignedRooms);
+router.get('/commissions', brokerController.listCommissions);
 router.get('/leads', brokerController.listLeads);
 router.post('/leads', brokerController.createLead);
 router.put('/leads/:id', brokerController.updateLead);

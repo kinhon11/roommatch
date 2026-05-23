@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import apiClient from '../../api/apiClient';
 import { useAuth } from '../../hooks/useAuth';
-import { formatDate } from '../../utils/format';
+import { formatCurrency, formatDate } from '../../utils/format';
 
 const BrokerDashboard = () => {
   const { user } = useAuth();
@@ -24,6 +24,11 @@ const BrokerDashboard = () => {
     ['Hết chỗ', stats.fullRooms || 0],
     ['Yêu cầu chờ xử lý', stats.pendingRequests || 0],
     ['Lịch hẹn sắp tới', stats.upcomingAppointments || 0],
+<<<<<<< HEAD
+=======
+    ['Hoa hồng chờ thu', formatCurrency(stats.pendingCommissionAmount || 0)],
+    ['Hoa hồng đã thu', formatCurrency(stats.collectedCommissionAmount || 0)],
+>>>>>>> 68309b8f2a04c37d35a95d26e12847865cf0dae9
   ];
 
   return (
@@ -37,6 +42,10 @@ const BrokerDashboard = () => {
           <div className="broker-actions">
             <Link to="/landlord/my-rooms" className="btn btn-primary">Phòng được giao</Link>
             <Link to="/broker/leads" className="btn btn-secondary">Quản lý lead</Link>
+<<<<<<< HEAD
+=======
+            <Link to="/broker/commissions" className="btn btn-secondary">Hoa hồng</Link>
+>>>>>>> 68309b8f2a04c37d35a95d26e12847865cf0dae9
             <Link to="/landlord/requests" className="btn btn-secondary">Yêu cầu ở ghép</Link>
           </div>
         </header>
@@ -100,6 +109,21 @@ const BrokerDashboard = () => {
           </div>
 
           <div className="broker-panel">
+<<<<<<< HEAD
+=======
+            <h2>Hoa hồng</h2>
+            {loading ? <p>Đang tải...</p> : data?.commissions?.length ? (
+              data.commissions.slice(0, 6).map(item => (
+                <div className="broker-row" key={item.id}>
+                  <span>{formatCurrency(item.amount)} - {item.status}</span>
+                  <small>{item.lead?.full_name || 'Lead'} · {item.room?.title || 'Phòng'}</small>
+                </div>
+              ))
+            ) : <p>Chưa có hoa hồng.</p>}
+          </div>
+
+          <div className="broker-panel">
+>>>>>>> 68309b8f2a04c37d35a95d26e12847865cf0dae9
             <h2>Lịch sử xử lý</h2>
             {loading ? <p>Đang tải...</p> : data?.activities?.length ? (
               data.activities.map(item => (

@@ -157,6 +157,28 @@ const BrokerLeads = () => {
 
   const changeStatus = async (lead, status) => {
     let lostReason = '';
+    let commission = {};
+    if (status === 'closed') {
+      const defaultAmount = Math.round(Number(lead.assigned_room?.price || lead.recommended_rooms?.[0]?.room?.price || 0) * 0.5);
+      const amount = await dialog.prompt({
+        title: 'Tao hoa hong moi gioi',
+        label: 'So tien hoa hong',
+        inputType: 'number',
+        placeholder: defaultAmount ? String(defaultAmount) : 'VD: 1000000',
+        confirmText: 'Chot lead',
+      });
+      if (amount === null) return;
+      commission = { commission_amount: amount || defaultAmount };
+      const note = await dialog.prompt({
+        title: 'Ghi chu hoa hong',
+        label: 'Ghi chu tuy chon',
+        placeholder: 'VD: Thu khi landlord xac nhan coc...',
+        required: false,
+        confirmText: 'Luu ghi chu',
+      });
+      if (note === null) return;
+      commission.commission_note = note;
+    }
     if (status === 'lost') {
       lostReason = await dialog.prompt({
         title: 'Lý do thất bại',
@@ -168,7 +190,7 @@ const BrokerLeads = () => {
     }
     setActiveLeadId(lead.id);
     try {
-      await brokerService.updateLeadStatus(lead.id, status, lostReason?.trim());
+      await brokerService.updateLeadStatus(lead.id, status, lostReason?.trim(), commission);
       await load();
       toast.success('Đã cập nhật trạng thái lead.');
     } catch (err) {
@@ -350,6 +372,11 @@ const BrokerLeads = () => {
                   </div>
 
                   {lead.note && <p className="bl-note">{lead.note}</p>}
+                  {lead.commission?.length ? (
+                    <div className="bl-note">
+                      Hoa hong: {formatCurrency(lead.commission[0].amount)} - {lead.commission[0].status}
+                    </div>
+                  ) : null}
 
                   <div className="bl-status-actions">
                     {LEAD_STATUSES.filter(item => item.value !== lead.status).map(item => (
