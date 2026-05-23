@@ -3,6 +3,7 @@ title Use Case Quản lý cọc giữ phòng và hoàn/mất cọc
 
 left to right direction
 skinparam shadowing false
+skinparam defaultFontName "DejaVu Sans"
 skinparam actorStyle awesome
 
 actor "Người thuê" as Tenant

@@ -1,6 +1,9 @@
 @startuml
 title Sequence Diagram: Admin Dashboard Overview Process
 
+skinparam shadowing false
+skinparam defaultFontName "DejaVu Sans"
+
 actor "Admin" as Admin
 boundary "Admin Dashboard UI" as UI
 control "Admin Controller" as AdminCtrl

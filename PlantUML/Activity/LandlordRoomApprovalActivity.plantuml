@@ -2,7 +2,7 @@
 title Activity Diagram: Quy trình chủ trọ đăng phòng và Admin duyệt
 
 skinparam shadowing false
-skinparam defaultFontName Arial
+skinparam defaultFontName "DejaVu Sans"
 skinparam activity {
   BackgroundColor #EAF7EA
   BorderColor #8BC58B

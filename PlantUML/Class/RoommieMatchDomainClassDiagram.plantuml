@@ -3,6 +3,7 @@ title Class Diagram: Mô hình miền RoommieMatch
 
 skinparam classAttributeIconSize 0
 skinparam shadowing false
+skinparam defaultFontName "DejaVu Sans"
 skinparam class {
   BackgroundColor #F8FAFC
   BorderColor #334155

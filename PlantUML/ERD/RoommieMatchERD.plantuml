@@ -4,6 +4,7 @@ title ERD chính hệ thống RoommieMatch
 hide circle
 skinparam linetype ortho
 skinparam shadowing false
+skinparam defaultFontName "DejaVu Sans"
 skinparam entity {
   BackgroundColor #F8FAFC
   BorderColor #334155

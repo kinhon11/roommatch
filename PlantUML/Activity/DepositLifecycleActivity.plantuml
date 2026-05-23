@@ -2,7 +2,7 @@
 title Activity Diagram: Quy trình cọc giữ phòng và hoàn/mất cọc
 
 skinparam shadowing false
-skinparam defaultFontName Arial
+skinparam defaultFontName "DejaVu Sans"
 skinparam activity {
   BackgroundColor #EAF7EA
   BorderColor #8BC58B
