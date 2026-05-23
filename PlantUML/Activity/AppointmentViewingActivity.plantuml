@@ -1,0 +1,66 @@
+@startuml
+title Activity Diagram: Quy trình đặt lịch xem phòng
+
+skinparam shadowing false
+skinparam defaultFontName Arial
+skinparam activity {
+  BackgroundColor #EAF7EA
+  BorderColor #8BC58B
+  FontColor #111827
+  DiamondBackgroundColor #F7FFF7
+  DiamondBorderColor #8BC58B
+  StartColor #111827
+  EndColor #111827
+  BarColor #111827
+}
+skinparam arrow {
+  Color #444444
+  FontColor #111827
+}
+
+start
+:Tenant chọn phòng và chọn thời gian xem;
+:Gửi yêu cầu đặt lịch;
+:Kiểm tra thời gian phải sau hiện tại ít nhất 1 giờ;
+
+if (Thời gian hợp lệ?) then (Không)
+  :Báo lỗi thời gian không hợp lệ;
+  stop
+else (Có)
+endif
+
+:Kiểm tra phòng còn khả dụng và đã duyệt;
+if (Phòng hợp lệ?) then (Không)
+  :Báo lỗi phòng không khả dụng;
+  stop
+else (Có)
+endif
+
+:Kiểm tra trùng lịch phòng/người phụ trách;
+if (Bị trùng lịch?) then (Có)
+  :Báo lỗi đã có lịch hẹn cùng thời điểm;
+  stop
+else (Không)
+endif
+
+:Tạo lịch hẹn trạng thái pending;
+:Thông báo cho landlord/broker phụ trách;
+
+if (Người phụ trách xác nhận?) then (Có)
+  :Cập nhật lịch = confirmed;
+  :Tenant đến xem phòng;
+  if (Tenant đến xem?) then (Có)
+    :Cập nhật lịch = completed;
+    :Tenant có thể gửi yêu cầu cọc nếu muốn;
+    stop
+  else (Không)
+    :Cập nhật lịch = no_show;
+    stop
+  endif
+else (Không)
+  :Cập nhật lịch = cancelled;
+  :Lưu lý do hủy/từ chối;
+  stop
+endif
+
+@enduml

@@ -20,15 +20,25 @@ entity "users" as users {
   avatar_url : TEXT
   is_locked : BOOLEAN
   is_verified : BOOLEAN
+  contact_email : TEXT
+  zalo : TEXT
+  contact_hours : TEXT
 }
 
 entity "rooms" as rooms {
   * id : UUID <<PK>>
   --
   host_id : UUID <<FK>>
+  broker_id : UUID <<FK>>
   title : TEXT
-  description : TEXT
   price : INTEGER
+  deposit_amount : NUMERIC
+  electricity_price : NUMERIC
+  water_price : NUMERIC
+  internet_fee : NUMERIC
+  parking_fee : NUMERIC
+  service_fee : NUMERIC
+  payment_cycle : TEXT
   address : TEXT
   city : TEXT
   area : NUMERIC
@@ -36,7 +46,8 @@ entity "rooms" as rooms {
   is_available : BOOLEAN
   is_hidden : BOOLEAN
   available_slots : INT
-  created_at : TIMESTAMPTZ
+  max_occupants : INT
+  house_rules : TEXT
 }
 
 entity "room_images" as room_images {
@@ -45,11 +56,10 @@ entity "room_images" as room_images {
   room_id : UUID <<FK>>
   image_url : TEXT
   is_primary : BOOLEAN
-  created_at : TIMESTAMPTZ
 }
 
 entity "amenities" as amenities {
-  * id : UUID <<PK>>
+  * id : INT <<PK>>
   --
   name : TEXT <<UNIQUE>>
   icon : TEXT
@@ -57,28 +67,7 @@ entity "amenities" as amenities {
 
 entity "room_amenities" as room_amenities {
   * room_id : UUID <<PK, FK>>
-  * amenity_id : UUID <<PK, FK>>
-}
-
-entity "favorites" as favorites {
-  * id : UUID <<PK>>
-  --
-  user_id : UUID <<FK>>
-  room_id : UUID <<FK>>
-  created_at : TIMESTAMPTZ
-}
-
-entity "reviews" as reviews {
-  * id : UUID <<PK>>
-  --
-  room_id : UUID <<FK>>
-  user_id : UUID <<FK>>
-  rating : SMALLINT
-  comment : TEXT
-  is_hidden : BOOLEAN
-  landlord_response : TEXT
-  landlord_responded_at : TIMESTAMPTZ
-  created_at : TIMESTAMPTZ
+  * amenity_id : INT <<PK, FK>>
 }
 
 entity "roommate_requests" as roommate_requests {
@@ -92,7 +81,6 @@ entity "roommate_requests" as roommate_requests {
   occupants : INT
   has_pet : BOOLEAN
   rejection_reason : TEXT
-  created_at : TIMESTAMPTZ
 }
 
 entity "appointments" as appointments {
@@ -104,7 +92,62 @@ entity "appointments" as appointments {
   scheduled_at : TIMESTAMPTZ
   status : TEXT
   cancellation_reason : TEXT
-  created_at : TIMESTAMPTZ
+}
+
+entity "room_deposits" as room_deposits {
+  * id : UUID <<PK>>
+  --
+  room_id : UUID <<FK>>
+  tenant_id : UUID <<FK>>
+  landlord_id : UUID <<FK>>
+  amount : NUMERIC
+  status : TEXT
+  note : TEXT
+  paid_at : TIMESTAMPTZ
+  refunded_at : TIMESTAMPTZ
+}
+
+entity "broker_leads" as broker_leads {
+  * id : UUID <<PK>>
+  --
+  broker_id : UUID <<FK>>
+  tenant_id : UUID <<FK>>
+  assigned_room_id : UUID <<FK>>
+  full_name : TEXT
+  phone : TEXT
+  budget_min : INTEGER
+  budget_max : INTEGER
+  preferred_area : TEXT
+  occupants : INTEGER
+  has_pets : BOOLEAN
+  status : TEXT
+  lost_reason : TEXT
+}
+
+entity "broker_lead_rooms" as broker_lead_rooms {
+  * id : UUID <<PK>>
+  --
+  lead_id : UUID <<FK>>
+  room_id : UUID <<FK>>
+  broker_id : UUID <<FK>>
+  match_reason : TEXT
+  tenant_feedback : TEXT
+  status : TEXT
+}
+
+entity "broker_commissions" as broker_commissions {
+  * id : UUID <<PK>>
+  --
+  broker_id : UUID <<FK>>
+  lead_id : UUID <<FK>>
+  room_id : UUID <<FK>>
+  tenant_id : UUID <<FK>>
+  amount : NUMERIC
+  commission_rate : NUMERIC
+  basis_amount : NUMERIC
+  status : TEXT
+  collected_at : TIMESTAMPTZ
+  paid_at : TIMESTAMPTZ
 }
 
 entity "conversations" as conversations {
@@ -115,7 +158,6 @@ entity "conversations" as conversations {
   landlord_id : UUID <<FK>>
   last_message : TEXT
   last_message_at : TIMESTAMPTZ
-  created_at : TIMESTAMPTZ
 }
 
 entity "messages" as messages {
@@ -125,17 +167,24 @@ entity "messages" as messages {
   sender_id : UUID <<FK>>
   content : TEXT
   is_read : BOOLEAN
-  created_at : TIMESTAMPTZ
 }
 
-entity "notifications" as notifications {
+entity "favorites" as favorites {
   * id : UUID <<PK>>
   --
   user_id : UUID <<FK>>
-  type : TEXT
-  payload : JSONB
-  read : BOOLEAN
-  created_at : TIMESTAMPTZ
+  room_id : UUID <<FK>>
+}
+
+entity "reviews" as reviews {
+  * id : UUID <<PK>>
+  --
+  room_id : UUID <<FK>>
+  user_id : UUID <<FK>>
+  rating : SMALLINT
+  comment : TEXT
+  is_hidden : BOOLEAN
+  landlord_response : TEXT
 }
 
 entity "reports" as reports {
@@ -146,37 +195,77 @@ entity "reports" as reports {
   reason : TEXT
   description : TEXT
   status : TEXT
-  resolved_at : TIMESTAMPTZ
-  created_at : TIMESTAMPTZ
+}
+
+entity "notifications" as notifications {
+  * id : UUID <<PK>>
+  --
+  user_id : UUID <<FK>>
+  type : TEXT
+  payload : JSONB
+  read : BOOLEAN
+}
+
+entity "room_approval_history" as approval_history {
+  * id : UUID <<PK>>
+  --
+  room_id : UUID <<FK>>
+  admin_id : UUID <<FK>>
+  status : TEXT
+  reason : TEXT
+}
+
+entity "room_activity_logs" as activity_logs {
+  * id : UUID <<PK>>
+  --
+  room_id : UUID <<FK>>
+  actor_id : UUID <<FK>>
+  action : TEXT
+  metadata : JSONB
 }
 
 users ||--o{ rooms : "host_id"
+users ||--o{ rooms : "broker_id"
 rooms ||--o{ room_images : "room_id"
 rooms ||--o{ room_amenities : "room_id"
 amenities ||--o{ room_amenities : "amenity_id"
 
-users ||--o{ favorites : "user_id"
-rooms ||--o{ favorites : "room_id"
-
-users ||--o{ reviews : "user_id"
-rooms ||--o{ reviews : "room_id"
-
 users ||--o{ roommate_requests : "tenant_id"
 rooms ||--o{ roommate_requests : "room_id"
-
 users ||--o{ appointments : "tenant_id"
-users ||--o{ appointments : "landlord_id"
+users ||--o{ appointments : "landlord_id / responsible_user"
 rooms ||--o{ appointments : "room_id"
+users ||--o{ room_deposits : "tenant_id"
+users ||--o{ room_deposits : "landlord_id"
+rooms ||--o{ room_deposits : "room_id"
 
+users ||--o{ broker_leads : "broker_id"
+users ||--o{ broker_leads : "tenant_id"
+rooms ||--o{ broker_leads : "assigned_room_id"
+broker_leads ||--o{ broker_lead_rooms : "lead_id"
+rooms ||--o{ broker_lead_rooms : "room_id"
+users ||--o{ broker_lead_rooms : "broker_id"
+users ||--o{ broker_commissions : "broker_id"
+users ||--o{ broker_commissions : "tenant_id"
+broker_leads ||--o{ broker_commissions : "lead_id"
+rooms ||--o{ broker_commissions : "room_id"
+
+users ||--o{ favorites : "user_id"
+rooms ||--o{ favorites : "room_id"
+users ||--o{ reviews : "user_id"
+rooms ||--o{ reviews : "room_id"
+users ||--o{ reports : "reporter_id"
+rooms ||--o{ reports : "room_id"
+users ||--o{ notifications : "user_id"
 users ||--o{ conversations : "tenant_id"
-users ||--o{ conversations : "landlord_id"
+users ||--o{ conversations : "landlord_id / responsible_user"
 rooms ||--o{ conversations : "room_id"
 conversations ||--o{ messages : "conversation_id"
 users ||--o{ messages : "sender_id"
 
-users ||--o{ notifications : "user_id"
-
-users ||--o{ reports : "reporter_id"
-rooms ||--o{ reports : "room_id"
+rooms ||--o{ approval_history : "room_id"
+users ||--o{ approval_history : "admin_id"
+rooms ||--o{ activity_logs : "room_id"
+users ||--o{ activity_logs : "actor_id"
 
 @enduml
