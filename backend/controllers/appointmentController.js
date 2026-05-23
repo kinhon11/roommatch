@@ -39,9 +39,12 @@ const validateFutureAppointmentTime = (scheduledAt) => {
  */
 const createAppointment = async (req, res) => {
   try {
-    const { room_id, scheduled_at } = req.body;
+    const { room_id, scheduled_at, tenant_id } = req.body;
     if (!room_id || !scheduled_at) {
       return res.status(400).json({ error: 'room_id va scheduled_at la bat buoc.' });
+    }
+    if (req.user.role === 'broker' && !tenant_id) {
+      return res.status(400).json({ error: 'Broker can tao lich kem tenant_id.' });
     }
 
     const scheduledDate = validateFutureAppointmentTime(scheduled_at);
@@ -57,8 +60,13 @@ const createAppointment = async (req, res) => {
 
     if (!room) return res.status(404).json({ error: 'Phong khong ton tai.' });
     const responsibleUserId = room.broker_id || room.host_id;
+    if (req.user.role === 'broker' && room.broker_id !== req.user.id) {
+      return res.status(403).json({ error: 'Broker chi duoc tao lich cho phong duoc phan cong.' });
+    }
     if (room.host_id === req.user.id || room.broker_id === req.user.id) {
-      return res.status(400).json({ error: 'Ban khong the dat lich cho phong cua minh.' });
+      if (req.user.role !== 'broker') {
+        return res.status(400).json({ error: 'Ban khong the dat lich cho phong cua minh.' });
+      }
     }
     if (room.status !== 'approved' || room.is_hidden === true || room.is_available === false) {
       return res.status(400).json({ error: 'This room is not available for appointments.' });
@@ -68,11 +76,23 @@ const createAppointment = async (req, res) => {
       return res.status(409).json({ error: 'Khung gio nay da co lich hen cho phong hoac landlord.' });
     }
 
+    const appointmentTenantId = req.user.role === 'broker' ? tenant_id : req.user.id;
+    if (req.user.role === 'broker') {
+      const { data: tenant } = await supabase
+        .from('users')
+        .select('id, role')
+        .eq('id', tenant_id)
+        .single();
+      if (!tenant || tenant.role !== 'tenant') {
+        return res.status(400).json({ error: 'tenant_id phai la tai khoan tenant hop le.' });
+      }
+    }
+
     const { data, error } = await supabase
       .from('appointments')
       .insert({
         room_id,
-        tenant_id: req.user.id,
+        tenant_id: appointmentTenantId,
         landlord_id: responsibleUserId,
         scheduled_at,
         status: 'pending',
@@ -87,6 +107,13 @@ const createAppointment = async (req, res) => {
       appointment_id: data.id,
       room_id,
     });
+    if (req.user.role === 'broker') {
+      await createNotification(appointmentTenantId, 'appointment', {
+        message: `Moi gioi da tao lich xem phong "${room.title}" vao ${scheduledDate.toLocaleString('vi-VN')}`,
+        appointment_id: data.id,
+        room_id,
+      });
+    }
 
     return res.status(201).json({ message: 'Da gui lich hen, dang cho landlord xac nhan.', appointment: data });
   } catch (err) {

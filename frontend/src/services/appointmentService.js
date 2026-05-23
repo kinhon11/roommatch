@@ -5,7 +5,8 @@ import apiClient from '../api/apiClient';
  */
 export const appointmentService = {
   /** Create a new appointment */
-  create: (roomId, scheduledAt) => apiClient.post('/appointments', { room_id: roomId, scheduled_at: scheduledAt }),
+  create: (roomId, scheduledAt, tenantId) =>
+    apiClient.post('/appointments', { room_id: roomId, scheduled_at: scheduledAt, tenant_id: tenantId }),
 
   /** Update appointment status (landlord) */
   updateStatus: (appointmentId, status, cancellation_reason) =>

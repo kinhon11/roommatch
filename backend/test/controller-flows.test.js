@@ -34,6 +34,13 @@ class QueryBuilder {
     return this;
   }
 
+  upsert(payload, options) {
+    this.operation = 'upsert';
+    this.payload = payload;
+    this.options = options;
+    return this;
+  }
+
   delete() {
     this.operation = 'delete';
     return this;
@@ -461,6 +468,64 @@ test('appointment reschedule by tenant resets appointment to pending', async () 
   assert.equal(res.statusCode, 200);
   assert.equal(updates[0].scheduled_at, scheduledAt);
   assert.equal(updates[0].status, 'pending');
+});
+
+test('broker leads validate assigned rooms and write lead records', async () => {
+  const writes = [];
+  const { createLead, recommendRoom } = loadController('controllers/brokerController.js', (query) => {
+    if (query.table === 'rooms' && query.operation === 'select') {
+      const roomId = query.filters.find(f => f.column === 'id')?.value;
+      return {
+        data: { id: roomId, broker_id: roomId === 'room-1' ? 'broker-1' : 'other-broker' },
+        error: null,
+      };
+    }
+    if (query.table === 'broker_leads' && query.operation === 'select') {
+      return { data: { id: 'lead-1' }, error: null };
+    }
+    if (query.table === 'broker_leads' && query.operation === 'insert') {
+      writes.push({ table: query.table, payload: query.payload });
+      return { data: { id: 'lead-1', ...query.payload }, error: null };
+    }
+    if (query.table === 'broker_lead_rooms' && query.operation === 'upsert') {
+      writes.push({ table: query.table, payload: query.payload });
+      return { data: { id: 'rec-1', ...query.payload }, error: null };
+    }
+    if (query.table === 'activity_logs' && query.operation === 'insert') {
+      return { data: query.payload, error: null };
+    }
+    return { data: query.payload || null, error: null };
+  });
+
+  const lead = await callController(createLead, {
+    user: { id: 'broker-1', role: 'broker' },
+    body: {
+      full_name: 'Nguyen Van A',
+      phone: '0900000000',
+      budget_min: 2500000,
+      budget_max: 4000000,
+      assigned_room_id: 'room-1',
+      status: 'consulted',
+    },
+  });
+
+  assert.equal(lead.statusCode, 201);
+  assert.equal(writes[0].payload.broker_id, 'broker-1');
+  assert.equal(writes[0].payload.status, 'consulted');
+
+  const forbiddenRoom = await callController(recommendRoom, {
+    user: { id: 'broker-1', role: 'broker' },
+    params: { id: 'lead-1' },
+    body: { room_id: 'room-2' },
+  });
+  assert.equal(forbiddenRoom.statusCode, 400);
+
+  const recommendation = await callController(recommendRoom, {
+    user: { id: 'broker-1', role: 'broker' },
+    params: { id: 'lead-1' },
+    body: { room_id: 'room-1', match_reason: 'Dung ngan sach', status: 'interested' },
+  });
+  assert.equal(recommendation.statusCode, 200);
 });
 
 test('assistant tool router runs search, compare, and review summary tools', async () => {
