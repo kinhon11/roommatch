@@ -3,6 +3,12 @@ title Class Diagram: Mô hình miền RoommieMatch
 
 skinparam classAttributeIconSize 0
 skinparam shadowing false
+skinparam defaultFontName "DejaVu Sans"
+skinparam class {
+  BackgroundColor #F8FAFC
+  BorderColor #334155
+  ArrowColor #334155
+}
 
 class User {
   +id: UUID
@@ -11,16 +17,38 @@ class User {
   +role: UserRole
   +phone: String
   +isLocked: Boolean
+  +isVerified: Boolean
 }
 
 class Room {
   +id: UUID
   +title: String
   +price: Integer
+  +depositAmount: Decimal
   +address: String
   +city: String
+  +area: Decimal
   +status: RoomStatus
+  +isAvailable: Boolean
+  +isHidden: Boolean
   +availableSlots: Integer
+  +paymentCycle: String
+  +houseRules: String
+}
+
+class RoomCostRule {
+  +electricityPrice: Decimal
+  +waterPrice: Decimal
+  +internetFee: Decimal
+  +parkingFee: Decimal
+  +serviceFee: Decimal
+  +isOwnerOccupied: Boolean
+  +hasPrivateHours: Boolean
+  +allowCooking: Boolean
+  +allowPets: Boolean
+  +allowVisitors: Boolean
+  +hasParking: Boolean
+  +maxOccupants: Integer
 }
 
 class RoomImage {
@@ -35,24 +63,14 @@ class Amenity {
   +icon: String
 }
 
-class Favorite {
-  +id: UUID
-  +createdAt: DateTime
-}
-
-class Review {
-  +id: UUID
-  +rating: Integer
-  +comment: String
-  +landlordResponse: String
-}
-
 class RoommateRequest {
   +id: UUID
   +status: RequestStatus
   +message: String
   +moveInDate: Date
   +occupants: Integer
+  +hasPet: Boolean
+  +rejectionReason: String
 }
 
 class Appointment {
@@ -60,6 +78,46 @@ class Appointment {
   +scheduledAt: DateTime
   +status: AppointmentStatus
   +cancellationReason: String
+}
+
+class RoomDeposit {
+  +id: UUID
+  +amount: Decimal
+  +status: DepositStatus
+  +note: String
+  +paidAt: DateTime
+  +refundedAt: DateTime
+}
+
+class BrokerLead {
+  +id: UUID
+  +fullName: String
+  +phone: String
+  +budgetMin: Integer
+  +budgetMax: Integer
+  +preferredArea: String
+  +moveInDate: Date
+  +occupants: Integer
+  +hasPets: Boolean
+  +status: LeadStatus
+  +lostReason: String
+}
+
+class BrokerLeadRoom {
+  +id: UUID
+  +matchReason: String
+  +tenantFeedback: String
+  +status: LeadRoomStatus
+}
+
+class BrokerCommission {
+  +id: UUID
+  +amount: Decimal
+  +commissionRate: Decimal
+  +basisAmount: Decimal
+  +status: CommissionStatus
+  +collectedAt: DateTime
+  +paidAt: DateTime
 }
 
 class Conversation {
@@ -74,10 +132,17 @@ class Message {
   +isRead: Boolean
 }
 
-class Notification {
+class Favorite {
   +id: UUID
-  +type: String
-  +read: Boolean
+  +createdAt: DateTime
+}
+
+class Review {
+  +id: UUID
+  +rating: Integer
+  +comment: String
+  +isHidden: Boolean
+  +landlordResponse: String
 }
 
 class Report {
@@ -86,31 +151,43 @@ class Report {
   +status: ReportStatus
 }
 
-class RoomDeposit {
+class Notification {
   +id: UUID
-  +amount: Decimal
-  +status: DepositStatus
+  +type: String
+  +read: Boolean
 }
 
-User "1" -- "0..*" Room : đăng phòng
-Room "1" -- "0..*" RoomImage : có
+User "1" -- "0..*" Room : chủ trọ đăng
+User "1" -- "0..*" Room : broker phụ trách
+Room "1" *-- "1" RoomCostRule : chi phí/nội quy
+Room "1" -- "0..*" RoomImage : có ảnh
 Room "0..*" -- "0..*" Amenity : tiện ích
-User "1" -- "0..*" Favorite : lưu
-Room "1" -- "0..*" Favorite : được lưu
-User "1" -- "0..*" Review : viết
-Room "1" -- "0..*" Review : nhận
-User "1" -- "0..*" RoommateRequest : gửi
-Room "1" -- "0..*" RoommateRequest : nhận
-User "1" -- "0..*" Appointment : tenant/landlord
+
+User "1" -- "0..*" RoommateRequest : tenant gửi
+Room "1" -- "0..*" RoommateRequest : nhận yêu cầu
+User "1" -- "0..*" Appointment : tenant/người phụ trách
 Room "1" -- "0..*" Appointment : lịch xem
+User "1" -- "0..*" RoomDeposit : tenant/landlord
+Room "1" -- "0..*" RoomDeposit : cọc phòng
+
+User "1" -- "0..*" BrokerLead : broker quản lý
+BrokerLead "1" -- "0..*" BrokerLeadRoom : gợi ý phòng
+Room "1" -- "0..*" BrokerLeadRoom : được gợi ý
+BrokerLead "0..1" -- "0..1" BrokerCommission : tạo hoa hồng
+User "1" -- "0..*" BrokerCommission : broker nhận
+Room "0..1" -- "0..*" BrokerCommission : theo phòng
+
 User "1" -- "0..*" Conversation : tham gia
 Room "0..1" -- "0..*" Conversation : liên quan
 Conversation "1" -- "0..*" Message : chứa
 User "1" -- "0..*" Message : gửi
-User "1" -- "0..*" Notification : nhận
+
+User "1" -- "0..*" Favorite : lưu
+Room "1" -- "0..*" Favorite : được lưu
+User "1" -- "0..*" Review : viết
+Room "1" -- "0..*" Review : nhận
 User "1" -- "0..*" Report : tạo
 Room "0..1" -- "0..*" Report : bị báo cáo
-Room "1" -- "0..*" RoomDeposit : đặt cọc
-User "1" -- "0..*" RoomDeposit : tenant/landlord
+User "1" -- "0..*" Notification : nhận
 
 @enduml

@@ -1,0 +1,69 @@
+@startuml
+title Activity Diagram: Quy trình broker tư vấn lead và hoa hồng
+
+skinparam shadowing false
+skinparam defaultFontName "DejaVu Sans"
+skinparam activity {
+  BackgroundColor #EAF7EA
+  BorderColor #8BC58B
+  FontColor #111827
+  DiamondBackgroundColor #F7FFF7
+  DiamondBorderColor #8BC58B
+  StartColor #111827
+  EndColor #111827
+  BarColor #111827
+}
+skinparam arrow {
+  Color #444444
+  FontColor #111827
+}
+
+start
+:Admin duyệt phòng và gán broker phụ trách;
+:Broker thấy phòng được giao trong dashboard;
+
+:Broker tạo lead khách thuê\n(tên, SĐT, ngân sách, khu vực, số người, pet);
+:Broker tư vấn nhu cầu;
+
+if (Có phòng phù hợp?) then (Không)
+  :Cập nhật lead = lost;
+  :Lưu lý do thất bại;
+  stop
+else (Có)
+endif
+
+:Broker gợi ý một hoặc nhiều phòng phù hợp;
+:Lưu lý do phù hợp và phản hồi tenant;
+
+if (Tenant muốn xem phòng?) then (Có)
+  :Tạo hoặc xác nhận lịch xem phòng;
+  :Tenant đi xem phòng;
+  if (Kết quả xem tốt?) then (Có)
+    :Cập nhật lead = deposit_ready;
+  else (Không)
+    :Cập nhật phản hồi / gợi ý phòng khác;
+  endif
+else (Không)
+  :Tiếp tục chăm sóc hoặc chuyển lead = lost;
+endif
+
+if (Tenant muốn cọc/chốt phòng?) then (Có)
+  :Broker chuyển lead = closed;
+  :Hệ thống tạo hoa hồng dự kiến;
+  :Hoa hồng mặc định = 50% tiền thuê tháng đầu\nhoặc số tiền broker/admin nhập;
+  :Admin theo dõi trạng thái hoa hồng pending_collection;
+
+  if (Cọc/hợp đồng được xác nhận?) then (Có)
+    :Admin đánh dấu đã thu hoa hồng;
+    :Admin đánh dấu đã trả broker;
+    stop
+  else (Không)
+    :Admin hủy hoặc giữ pending đến khi xác minh;
+    stop
+  endif
+else (Không)
+  :Lead tiếp tục chăm sóc hoặc lost;
+  stop
+endif
+
+@enduml

@@ -1,0 +1,91 @@
+@startuml
+title Activity Diagram: Quy trình tìm kiếm và xem chi tiết phòng
+
+skinparam shadowing false
+skinparam defaultFontName "DejaVu Sans"
+skinparam activity {
+  BackgroundColor #EAF7EA
+  BorderColor #8BC58B
+  FontColor #111827
+  DiamondBackgroundColor #F7FFF7
+  DiamondBorderColor #8BC58B
+  StartColor #111827
+  EndColor #111827
+  BarColor #111827
+}
+skinparam arrow {
+  Color #444444
+  FontColor #111827
+}
+
+start
+:Người thuê mở trang danh sách phòng;
+
+fork
+  :Nhập từ khóa / khu vực;
+fork again
+  :Chọn khoảng giá;
+fork again
+  :Chọn số người / slot cần thuê;
+fork again
+  :Chọn tiện ích và nội quy\n(pet, nấu ăn, gửi xe, không chung chủ);
+end fork
+
+:Nhấn tìm kiếm / áp dụng bộ lọc;
+:Frontend gửi query đến API danh sách phòng;
+
+:Backend lọc phòng theo điều kiện;
+:Chỉ lấy phòng approved,\nđang hiển thị, còn khả dụng và còn slot;
+
+if (Có phòng phù hợp?) then (Không)
+  :Hiển thị trạng thái không có kết quả;
+  :Gợi ý đổi bộ lọc hoặc dùng trợ lý AI;
+  stop
+else (Có)
+endif
+
+:Hiển thị danh sách phòng phù hợp;
+:Người thuê xem card phòng\n(ảnh, giá, địa chỉ, cọc, tiện ích, tag nội quy);
+
+if (Người thuê muốn lưu phòng?) then (Có)
+  if (Đã đăng nhập?) then (Có)
+    :Thêm phòng vào danh sách yêu thích;
+  else (Không)
+    :Chuyển đến đăng nhập trước khi lưu;
+  endif
+else (Không)
+endif
+
+:Người thuê chọn một phòng;
+:Frontend gọi API chi tiết phòng;
+:Backend lấy thông tin phòng,\nảnh, tiện ích, chủ trọ/broker, review;
+
+if (Phòng còn xem được?) then (Không)
+  :Báo phòng không tồn tại hoặc không còn khả dụng;
+  stop
+else (Có)
+endif
+
+:Hiển thị chi tiết phòng;
+
+fork
+  :Hiển thị giá thuê, tiền cọc,\nđiện/nước/wifi/gửi xe/dịch vụ;
+fork again
+  :Hiển thị nội quy\n(chung chủ, giờ giấc, pet, khách, số người);
+fork again
+  :Hiển thị ảnh, mô tả, tiện ích,\nđánh giá và thông tin liên hệ;
+end fork
+
+if (Người thuê muốn tương tác tiếp?) then (Đặt lịch xem)
+  :Chuyển sang quy trình đặt lịch xem phòng;
+elseif (Gửi yêu cầu ở ghép/thuê)
+  :Chuyển sang quy trình gửi yêu cầu ở ghép;
+elseif (Đặt cọc giữ phòng)
+  :Kiểm tra điều kiện đặt cọc\ntrước khi tạo yêu cầu cọc;
+else (Chỉ xem thông tin)
+  :Quay lại danh sách hoặc tiếp tục tìm kiếm;
+endif
+
+stop
+
+@enduml

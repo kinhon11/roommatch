@@ -1,32 +1,77 @@
 @startuml
-title Activity Diagram: Quy trình đăng nhập
+title Activity Diagram: Đăng nhập hệ thống
+
+skinparam shadowing false
+skinparam defaultFontName "DejaVu Sans"
+skinparam activity {
+  BackgroundColor #EAF7EA
+  BorderColor #8BC58B
+  FontColor #111827
+  DiamondBackgroundColor #F7FFF7
+  DiamondBorderColor #8BC58B
+  StartColor #111827
+  EndColor #111827
+  BarColor #111827
+}
+skinparam arrow {
+  Color #444444
+  FontColor #111827
+}
 
 start
-:Người dùng nhập email và mật khẩu;
-:Gửi yêu cầu đăng nhập;
+fork
+  :Nhập Email;
+fork again
+  :Nhập Password;
+end fork
 
-if (Thiếu email hoặc mật khẩu?) then (Có)
-  :Hiển thị lỗi nhập liệu;
+:Nhấn "Đăng nhập";
+:Validate email/password;
+
+if (Thiếu thông tin?) then (Có)
+  :Báo lỗi "Vui lòng nhập đầy đủ";
   stop
 else (Không)
 endif
 
-:Xác thực với Supabase Auth;
-if (Thông tin đăng nhập đúng?) then (Không)
-  :Hiển thị lỗi sai email hoặc mật khẩu;
+:Gửi email/password đến Supabase Auth;
+
+if (Email tồn tại?) then (Không)
+  :Báo lỗi "Email không tồn tại";
   stop
 else (Có)
 endif
 
-:Lấy hồ sơ người dùng;
-if (Tài khoản bị khóa?) then (Có)
-  :Hiển thị thông báo tài khoản bị khóa;
+if (Sai mật khẩu?) then (Có)
+  :Báo lỗi "Email hoặc mật khẩu không đúng";
   stop
 else (Không)
 endif
 
-:Lưu phiên đăng nhập;
-:Điều hướng theo vai trò;
+if (Tài khoản bị khóa?) then (Có)
+  :Báo lỗi "Tài khoản bị khóa";
+  stop
+else (Không)
+endif
+
+fork
+  :Tạo JWT/session token;
+fork again
+  :Lấy hồ sơ public.users;
+fork again
+  :Lưu session vào local storage/cookie;
+end fork
+
+if (Role người dùng?) then (Admin)
+  :Chuyển đến Admin Dashboard;
+elseif (Broker)
+  :Chuyển đến Broker Dashboard;
+elseif (Landlord)
+  :Chuyển đến Landlord Dashboard;
+else (Tenant)
+  :Chuyển đến trang tìm phòng;
+endif
+
 stop
 
 @enduml

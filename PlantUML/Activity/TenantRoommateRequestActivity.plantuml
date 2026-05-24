@@ -1,26 +1,50 @@
 @startuml
 title Activity Diagram: Quy trình gửi yêu cầu ở ghép
 
+skinparam shadowing false
+skinparam defaultFontName "DejaVu Sans"
+skinparam activity {
+  BackgroundColor #EAF7EA
+  BorderColor #8BC58B
+  FontColor #111827
+  DiamondBackgroundColor #F7FFF7
+  DiamondBorderColor #8BC58B
+  StartColor #111827
+  EndColor #111827
+  BarColor #111827
+}
+skinparam arrow {
+  Color #444444
+  FontColor #111827
+}
+
 start
 :Người thuê xem chi tiết phòng;
-:Nhập nội dung yêu cầu ở ghép;
+:Nhập lời nhắn, ngày muốn vào,\nsố người và thông tin thú cưng;
 :Gửi yêu cầu;
 
-:Kiểm tra phòng tồn tại và đã duyệt;
+:Kiểm tra tenant đã đăng nhập;
+if (Đã đăng nhập?) then (Không)
+  :Chuyển đến màn hình đăng nhập;
+  stop
+else (Có)
+endif
+
+:Kiểm tra phòng tồn tại, đã duyệt,\nđang hiển thị và còn khả dụng;
 if (Phòng hợp lệ?) then (Không)
   :Thông báo phòng không khả dụng;
   stop
 else (Có)
 endif
 
-:Kiểm tra phòng còn chỗ;
-if (Còn chỗ?) then (Không)
+:Kiểm tra số người yêu cầu\nkhông vượt quá slot còn trống;
+if (Đủ slot?) then (Không)
   :Thông báo phòng đã hết chỗ;
   stop
 else (Có)
 endif
 
-:Kiểm tra yêu cầu đã tồn tại;
+:Kiểm tra tenant đã gửi yêu cầu\nđang chờ/chấp nhận cho phòng này chưa;
 if (Đã gửi yêu cầu trước đó?) then (Có)
   :Thông báo yêu cầu đã tồn tại;
   stop
@@ -28,8 +52,24 @@ else (Không)
 endif
 
 :Tạo yêu cầu trạng thái pending;
-:Gửi thông báo cho chủ trọ;
-:Hiển thị gửi yêu cầu thành công;
+:Thông báo cho chủ trọ/broker phụ trách;
+
+:Chủ trọ hoặc broker xem yêu cầu;
+if (Chấp nhận tenant?) then (Có)
+  :Cập nhật yêu cầu = accepted;
+  :Giảm available_slots theo số người;
+  if (Hết slot?) then (Có)
+    :Đánh dấu phòng tạm hết chỗ;
+  else (Không)
+  endif
+  :Tạo hoặc mở cuộc trò chuyện;
+  :Thông báo tenant đã được chấp nhận;
+else (Không)
+  :Cập nhật yêu cầu = rejected;
+  :Lưu lý do từ chối;
+  :Thông báo tenant bị từ chối;
+endif
+
 stop
 
 @enduml
