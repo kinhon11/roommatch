@@ -6,6 +6,32 @@ const APPROVAL_HISTORY_SELECT = `
   admin:users!room_approval_history_admin_id_fkey (id, full_name, email)
 `;
 
+const getRoomOccupancy = (room) => {
+  const capacity = Number(room?.max_occupants) || 0;
+  const availableSlots = Math.max(Number(room?.available_slots) || 0, 0);
+  const currentOccupants = capacity > 0 ? Math.max(capacity - availableSlots, 0) : 0;
+  return { capacity, availableSlots, currentOccupants };
+};
+
+const matchesRoomInventoryFilter = (room, inventory) => {
+  const { capacity, availableSlots, currentOccupants } = getRoomOccupancy(room);
+  if (inventory === 'available') {
+    return room.status === 'approved' && room.is_available === true && availableSlots > 0;
+  }
+  if (inventory === 'full') {
+    return room.status === 'approved' && (room.is_available === false || availableSlots <= 0);
+  }
+  if (inventory === 'occupied') {
+    return room.status === 'approved' && capacity > 0 && currentOccupants > 0;
+  }
+  if (inventory === 'vacant') {
+    return room.status === 'approved' && capacity > 0 && availableSlots >= capacity;
+  }
+  if (inventory === 'broker_assigned') return !!room.broker_id;
+  if (inventory === 'broker_unassigned') return !room.broker_id;
+  return true;
+};
+
 /**
  * @desc Admin: Get dashboard statistics (enhanced)
  * @route GET /api/admin/stats
@@ -26,12 +52,10 @@ const getStats = async (req, res) => {
       { count: pendingReports },
       { count: newUsersThisMonth },
       { count: totalBrokers },
-      { count: brokerAssignedRooms },
-      { count: availableRooms },
-      { count: fullRooms },
       { count: acceptedRequests },
       { count: pendingCommissions },
       { count: collectedCommissions },
+      { data: roomSnapshot, error: roomSnapshotError },
     ] = await Promise.all([
       supabase.from('users').select('*', { count: 'exact', head: true }),
       supabase.from('rooms').select('*', { count: 'exact', head: true }),
@@ -41,13 +65,19 @@ const getStats = async (req, res) => {
       supabase.from('reports').select('*', { count: 'exact', head: true }).eq('status', 'pending'),
       supabase.from('users').select('*', { count: 'exact', head: true }).gte('created_at', startOfMonth.toISOString()),
       supabase.from('users').select('*', { count: 'exact', head: true }).eq('role', 'broker'),
-      supabase.from('rooms').select('*', { count: 'exact', head: true }).not('broker_id', 'is', null),
-      supabase.from('rooms').select('*', { count: 'exact', head: true }).eq('status', 'approved').eq('is_available', true).gt('available_slots', 0),
-      supabase.from('rooms').select('*', { count: 'exact', head: true }).eq('status', 'approved').or('is_available.eq.false,available_slots.lte.0'),
       supabase.from('roommate_requests').select('*', { count: 'exact', head: true }).eq('status', 'accepted'),
       supabase.from('broker_commissions').select('*', { count: 'exact', head: true }).eq('status', 'pending_collection'),
       supabase.from('broker_commissions').select('*', { count: 'exact', head: true }).eq('status', 'collected'),
+      supabase.from('rooms').select('id, status, broker_id, is_available, available_slots, max_occupants'),
     ]);
+
+    if (roomSnapshotError) return res.status(500).json({ error: roomSnapshotError.message });
+    const rooms = roomSnapshot || [];
+    const brokerAssignedRooms = rooms.filter(room => !!room.broker_id).length;
+    const availableRooms = rooms.filter(room => matchesRoomInventoryFilter(room, 'available')).length;
+    const fullRooms = rooms.filter(room => matchesRoomInventoryFilter(room, 'full')).length;
+    const occupiedRooms = rooms.filter(room => matchesRoomInventoryFilter(room, 'occupied')).length;
+    const vacantRooms = rooms.filter(room => matchesRoomInventoryFilter(room, 'vacant')).length;
 
     return res.status(200).json({
       totalUsers, totalRooms,
@@ -58,6 +88,8 @@ const getStats = async (req, res) => {
       brokerAssignedRooms,
       availableRooms,
       fullRooms,
+      occupiedRooms,
+      vacantRooms,
       acceptedRequests,
       pendingCommissions,
       collectedCommissions,
@@ -205,15 +237,22 @@ const getPendingRooms = async (req, res) => {
  */
 const getAllRooms = async (req, res) => {
   try {
-    const { status, search, page = 1, limit = 20 } = req.query;
+    const { status, search, inventory, page = 1, limit = 20 } = req.query;
     const from = (page - 1) * limit;
     const to = page * limit - 1;
+    const needsInventoryFilter = [
+      'available',
+      'full',
+      'occupied',
+      'vacant',
+      'broker_assigned',
+      'broker_unassigned',
+    ].includes(inventory);
 
     let query = supabase
       .from('rooms')
       .select(`*, users:users!rooms_host_id_fkey (full_name, email, avatar_url), broker:users!rooms_broker_id_fkey (id, full_name, email, phone), room_images (image_url, is_primary), room_approval_history (${APPROVAL_HISTORY_SELECT})`, { count: 'exact' })
       .order('created_at', { ascending: false })
-      .range(from, to)
       .order('created_at', { foreignTable: 'room_approval_history', ascending: false });
 
     if (status && ['pending', 'approved', 'rejected'].includes(status)) {
@@ -222,12 +261,20 @@ const getAllRooms = async (req, res) => {
     if (search) {
       query = query.or(`title.ilike.%${search}%,address.ilike.%${search}%`);
     }
+    if (!needsInventoryFilter) {
+      query = query.range(from, to);
+    }
 
     const { data, error, count } = await query;
     if (error) return res.status(500).json({ error: error.message });
+    const filteredRooms = needsInventoryFilter
+      ? (data || []).filter(room => matchesRoomInventoryFilter(room, inventory))
+      : (data || []);
+    const pagedRooms = needsInventoryFilter ? filteredRooms.slice(from, to + 1) : filteredRooms;
+
     return res.status(200).json({
-      rooms: data || [],
-      total: count ?? (data || []).length,
+      rooms: pagedRooms,
+      total: needsInventoryFilter ? filteredRooms.length : (count ?? filteredRooms.length),
       page: Number(page),
       limit: Number(limit),
     });

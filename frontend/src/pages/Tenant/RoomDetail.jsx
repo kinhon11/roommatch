@@ -448,8 +448,14 @@ const RoomDetail = () => {
   const selectedDepositAmount = depositForm.deposit_scope === 'slot' ? slotDepositAmount : depositAmount;
   const hasAcceptedRoommateRequest = existingRequest?.status === 'accepted';
   const acceptedRoommates = room.accepted_roommates || [];
-  const currentOccupantCount = acceptedRoommates.reduce((sum, item) => sum + (Number(item.occupants) || 1), 0);
-  const roomCapacity = Math.max(Number(room.max_occupants) || currentOccupantCount + (Number(room.available_slots) || 0), 1);
+  const acceptedOccupantCount = acceptedRoommates.reduce((sum, item) => sum + (Number(item.occupants) || 1), 0);
+  const availableSlotCount = Math.max(Number(room.available_slots) || 0, 0);
+  const explicitCapacity = Number(room.max_occupants) || 0;
+  const roomCapacity = Math.max(explicitCapacity, acceptedOccupantCount + availableSlotCount, 1);
+  const currentOccupantCount = Math.min(
+    roomCapacity,
+    Math.max(acceptedOccupantCount, roomCapacity - availableSlotCount)
+  );
   const roommateCriteriaRows = [
     ['Kiểu phòng', labelFrom(PREFERRED_GENDER_OPTIONS, room.roommate_gender_preference, 'Không yêu cầu')],
     ['Đối tượng phù hợp', ROOMMATE_OCCUPATION_LABELS[room.roommate_occupation_preference] || 'Không yêu cầu'],
@@ -719,7 +725,7 @@ const RoomDetail = () => {
               <div className="roommate-criteria__summary">
                 <div>
                   <span className="roommate-criteria__label">Tình trạng ở ghép</span>
-                  <strong>Hiện có {currentOccupantCount}/{roomCapacity} người, còn {room.available_slots || 0} slot</strong>
+                  <strong>Hiện có {currentOccupantCount}/{roomCapacity} người, còn {availableSlotCount} slot</strong>
                 </div>
                 <p>
                   Thông tin này giúp người thuê sau biết trước phòng/người đang ở có phù hợp không.

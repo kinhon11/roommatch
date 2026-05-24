@@ -289,8 +289,11 @@ test('room detail allows tenants with an existing room relationship to view hidd
         error: null,
       };
     }
-    if (query.table === 'roommate_requests') {
+    if (query.table === 'roommate_requests' && query.resultMode === 'maybeSingle') {
       return { data: { id: 'request-1' }, error: null };
+    }
+    if (query.table === 'roommate_requests') {
+      return { data: [], error: null };
     }
     return { data: null, error: null };
   });
