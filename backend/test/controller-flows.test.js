@@ -405,6 +405,42 @@ test('chat creates broker lead when tenant starts conversation for assigned room
   assert.equal(leadWrites[0].status, 'consulted');
 });
 
+test('chat lets tenants message accepted occupants without exposing contact fields', async () => {
+  const inserts = [];
+  const { getOrCreateConversation } = loadController('controllers/chatController.js', (query) => {
+    if (query.table === 'rooms') {
+      return { data: { id: 'room-1', host_id: 'landlord-1', status: 'approved', is_hidden: false }, error: null };
+    }
+    if (query.table === 'roommate_requests') {
+      return {
+        data: {
+          id: 'request-1',
+          tenant_id: 'occupant-1',
+          status: 'accepted',
+          tenant: { id: 'occupant-1', role: 'tenant', is_locked: false },
+        },
+        error: null,
+      };
+    }
+    if (query.table === 'conversations' && query.operation === 'select') {
+      return { data: null, error: null };
+    }
+    if (query.table === 'conversations' && query.operation === 'insert') {
+      inserts.push(query.payload);
+      return { data: { id: 'conv-occupant', ...query.payload }, error: null };
+    }
+    return { data: query.payload || null, error: null };
+  });
+
+  const res = await callController(getOrCreateConversation, {
+    user: { id: 'tenant-1', role: 'tenant' },
+    body: { room_id: 'room-1', occupant_id: 'occupant-1' },
+  });
+
+  assert.equal(res.statusCode, 201);
+  assert.deepEqual(inserts[0], { tenant_id: 'tenant-1', landlord_id: 'occupant-1', room_id: 'room-1' });
+});
+
 test('chat rejects landlord conversation creation for invalid tenants', async () => {
   const { getOrCreateConversation } = loadController('controllers/chatController.js', (query) => {
     if (query.table === 'rooms') {

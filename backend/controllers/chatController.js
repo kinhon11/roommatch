@@ -21,23 +21,27 @@ const syncBrokerLeadFromChat = async ({ brokerId, tenantId, roomId, note }) => {
  */
 const getOrCreateConversation = async (req, res) => {
   try {
-    const { room_id, landlord_id, tenant_id: requestedTenantId } = req.body;
+    const { room_id, landlord_id, occupant_id, tenant_id: requestedTenantId } = req.body;
     const isLandlordRequester = req.user.role === 'landlord' || req.user.role === 'broker';
+    const isOccupantChat = Boolean(occupant_id);
     const tenant_id = isLandlordRequester ? requestedTenantId : req.user.id;
     let roomContext = null;
 
-    if (!isLandlordRequester && !landlord_id) {
+    if (isOccupantChat && (req.user.role !== 'tenant' || !room_id)) {
+      return res.status(400).json({ error: 'Chat với người đang ở cần tài khoản tenant và room_id.' });
+    }
+    if (!isLandlordRequester && !landlord_id && !isOccupantChat) {
       return res.status(400).json({ error: 'Thiếu landlord_id.' });
     }
     if (isLandlordRequester && !tenant_id) {
       return res.status(400).json({ error: 'Missing tenant_id.' });
     }
-    if (tenant_id === landlord_id) {
+    if (tenant_id === landlord_id || tenant_id === occupant_id) {
       return res.status(400).json({ error: 'Bạn không thể tự nhắn tin cho chính mình.' });
     }
 
     // Kiểm tra đã tồn tại chưa
-    let verifiedLandlordId = isLandlordRequester ? req.user.id : landlord_id;
+    let verifiedLandlordId = isOccupantChat ? occupant_id : (isLandlordRequester ? req.user.id : landlord_id);
     if (room_id) {
       const { data: room, error: roomError } = await supabase
         .from('rooms')
@@ -51,10 +55,23 @@ const getOrCreateConversation = async (req, res) => {
       }
       roomContext = room;
       const responsibleUserId = room.broker_id || room.host_id;
-      if (responsibleUserId !== verifiedLandlordId) {
+      if (isOccupantChat) {
+        const { data: occupantRequest, error: occupantError } = await supabase
+          .from('roommate_requests')
+          .select('id, tenant_id, status, tenant:users!tenant_id (id, role, is_locked)')
+          .eq('room_id', room_id)
+          .eq('tenant_id', occupant_id)
+          .eq('status', 'accepted')
+          .maybeSingle();
+
+        if (occupantError) return res.status(400).json({ error: occupantError.message });
+        if (!occupantRequest || occupantRequest.tenant?.role !== 'tenant' || occupantRequest.tenant?.is_locked === true) {
+          return res.status(404).json({ error: 'Không tìm thấy người đang ở hợp lệ để nhắn tin.' });
+        }
+      } else if (responsibleUserId !== verifiedLandlordId) {
         return res.status(400).json({ error: 'Landlord does not match this room.' });
       }
-      verifiedLandlordId = responsibleUserId;
+      if (!isOccupantChat) verifiedLandlordId = responsibleUserId;
     } else {
       const { data: landlord, error: landlordError } = await supabase
         .from('users')
@@ -92,7 +109,7 @@ const getOrCreateConversation = async (req, res) => {
     const { data: existing } = await query.maybeSingle();
 
     if (existing) {
-      if (!isLandlordRequester && roomContext?.broker_id) {
+      if (!isLandlordRequester && !isOccupantChat && roomContext?.broker_id) {
         await syncBrokerLeadFromChat({
           brokerId: roomContext.broker_id,
           tenantId: tenant_id,
@@ -111,7 +128,7 @@ const getOrCreateConversation = async (req, res) => {
       .single();
 
     if (error) return res.status(400).json({ error: error.message });
-    if (!isLandlordRequester && roomContext?.broker_id) {
+    if (!isLandlordRequester && !isOccupantChat && roomContext?.broker_id) {
       await syncBrokerLeadFromChat({
         brokerId: roomContext.broker_id,
         tenantId: tenant_id,

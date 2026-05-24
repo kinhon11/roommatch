@@ -296,7 +296,7 @@ const getRoomById = async (req, res) => {
     const { data: acceptedRoommates } = await supabase
       .from('roommate_requests')
       .select(`
-        id, occupants, requester_gender, occupation, schedule_type,
+        id, tenant_id, occupants, requester_gender, occupation, schedule_type,
         cleanliness_level, is_smoker, has_pet, roommate_note, created_at,
         tenant:users!tenant_id (full_name, avatar_url)
       `)
@@ -305,9 +305,11 @@ const getRoomById = async (req, res) => {
       .order('created_at', { ascending: true });
 
     data.reviews = (data.reviews || []).filter(review => review.is_hidden !== true);
-    data.accepted_roommates = (acceptedRoommates || []).map((request) => ({
+    const acceptedRoommateRows = Array.isArray(acceptedRoommates) ? acceptedRoommates : [];
+    data.accepted_roommates = acceptedRoommateRows.map((request) => ({
       id: request.id,
       display_name: maskDisplayName(request.tenant?.full_name),
+      chat_user_id: req.user?.role === 'tenant' && req.user.id !== request.tenant_id ? request.tenant_id : null,
       avatar_url: request.tenant?.avatar_url || null,
       occupants: request.occupants || 1,
       requester_gender: request.requester_gender,
