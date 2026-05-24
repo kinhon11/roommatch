@@ -37,6 +37,15 @@ const CLEANLINESS_OPTIONS = [
   { value: 'tidy', label: 'Gọn gàng' },
   { value: 'very_tidy', label: 'Rất gọn gàng' },
 ];
+const labelFrom = (options, value, fallback = 'Chưa cập nhật') =>
+  options.find(option => option.value === value)?.label || fallback;
+const ROOMMATE_OCCUPATION_LABELS = {
+  any: 'Không yêu cầu',
+  student: 'Ưu tiên sinh viên',
+  office_worker: 'Ưu tiên nhân viên văn phòng',
+  worker: 'Ưu tiên người đi làm',
+  other: 'Khác',
+};
 
 const RoomDetail = () => {
   const { id } = useParams();
@@ -438,6 +447,17 @@ const RoomDetail = () => {
   const slotDepositAmount = depositAmount ? Math.ceil((Number(depositAmount) / maxDepositOccupants) * depositSlots) : '';
   const selectedDepositAmount = depositForm.deposit_scope === 'slot' ? slotDepositAmount : depositAmount;
   const hasAcceptedRoommateRequest = existingRequest?.status === 'accepted';
+  const acceptedRoommates = room.accepted_roommates || [];
+  const currentOccupantCount = acceptedRoommates.reduce((sum, item) => sum + (Number(item.occupants) || 1), 0);
+  const roomCapacity = Math.max(Number(room.max_occupants) || currentOccupantCount + (Number(room.available_slots) || 0), 1);
+  const roommateCriteriaRows = [
+    ['Kiểu phòng', labelFrom(PREFERRED_GENDER_OPTIONS, room.roommate_gender_preference, 'Không yêu cầu')],
+    ['Đối tượng phù hợp', ROOMMATE_OCCUPATION_LABELS[room.roommate_occupation_preference] || 'Không yêu cầu'],
+    ['Giờ giấc mong muốn', labelFrom(SCHEDULE_OPTIONS, room.roommate_schedule_preference, 'Linh hoạt')],
+    ['Mức gọn gàng', labelFrom(CLEANLINESS_OPTIONS, room.roommate_cleanliness_preference, 'Bình thường')],
+    ['Người hút thuốc', room.roommate_allow_smoker ? 'Có thể chấp nhận' : 'Không phù hợp'],
+    ['Người có thú cưng', room.roommate_allow_pets ? 'Có thể chấp nhận' : 'Không phù hợp'],
+  ];
   const costRows = [
     ['Tiền cọc yêu cầu', depositAmount ? formatCurrency(depositAmount) : 'Chưa cập nhật'],
     ['Điện', room.electricity_price ? `${formatCurrency(room.electricity_price)} / kWh` : 'Chưa cập nhật'],
@@ -688,6 +708,65 @@ const RoomDetail = () => {
                   {a?.name}
                 </div>
               ))}
+            </div>
+          </section>
+        )}
+
+        {Number(room.max_occupants || room.available_slots || 0) > 0 && (
+          <section className="room-section animate-fadeIn">
+            <h2 className="room-section__title">🤝 Tiêu chí ở ghép & người đang ở</h2>
+            <div className="roommate-criteria">
+              <div className="roommate-criteria__summary">
+                <div>
+                  <span className="roommate-criteria__label">Tình trạng ở ghép</span>
+                  <strong>Hiện có {currentOccupantCount}/{roomCapacity} người, còn {room.available_slots || 0} slot</strong>
+                </div>
+                <p>
+                  Thông tin này giúp người thuê sau biết trước phòng/người đang ở có phù hợp không.
+                  Nếu cần hỏi kỹ hơn, hãy nhắn tin người phụ trách để được kết nối trao đổi trước khi cọc.
+                </p>
+              </div>
+              <div className="roommate-criteria__grid">
+                {roommateCriteriaRows.map(([label, value]) => (
+                  <div key={label} className="roommate-criteria__item">
+                    <span>{label}</span>
+                    <strong>{value}</strong>
+                  </div>
+                ))}
+              </div>
+              {room.current_roommate_summary && (
+                <div className="roommate-criteria__note">
+                  <span>Ghi chú người đang ở / tiêu chí thêm</span>
+                  <p>{room.current_roommate_summary}</p>
+                </div>
+              )}
+              {acceptedRoommates.length > 0 && (
+                <div className="roommate-occupants">
+                  <h3>Người đã được chấp nhận ở ghép</h3>
+                  <div className="roommate-occupants__list">
+                    {acceptedRoommates.map((person) => (
+                      <div key={person.id} className="roommate-occupant">
+                        {person.avatar_url
+                          ? <img src={person.avatar_url} alt="" />
+                          : <div className="roommate-occupant__avatar">{(person.display_name || 'N')[0]}</div>}
+                        <div>
+                          <strong>{person.display_name}</strong>
+                          <p>
+                            {labelFrom(GENDER_OPTIONS, person.requester_gender)}
+                            {person.occupation ? ` • ${person.occupation}` : ''}
+                            {` • ${labelFrom(SCHEDULE_OPTIONS, person.schedule_type, 'Linh hoạt')}`}
+                          </p>
+                          <p>
+                            {labelFrom(CLEANLINESS_OPTIONS, person.cleanliness_level, 'Bình thường')}
+                            {person.is_smoker ? ' • Có hút thuốc' : ' • Không hút thuốc'}
+                            {person.has_pet ? ' • Có pet' : ' • Không pet'}
+                          </p>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
             </div>
           </section>
         )}
@@ -1495,6 +1574,28 @@ const styles = `
   }
   .room-section__header { display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap; }
   .room-section__header .room-section__title { margin-bottom:0;padding-bottom:0;border-bottom:none;flex:1; }
+  .roommate-criteria { background:var(--bg-card);border:1px solid var(--border);border-radius:var(--radius-lg);padding:20px;display:flex;flex-direction:column;gap:16px; }
+  .roommate-criteria__summary { display:flex;justify-content:space-between;gap:16px;flex-wrap:wrap;background:var(--bg-surface);border-radius:var(--radius-md);padding:14px 16px; }
+  .roommate-criteria__summary strong { display:block;font-size:17px;color:var(--text-primary);margin-top:3px; }
+  .roommate-criteria__summary p { max-width:520px;color:var(--text-secondary);font-size:13px;line-height:1.6; }
+  .roommate-criteria__label,
+  .roommate-criteria__item span,
+  .roommate-criteria__note span { font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.04em;color:var(--text-muted); }
+  .roommate-criteria__grid { display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px; }
+  @media(max-width:720px){.roommate-criteria__grid{grid-template-columns:1fr 1fr}}
+  @media(max-width:480px){.roommate-criteria__grid{grid-template-columns:1fr}}
+  .roommate-criteria__item { padding:12px;border:1px solid var(--border-subtle);border-radius:var(--radius-md);background:var(--bg-surface); }
+  .roommate-criteria__item strong { display:block;margin-top:4px;color:var(--text-primary);font-size:14px; }
+  .roommate-criteria__note { padding:14px 16px;border-left:3px solid var(--primary);background:rgba(20,184,166,.06);border-radius:var(--radius-md); }
+  .roommate-criteria__note p { margin-top:4px;color:var(--text-primary);line-height:1.6; }
+  .roommate-occupants h3 { font-size:15px;font-weight:700;color:var(--text-primary);margin-bottom:10px; }
+  .roommate-occupants__list { display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px; }
+  @media(max-width:640px){.roommate-occupants__list{grid-template-columns:1fr}}
+  .roommate-occupant { display:flex;gap:12px;padding:12px;border:1px solid var(--border-subtle);border-radius:var(--radius-md);background:var(--bg-surface); }
+  .roommate-occupant img,
+  .roommate-occupant__avatar { width:42px;height:42px;border-radius:50%;object-fit:cover;flex-shrink:0;background:var(--primary);color:white;display:flex;align-items:center;justify-content:center;font-weight:700; }
+  .roommate-occupant strong { color:var(--text-primary);font-size:14px; }
+  .roommate-occupant p { color:var(--text-secondary);font-size:12px;line-height:1.5;margin-top:2px; }
   .room-ai-hint { margin-bottom:16px;font-size:13px;color:var(--text-secondary);line-height:1.6; }
   .ai-review-summary { background:var(--bg-surface);border:1px solid var(--border);border-radius:var(--radius-lg);padding:20px;display:flex;flex-direction:column;gap:16px;box-shadow:var(--shadow-sm); }
   .ai-review-summary__top { display:flex;align-items:flex-start;justify-content:space-between;gap:12px; }

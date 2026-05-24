@@ -30,6 +30,22 @@ const parseBoolean = (value, fallback = false) => {
   return Boolean(value);
 };
 
+const ROOMMATE_GENDER_PREFERENCES = ['any', 'male', 'female'];
+const ROOMMATE_OCCUPATION_PREFERENCES = ['any', 'student', 'office_worker', 'worker', 'other'];
+const ROOMMATE_SCHEDULE_PREFERENCES = ['student', 'office', 'shift', 'night', 'flexible', 'other'];
+const ROOMMATE_CLEANLINESS_PREFERENCES = ['normal', 'tidy', 'very_tidy'];
+
+const normalizeEnum = (value, allowedValues, fallback) => (
+  allowedValues.includes(value) ? value : fallback
+);
+
+const maskDisplayName = (name = '') => {
+  const parts = String(name).trim().split(/\s+/).filter(Boolean);
+  if (parts.length === 0) return 'Người đang ở';
+  if (parts.length === 1) return parts[0];
+  return `${parts[0]} ${parts.slice(1).map(part => `${part[0]}.`).join(' ')}`;
+};
+
 const applyRecommendedRoomOrder = (query) => query
   .order('available_slots', { ascending: false })
   .order('price', { ascending: true })
@@ -67,6 +83,13 @@ const buildRoomPayload = (body, fallbackSlots = 1) => {
     has_parking: parseBoolean(body.has_parking),
     max_occupants: parseNumber(body.max_occupants),
     house_rules: body.house_rules?.trim() || null,
+    roommate_gender_preference: normalizeEnum(body.roommate_gender_preference, ROOMMATE_GENDER_PREFERENCES, 'any'),
+    roommate_occupation_preference: normalizeEnum(body.roommate_occupation_preference, ROOMMATE_OCCUPATION_PREFERENCES, 'any'),
+    roommate_schedule_preference: normalizeEnum(body.roommate_schedule_preference, ROOMMATE_SCHEDULE_PREFERENCES, 'flexible'),
+    roommate_cleanliness_preference: normalizeEnum(body.roommate_cleanliness_preference, ROOMMATE_CLEANLINESS_PREFERENCES, 'normal'),
+    roommate_allow_smoker: parseBoolean(body.roommate_allow_smoker),
+    roommate_allow_pets: parseBoolean(body.roommate_allow_pets, true),
+    current_roommate_summary: body.current_roommate_summary?.trim() || null,
   };
 };
 
@@ -200,7 +223,31 @@ const getRoomById = async (req, res) => {
       return res.status(404).json({ error: 'Room not found.' });
     }
 
+    const { data: acceptedRoommates } = await supabase
+      .from('roommate_requests')
+      .select(`
+        id, occupants, requester_gender, occupation, schedule_type,
+        cleanliness_level, is_smoker, has_pet, roommate_note, created_at,
+        tenant:users!tenant_id (full_name, avatar_url)
+      `)
+      .eq('room_id', req.params.id)
+      .eq('status', 'accepted')
+      .order('created_at', { ascending: true });
+
     data.reviews = (data.reviews || []).filter(review => review.is_hidden !== true);
+    data.accepted_roommates = (acceptedRoommates || []).map((request) => ({
+      id: request.id,
+      display_name: maskDisplayName(request.tenant?.full_name),
+      avatar_url: request.tenant?.avatar_url || null,
+      occupants: request.occupants || 1,
+      requester_gender: request.requester_gender,
+      occupation: request.occupation,
+      schedule_type: request.schedule_type,
+      cleanliness_level: request.cleanliness_level,
+      is_smoker: request.is_smoker,
+      has_pet: request.has_pet,
+      roommate_note: request.roommate_note,
+    }));
     return res.status(200).json(data);
   } catch (err) {
     return res.status(500).json({ error: err.message });
