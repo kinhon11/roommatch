@@ -182,6 +182,13 @@ test('room CRUD creates pending room with normalized payload and amenities', asy
       assert.equal(query.payload.available_slots, 2);
       assert.equal(query.payload.is_available, true);
       assert.equal(query.payload.deposit_amount, 2500000);
+      assert.equal(query.payload.roommate_gender_preference, 'female');
+      assert.equal(query.payload.roommate_occupation_preference, 'student');
+      assert.equal(query.payload.roommate_schedule_preference, 'student');
+      assert.equal(query.payload.roommate_cleanliness_preference, 'tidy');
+      assert.equal(query.payload.roommate_allow_smoker, false);
+      assert.equal(query.payload.roommate_allow_pets, true);
+      assert.equal(query.payload.current_roommate_summary, 'Hien co 2 nu sinh vien, uu tien nguoi yen tinh.');
       return { data: { id: 'room-1', ...query.payload }, error: null };
     }
     if (query.table === 'room_amenities' && query.operation === 'insert') {
@@ -203,6 +210,13 @@ test('room CRUD creates pending room with normalized payload and amenities', asy
       city: 'Hà Nội',
       area: '22',
       available_slots: '2',
+      roommate_gender_preference: 'female',
+      roommate_occupation_preference: 'student',
+      roommate_schedule_preference: 'student',
+      roommate_cleanliness_preference: 'tidy',
+      roommate_allow_smoker: false,
+      roommate_allow_pets: true,
+      current_roommate_summary: 'Hien co 2 nu sinh vien, uu tien nguoi yen tinh.',
       amenity_ids: ['wifi', 'parking'],
     },
   });
