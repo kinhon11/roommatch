@@ -182,6 +182,13 @@ test('room CRUD creates pending room with normalized payload and amenities', asy
       assert.equal(query.payload.available_slots, 2);
       assert.equal(query.payload.is_available, true);
       assert.equal(query.payload.deposit_amount, 2500000);
+      assert.equal(query.payload.roommate_gender_preference, 'female');
+      assert.equal(query.payload.roommate_occupation_preference, 'student');
+      assert.equal(query.payload.roommate_schedule_preference, 'student');
+      assert.equal(query.payload.roommate_cleanliness_preference, 'tidy');
+      assert.equal(query.payload.roommate_allow_smoker, false);
+      assert.equal(query.payload.roommate_allow_pets, true);
+      assert.equal(query.payload.current_roommate_summary, 'Hien co 2 nu sinh vien, uu tien nguoi yen tinh.');
       return { data: { id: 'room-1', ...query.payload }, error: null };
     }
     if (query.table === 'room_amenities' && query.operation === 'insert') {
@@ -203,6 +210,13 @@ test('room CRUD creates pending room with normalized payload and amenities', asy
       city: 'Hà Nội',
       area: '22',
       available_slots: '2',
+      roommate_gender_preference: 'female',
+      roommate_occupation_preference: 'student',
+      roommate_schedule_preference: 'student',
+      roommate_cleanliness_preference: 'tidy',
+      roommate_allow_smoker: false,
+      roommate_allow_pets: true,
+      current_roommate_summary: 'Hien co 2 nu sinh vien, uu tien nguoi yen tinh.',
       amenity_ids: ['wifi', 'parking'],
     },
   });
@@ -614,6 +628,67 @@ test('appointment reschedule by tenant resets appointment to pending', async () 
   assert.equal(res.statusCode, 200);
   assert.equal(updates[0].scheduled_at, scheduledAt);
   assert.equal(updates[0].status, 'pending');
+});
+
+test('roommate request stores practical roommate criteria', async () => {
+  const writes = [];
+  const { createRoommateRequest } = loadController('controllers/roommateRequestController.js', (query) => {
+    if (query.table === 'rooms' && query.operation === 'select') {
+      return {
+        data: {
+          host_id: 'landlord-1',
+          broker_id: null,
+          title: 'Phong o ghep',
+          available_slots: 2,
+          status: 'approved',
+          is_hidden: false,
+          is_available: true,
+        },
+        error: null,
+      };
+    }
+    if (query.table === 'roommate_requests' && query.operation === 'select') {
+      return { data: null, error: null };
+    }
+    if (query.operation === 'insert') {
+      writes.push({ table: query.table, payload: query.payload });
+      return { data: { id: 'request-1', ...query.payload }, error: null };
+    }
+    return { data: query.payload || null, error: null };
+  });
+
+  const res = await callController(createRoommateRequest, {
+    user: { id: 'tenant-1', role: 'tenant', full_name: 'Tenant A' },
+    body: {
+      room_id: 'room-1',
+      message: 'Muon o ghep voi nguoi yen tinh',
+      move_in_date: '2026-06-01',
+      occupants: 1,
+      has_pet: true,
+      requester_gender: 'female',
+      preferred_roommate_gender: 'female',
+      occupation: 'Sinh vien',
+      schedule_type: 'student',
+      cleanliness_level: 'tidy',
+      is_smoker: false,
+      okay_with_smoker: false,
+      okay_with_pets: true,
+      roommate_note: 'Uu tien nguoi khong nhau nhet',
+    },
+  });
+
+  assert.equal(res.statusCode, 201);
+  const requestWrite = writes.find(write => write.table === 'roommate_requests');
+  assert.equal(requestWrite.payload.requester_gender, 'female');
+  assert.equal(requestWrite.payload.preferred_roommate_gender, 'female');
+  assert.equal(requestWrite.payload.occupation, 'Sinh vien');
+  assert.equal(requestWrite.payload.schedule_type, 'student');
+  assert.equal(requestWrite.payload.cleanliness_level, 'tidy');
+  assert.equal(requestWrite.payload.has_pet, true);
+  assert.equal(requestWrite.payload.is_smoker, false);
+  assert.equal(requestWrite.payload.okay_with_smoker, false);
+  assert.equal(requestWrite.payload.okay_with_pets, true);
+  assert.equal(requestWrite.payload.roommate_note, 'Uu tien nguoi khong nhau nhet');
 });
 
 test('roommate requests let brokers view but not decide final status', async () => {

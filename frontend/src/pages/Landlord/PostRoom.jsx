@@ -11,6 +11,31 @@ const PAYMENT_CYCLES = [
   { value: 'quarterly', label: 'Theo quý' },
   { value: 'negotiable', label: 'Thỏa thuận' },
 ];
+const ROOMMATE_GENDER_OPTIONS = [
+  { value: 'any', label: 'Không yêu cầu' },
+  { value: 'male', label: 'Phòng nam' },
+  { value: 'female', label: 'Phòng nữ' },
+];
+const ROOMMATE_OCCUPATION_OPTIONS = [
+  { value: 'any', label: 'Không yêu cầu' },
+  { value: 'student', label: 'Ưu tiên sinh viên' },
+  { value: 'office_worker', label: 'Ưu tiên nhân viên văn phòng' },
+  { value: 'worker', label: 'Ưu tiên người đi làm' },
+  { value: 'other', label: 'Khác' },
+];
+const ROOMMATE_SCHEDULE_OPTIONS = [
+  { value: 'flexible', label: 'Linh hoạt' },
+  { value: 'student', label: 'Theo giờ sinh viên' },
+  { value: 'office', label: 'Giờ hành chính' },
+  { value: 'shift', label: 'Làm theo ca' },
+  { value: 'night', label: 'Có người về khuya / ca đêm' },
+  { value: 'other', label: 'Khác' },
+];
+const ROOMMATE_CLEANLINESS_OPTIONS = [
+  { value: 'normal', label: 'Bình thường' },
+  { value: 'tidy', label: 'Gọn gàng' },
+  { value: 'very_tidy', label: 'Rất gọn gàng' },
+];
 
 const MONEY_FIELDS = ['deposit_amount', 'electricity_price', 'water_price', 'internet_fee', 'parking_fee', 'service_fee'];
 const getDefaultDepositAmount = (form) => form.deposit_amount || form.price;
@@ -37,6 +62,13 @@ const buildRoomPayload = (form) => ({
   has_parking: form.has_parking,
   max_occupants: form.max_occupants ? +form.max_occupants : null,
   house_rules: form.house_rules,
+  roommate_gender_preference: form.roommate_gender_preference,
+  roommate_occupation_preference: form.roommate_occupation_preference,
+  roommate_schedule_preference: form.roommate_schedule_preference,
+  roommate_cleanliness_preference: form.roommate_cleanliness_preference,
+  roommate_allow_smoker: form.roommate_allow_smoker,
+  roommate_allow_pets: form.roommate_allow_pets,
+  current_roommate_summary: form.current_roommate_summary,
 });
 
 const PostRoom = () => {
@@ -51,6 +83,13 @@ const PostRoom = () => {
     is_owner_occupied: false, has_private_hours: true, allow_cooking: true,
     allow_pets: false, allow_visitors: true, has_parking: false,
     max_occupants: '', house_rules: '',
+    roommate_gender_preference: 'any',
+    roommate_occupation_preference: 'any',
+    roommate_schedule_preference: 'flexible',
+    roommate_cleanliness_preference: 'normal',
+    roommate_allow_smoker: false,
+    roommate_allow_pets: true,
+    current_roommate_summary: '',
   });
   const [selectedAmenities, setSelectedAmenities] = useState([]);
   const [amenities, setAmenities]   = useState([]);
@@ -403,6 +442,53 @@ const PostRoom = () => {
                 <div className="form-group">
                   <label className="form-label">Nội quy khác</label>
                   <textarea name="house_rules" value={form.house_rules} onChange={handleChange} className="form-input pr-small-textarea" rows={3} placeholder="VD: giữ yên lặng sau 22h, không hút thuốc trong phòng..." />
+                </div>
+              </div>
+
+              <div className="pr-section animate-slideUp" style={{ animationDelay: '0.13s' }}>
+                <h2 className="pr-section-title">🤝 Tiêu chí ở ghép</h2>
+                <p className="form-hint">Dùng cho phòng có slot ở ghép để người thuê sau biết trước người đang ở/phong cách sinh hoạt.</p>
+                <div className="form-row-2">
+                  <div className="form-group">
+                    <label className="form-label">Kiểu phòng</label>
+                    <select name="roommate_gender_preference" value={form.roommate_gender_preference} onChange={handleChange} className="form-input">
+                      {ROOMMATE_GENDER_OPTIONS.map(option => <option key={option.value} value={option.value}>{option.label}</option>)}
+                    </select>
+                  </div>
+                  <div className="form-group">
+                    <label className="form-label">Đối tượng phù hợp</label>
+                    <select name="roommate_occupation_preference" value={form.roommate_occupation_preference} onChange={handleChange} className="form-input">
+                      {ROOMMATE_OCCUPATION_OPTIONS.map(option => <option key={option.value} value={option.value}>{option.label}</option>)}
+                    </select>
+                  </div>
+                </div>
+                <div className="form-row-2">
+                  <div className="form-group">
+                    <label className="form-label">Giờ giấc mong muốn</label>
+                    <select name="roommate_schedule_preference" value={form.roommate_schedule_preference} onChange={handleChange} className="form-input">
+                      {ROOMMATE_SCHEDULE_OPTIONS.map(option => <option key={option.value} value={option.value}>{option.label}</option>)}
+                    </select>
+                  </div>
+                  <div className="form-group">
+                    <label className="form-label">Mức gọn gàng mong muốn</label>
+                    <select name="roommate_cleanliness_preference" value={form.roommate_cleanliness_preference} onChange={handleChange} className="form-input">
+                      {ROOMMATE_CLEANLINESS_OPTIONS.map(option => <option key={option.value} value={option.value}>{option.label}</option>)}
+                    </select>
+                  </div>
+                </div>
+                <div className="pr-rule-grid">
+                  <label className="pr-rule-toggle">
+                    <input type="checkbox" name="roommate_allow_smoker" checked={form.roommate_allow_smoker} onChange={handleChange} />
+                    <span>Chấp nhận người hút thuốc</span>
+                  </label>
+                  <label className="pr-rule-toggle">
+                    <input type="checkbox" name="roommate_allow_pets" checked={form.roommate_allow_pets} onChange={handleChange} />
+                    <span>Chấp nhận người có thú cưng</span>
+                  </label>
+                </div>
+                <div className="form-group">
+                  <label className="form-label">Người đang ở / tiêu chí thêm</label>
+                  <textarea name="current_roommate_summary" value={form.current_roommate_summary} onChange={handleChange} className="form-input pr-small-textarea" rows={3} placeholder="VD: hiện có 2 nữ sinh viên, không hút thuốc, ưu tiên người yên tĩnh..." />
                 </div>
               </div>
 

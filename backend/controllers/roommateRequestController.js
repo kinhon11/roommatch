@@ -42,13 +42,37 @@ const normalizeOccupants = (value) => {
   return occupants;
 };
 
+const REQUESTER_GENDERS = ['male', 'female', 'other', 'prefer_not_to_say'];
+const PREFERRED_ROOMMATE_GENDERS = ['any', 'male', 'female'];
+const SCHEDULE_TYPES = ['student', 'office', 'shift', 'night', 'flexible', 'other'];
+const CLEANLINESS_LEVELS = ['normal', 'tidy', 'very_tidy'];
+
+const normalizeEnum = (value, allowedValues, fallback) => (
+  allowedValues.includes(value) ? value : fallback
+);
+
 /**
- * @desc Create a roommate request (Tenant) with message, move_in_date, occupants, has_pet
+ * @desc Create a roommate request (Tenant) with practical roommate criteria
  * @route POST /api/roommate-requests
  */
 const createRoommateRequest = async (req, res) => {
   try {
-    const { room_id, message, move_in_date, occupants = 1, has_pet = false } = req.body;
+    const {
+      room_id,
+      message,
+      move_in_date,
+      occupants = 1,
+      has_pet = false,
+      requester_gender,
+      preferred_roommate_gender,
+      occupation,
+      schedule_type,
+      cleanliness_level,
+      is_smoker = false,
+      okay_with_smoker = false,
+      okay_with_pets = true,
+      roommate_note,
+    } = req.body;
     if (!room_id) return res.status(400).json({ error: 'room_id is required.' });
 
     const requestedOccupants = normalizeOccupants(occupants);
@@ -108,6 +132,15 @@ const createRoommateRequest = async (req, res) => {
         move_in_date: move_in_date || null,
         occupants: requestedOccupants,
         has_pet: !!has_pet,
+        requester_gender: normalizeEnum(requester_gender, REQUESTER_GENDERS, 'prefer_not_to_say'),
+        preferred_roommate_gender: normalizeEnum(preferred_roommate_gender, PREFERRED_ROOMMATE_GENDERS, 'any'),
+        occupation: occupation?.trim() || null,
+        schedule_type: normalizeEnum(schedule_type, SCHEDULE_TYPES, 'flexible'),
+        cleanliness_level: normalizeEnum(cleanliness_level, CLEANLINESS_LEVELS, 'normal'),
+        is_smoker: !!is_smoker,
+        okay_with_smoker: !!okay_with_smoker,
+        okay_with_pets: !!okay_with_pets,
+        roommate_note: roommate_note?.trim() || null,
       })
       .select()
       .single();
