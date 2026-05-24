@@ -586,6 +586,67 @@ test('appointment reschedule by tenant resets appointment to pending', async () 
   assert.equal(updates[0].status, 'pending');
 });
 
+test('roommate request stores practical roommate criteria', async () => {
+  const writes = [];
+  const { createRoommateRequest } = loadController('controllers/roommateRequestController.js', (query) => {
+    if (query.table === 'rooms' && query.operation === 'select') {
+      return {
+        data: {
+          host_id: 'landlord-1',
+          broker_id: null,
+          title: 'Phong o ghep',
+          available_slots: 2,
+          status: 'approved',
+          is_hidden: false,
+          is_available: true,
+        },
+        error: null,
+      };
+    }
+    if (query.table === 'roommate_requests' && query.operation === 'select') {
+      return { data: null, error: null };
+    }
+    if (query.operation === 'insert') {
+      writes.push({ table: query.table, payload: query.payload });
+      return { data: { id: 'request-1', ...query.payload }, error: null };
+    }
+    return { data: query.payload || null, error: null };
+  });
+
+  const res = await callController(createRoommateRequest, {
+    user: { id: 'tenant-1', role: 'tenant', full_name: 'Tenant A' },
+    body: {
+      room_id: 'room-1',
+      message: 'Muon o ghep voi nguoi yen tinh',
+      move_in_date: '2026-06-01',
+      occupants: 1,
+      has_pet: true,
+      requester_gender: 'female',
+      preferred_roommate_gender: 'female',
+      occupation: 'Sinh vien',
+      schedule_type: 'student',
+      cleanliness_level: 'tidy',
+      is_smoker: false,
+      okay_with_smoker: false,
+      okay_with_pets: true,
+      roommate_note: 'Uu tien nguoi khong nhau nhet',
+    },
+  });
+
+  assert.equal(res.statusCode, 201);
+  const requestWrite = writes.find(write => write.table === 'roommate_requests');
+  assert.equal(requestWrite.payload.requester_gender, 'female');
+  assert.equal(requestWrite.payload.preferred_roommate_gender, 'female');
+  assert.equal(requestWrite.payload.occupation, 'Sinh vien');
+  assert.equal(requestWrite.payload.schedule_type, 'student');
+  assert.equal(requestWrite.payload.cleanliness_level, 'tidy');
+  assert.equal(requestWrite.payload.has_pet, true);
+  assert.equal(requestWrite.payload.is_smoker, false);
+  assert.equal(requestWrite.payload.okay_with_smoker, false);
+  assert.equal(requestWrite.payload.okay_with_pets, true);
+  assert.equal(requestWrite.payload.roommate_note, 'Uu tien nguoi khong nhau nhet');
+});
+
 test('roommate requests let brokers view but not decide final status', async () => {
   const writes = [];
   const { updateRoommateRequestStatus } = loadController('controllers/roommateRequestController.js', (query) => {
