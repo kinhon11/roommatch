@@ -1,0 +1,35 @@
+@startuml
+title Use Case AI phân tích nội dung tin đăng
+
+left to right direction
+skinparam shadowing false
+actor "Chủ trọ" as Landlord
+actor "Admin" as Admin
+actor "Gemini API" as Gemini
+
+rectangle "RoommieMatch" {
+  (Chọn tin đăng cần phân tích) as SelectListing
+  (Gửi nội dung tin đăng đến AI) as SendToAI
+  (Kiểm tra giới hạn sử dụng AI) as CheckLimit
+  (Phân tích mức độ đầy đủ của tin đăng) as AnalyzeListing
+  (Phát hiện thông tin còn thiếu / chưa rõ) as DetectMissingInfo
+  (Hiển thị kết quả phân tích) as ShowAnalysis
+  (Cập nhật lại nội dung tin đăng) as UpdateListing
+  (Hỗ trợ kiểm duyệt bài đăng) as SupportModeration
+}
+
+Landlord --> SelectListing
+Landlord --> UpdateListing
+Admin --> SelectListing
+Admin --> SupportModeration
+
+SelectListing .> SendToAI : <<include>>
+SendToAI .> CheckLimit : <<include>>
+CheckLimit .> AnalyzeListing : <<include>>
+AnalyzeListing --> Gemini
+Gemini --> DetectMissingInfo
+DetectMissingInfo .> ShowAnalysis : <<include>>
+ShowAnalysis .> UpdateListing : <<extend>>
+ShowAnalysis .> SupportModeration : <<extend>>
+
+@enduml

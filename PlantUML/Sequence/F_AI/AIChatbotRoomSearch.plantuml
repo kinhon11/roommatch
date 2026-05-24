@@ -1,0 +1,36 @@
+@startuml
+title Sequence Diagram: Chatbot AI hỗ trợ tìm phòng
+
+actor "Người dùng" as User
+boundary "Chatbot UI" as UI
+control "AI Controller" as AICtrl
+database "AI Usage Logs" as UsageLogs
+database "Rooms Table" as Rooms
+participant "Gemini API" as Gemini
+
+User -> UI: Nhập nhu cầu tìm phòng
+User -> UI: Nhấn gửi
+UI -> AICtrl: POST /api/ai/assistant
+AICtrl -> AICtrl: Validate nội dung yêu cầu
+
+alt Nội dung không hợp lệ
+  AICtrl --> UI: 400 Bad Request
+  UI --> User: Yêu cầu nhập lại nội dung
+else Nội dung hợp lệ
+  AICtrl -> UsageLogs: Kiểm tra giới hạn sử dụng AI
+  alt Vượt giới hạn
+    UsageLogs --> AICtrl: Limit exceeded
+    AICtrl --> UI: 429 Too Many Requests
+    UI --> User: Thông báo vượt giới hạn AI
+  else Còn lượt sử dụng
+    AICtrl -> Rooms: Lấy dữ liệu phòng phù hợp nếu cần
+    Rooms --> AICtrl: Danh sách / ngữ cảnh phòng
+    AICtrl -> Gemini: Gửi prompt tư vấn tìm phòng
+    Gemini --> AICtrl: Phản hồi tư vấn
+    AICtrl -> UsageLogs: Ghi log lượt dùng AI
+    AICtrl --> UI: Nội dung tư vấn AI
+    UI --> User: Hiển thị gợi ý tìm phòng
+  end
+end
+
+@enduml

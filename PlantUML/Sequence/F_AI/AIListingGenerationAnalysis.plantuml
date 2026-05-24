@@ -1,0 +1,36 @@
+@startuml
+title Sequence Diagram: AI tạo và phân tích mô tả tin đăng
+
+actor "Chủ trọ" as Landlord
+boundary "Post Room UI" as UI
+control "AI Controller" as AICtrl
+database "AI Usage Logs" as UsageLogs
+database "Rooms Table" as Rooms
+participant "Gemini API" as Gemini
+
+Landlord -> UI: Nhập thông tin tin đăng
+Landlord -> UI: Chọn tạo / phân tích bằng AI
+UI -> AICtrl: POST /api/ai/analyze-listing
+AICtrl -> AICtrl: Kiểm tra quyền và dữ liệu đầu vào
+
+alt Không hợp lệ hoặc không có quyền
+  AICtrl --> UI: 400/403 Error
+  UI --> Landlord: Hiển thị lỗi thao tác
+else Hợp lệ
+  AICtrl -> UsageLogs: Kiểm tra giới hạn sử dụng AI
+  alt Vượt giới hạn
+    UsageLogs --> AICtrl: Limit exceeded
+    AICtrl --> UI: 429 Too Many Requests
+    UI --> Landlord: Thông báo vượt giới hạn AI
+  else Còn lượt sử dụng
+    AICtrl -> Rooms: Lấy / đối chiếu thông tin phòng nếu cần
+    Rooms --> AICtrl: Dữ liệu tin đăng
+    AICtrl -> Gemini: Gửi prompt tạo hoặc phân tích tin đăng
+    Gemini --> AICtrl: Mô tả gợi ý / kết quả phân tích
+    AICtrl -> UsageLogs: Ghi log lượt dùng AI
+    AICtrl --> UI: Kết quả AI
+    UI --> Landlord: Hiển thị để chỉnh sửa và áp dụng
+  end
+end
+
+@enduml

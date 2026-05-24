@@ -1,0 +1,32 @@
+@startuml
+title Use Case Chatbot AI tư vấn tìm phòng
+
+left to right direction
+skinparam shadowing false
+actor "Người dùng" as User
+actor "Người thuê" as Tenant
+actor "Gemini API" as Gemini
+
+rectangle "RoommieMatch" {
+  (Mở chatbot AI) as OpenChatbot
+  (Nhập nhu cầu tìm phòng) as EnterNeed
+  (Kiểm tra giới hạn sử dụng AI) as CheckLimit
+  (Gửi yêu cầu tư vấn AI) as AskAI
+  (Nhận phản hồi tư vấn) as ReceiveAdvice
+  (Hiển thị gợi ý tiêu chí tìm kiếm) as ShowCriteria
+  (Điều hướng sang tìm kiếm phòng) as GoSearch
+}
+
+User --> OpenChatbot
+Tenant --> EnterNeed
+Tenant --> GoSearch
+
+OpenChatbot .> EnterNeed : <<include>>
+EnterNeed .> CheckLimit : <<include>>
+CheckLimit .> AskAI : <<include>>
+AskAI --> Gemini
+Gemini --> ReceiveAdvice
+ReceiveAdvice .> ShowCriteria : <<include>>
+ShowCriteria .> GoSearch : <<extend>>
+
+@enduml

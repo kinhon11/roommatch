@@ -1,0 +1,49 @@
+@startuml
+title Activity Diagram: 2.3.9. Quy trình AI hỗ trợ tạo và phân tích tin đăng
+
+skinparam shadowing false
+skinparam defaultFontName "DejaVu Sans"
+skinparam activity {
+  BackgroundColor #EAF7EA
+  BorderColor #8BC58B
+  FontColor #111827
+  DiamondBackgroundColor #F7FFF7
+  DiamondBorderColor #8BC58B
+  StartColor #111827
+  EndColor #111827
+  BarColor #111827
+}
+skinparam arrow {
+  Color #444444
+  FontColor #111827
+}
+
+start
+:Chủ trọ mở form đăng / sửa tin phòng;
+:Nhập thông tin phòng cơ bản;
+:Chọn chức năng AI hỗ trợ;
+
+:Frontend gửi dữ liệu tin đăng đến Backend;
+:Backend kiểm tra quyền, dữ liệu và giới hạn AI;
+
+if (Hợp lệ?) then (Không)
+  :Hiển thị thông báo lỗi;
+  stop
+else (Có)
+endif
+
+:Backend tạo prompt phù hợp;
+:Gửi yêu cầu đến Gemini API;
+
+if (Gemini phản hồi thành công?) then (Có)
+  :Nhận mô tả gợi ý hoặc kết quả phân tích;
+  :Hiển thị kết quả cho chủ trọ;
+  :Chủ trọ chỉnh sửa / áp dụng nội dung;
+  :Lưu hoặc gửi duyệt tin đăng;
+else (Không)
+  :Thông báo không thể xử lý AI lúc này;
+endif
+
+stop
+
+@enduml
