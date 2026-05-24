@@ -1,0 +1,33 @@
+﻿@startuml
+title Use Case Chat & Thông báo - Môi giới
+
+left to right direction
+skinparam shadowing false
+skinparam defaultFontName "DejaVu Sans"
+skinparam actorStyle awesome
+
+actor "Môi giới" as Broker
+
+rectangle "RoommieMatch" {
+  (Mở cuộc trò chuyện) as OpenChat
+  (Gửi tin nhắn) as SendMessage
+  (Xem tin nhắn) as ViewMessages
+  (Theo dõi tin chưa đọc) as UnreadCount
+  (Xem thông báo) as ViewNotifications
+  (Đánh dấu thông báo đã đọc) as MarkRead
+  (Tự đồng bộ lead từ tương tác tenant) as SyncLead
+}
+
+Broker --> OpenChat
+Broker --> SendMessage
+Broker --> ViewMessages
+Broker --> UnreadCount
+Broker --> ViewNotifications
+Broker --> MarkRead
+
+SendMessage .> SyncLead : <<extend>>
+MarkRead .> ViewNotifications : <<include>>
+
+@enduml
+
+

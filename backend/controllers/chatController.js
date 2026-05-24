@@ -221,7 +221,7 @@ const sendMessage = async (req, res) => {
     // Kiểm tra quyền
     const { data: conv } = await supabase
       .from('conversations')
-      .select('id, tenant_id, landlord_id')
+      .select('id, tenant_id, landlord_id, room_id, room:rooms (id, broker_id, title)')
       .eq('id', convId)
       .single();
 

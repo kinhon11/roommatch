@@ -1,0 +1,35 @@
+﻿@startuml
+title Use Case Quản lý hoa hồng môi giới - Admin
+
+left to right direction
+skinparam shadowing false
+skinparam defaultFontName "DejaVu Sans"
+skinparam actorStyle awesome
+
+actor "Admin" as Admin
+
+rectangle "RoommieMatch" {
+  (Xem danh sách hoa hồng môi giới) as ViewCommissions
+  (Lọc hoa hồng theo trạng thái) as FilterCommissions
+  (Xem chi tiết hoa hồng) as ViewCommissionDetail
+  (Xác nhận đã thu hoa hồng) as MarkCollected
+  (Xác nhận đã trả cho broker) as MarkPaidToBroker
+  (Hủy hoa hồng) as CancelCommission
+}
+
+Admin --> ViewCommissions
+Admin --> FilterCommissions
+Admin --> ViewCommissionDetail
+Admin --> MarkCollected
+Admin --> MarkPaidToBroker
+Admin --> CancelCommission
+
+FilterCommissions .> ViewCommissions : <<include>>
+ViewCommissionDetail .> ViewCommissions : <<include>>
+MarkCollected .> ViewCommissionDetail : <<include>>
+MarkPaidToBroker .> ViewCommissionDetail : <<include>>
+CancelCommission .> ViewCommissionDetail : <<include>>
+
+@enduml
+
+

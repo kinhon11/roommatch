@@ -1,4 +1,4 @@
-@startuml
+﻿@startuml
 title Use Case Kiểm duyệt bài đăng phòng
 
 left to right direction
@@ -6,21 +6,21 @@ skinparam shadowing false
 actor "Admin" as Admin
 
 rectangle "RoommieMatch" {
-  usecase "Xem phòng chờ duyệt" as ViewPendingRooms
-  usecase "Xem chi tiết bài đăng" as ViewRoomDetail
-  usecase "Duyệt bài đăng" as ApproveRoom
-  usecase "Từ chối bài đăng" as RejectRoom
-  usecase "Quản lý toàn bộ phòng" as ManageAllRooms
-  usecase "Thông báo kết quả cho chủ trọ" as NotifyLandlord
+  (Xem phòng chờ duyệt) as ViewPendingRooms
+  (Xem chi tiết bài đăng) as ViewRoomDetail
+  (Duyệt bài đăng) as ApproveRoom
+  (Từ chối bài đăng) as RejectRoom
+  (Gán môi giới phụ trách) as AssignBroker
+  (Quản lý toàn bộ phòng) as ManageAllRooms
 }
 
 Admin --> ViewPendingRooms
 Admin --> ViewRoomDetail
 Admin --> ApproveRoom
 Admin --> RejectRoom
+Admin --> AssignBroker
 Admin --> ManageAllRooms
 
-ApproveRoom .> NotifyLandlord : <<include>>
-RejectRoom .> NotifyLandlord : <<include>>
-
 @enduml
+
+

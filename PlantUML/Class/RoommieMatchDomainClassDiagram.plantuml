@@ -1,4 +1,4 @@
-@startuml
+﻿@startuml
 title Class Diagram: Mô hình miền RoommieMatch
 
 skinparam classAttributeIconSize 0
@@ -191,3 +191,4 @@ Room "0..1" -- "0..*" Report : bị báo cáo
 User "1" -- "0..*" Notification : nhận
 
 @enduml
+

@@ -7,7 +7,7 @@ RoommieMatch là ứng dụng web hỗ trợ tìm kiếm phòng trọ, quản l�
 - Frontend: React, Vite, React Router, Axios, Supabase JS
 - Backend: Node.js, Express, Supabase JS, JWT, Multer
 - Database: Supabase PostgreSQL
-- AI: Google Gemini, MiniMax AI
+- AI: Google Gemini
 - Test/Lint: Node Test Runner, ESLint
 
 ## Cấu trúc thư mục
@@ -28,7 +28,7 @@ DOAN/
 - Node.js 18 trở lên
 - npm
 - Tài khoản Supabase
-- API key Gemini hoặc MiniMax nếu dùng tính năng AI
+- API key Gemini nếu dùng tính năng AI
 
 ## Cài đặt
 
@@ -59,8 +59,8 @@ SUPABASE_SERVICE_KEY=your-service-key
 SUPABASE_ANON_KEY=your-anon-key
 SUPABASE_JWT_SECRET=your-jwt-secret
 GEMINI_API_KEY=your-gemini-key
-MINIMAX_API_KEY=your-minimax-key
-AI_PROVIDER=auto
+GEMINI_MODEL=gemini-2.5-flash
+AI_TIMEOUT_MS=25000
 ```
 
 Tạo file `.env` cho frontend:
@@ -75,7 +75,6 @@ Các biến chính trong `frontend/.env`:
 VITE_SUPABASE_URL=your-supabase-url
 VITE_SUPABASE_ANON_KEY=your-anon-key
 VITE_API_BASE_URL=http://localhost:5000/api
-VITE_GEMINI_API_KEY=your-gemini-key
 ```
 
 ## Cấu hình database

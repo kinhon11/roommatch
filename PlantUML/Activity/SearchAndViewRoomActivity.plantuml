@@ -1,4 +1,4 @@
-@startuml
+﻿@startuml
 title Activity Diagram: Quy trình tìm kiếm và xem chi tiết phòng
 
 skinparam shadowing false
@@ -89,3 +89,4 @@ endif
 stop
 
 @enduml
+

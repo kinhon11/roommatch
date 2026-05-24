@@ -35,18 +35,24 @@ const extractPriceBounds = (message) => {
   const text = message.toLowerCase().replace(/\s+/g, " ");
   const maxMatch =
     text.match(
-      /(?:dưới|tối đa|max|không quá|<=|<)\s*(\d+(?:[.,]\d+)?)\s*(?:triệu|tr|m|k)?/i,
+      /(?:dưới|tối đa|max|không quá|<=|<)\s*(\d+(?:[.,]\d+)?)\s*(triệu|tr|m|k)?/i,
     ) ||
     text.match(
-      /(\d+(?:[.,]\d+)?)\s*(?:triệu|tr|m)\s*(?:trở xuống|đổ xuống|đến|hoặc thấp hơn)/i,
+      /(\d+(?:[.,]\d+)?)\s*(triệu|tr|m|k)\s*(?:trở xuống|đổ xuống|đến|hoặc thấp hơn)/i,
     );
   const minMatch = text.match(
-    /(?:trên|từ|tối thiểu|>=|>)\s*(\d+(?:[.,]\d+)?)\s*(?:triệu|tr|m|k)?/i,
+    /(?:trên|từ|tối thiểu|>=|>)\s*(\d+(?:[.,]\d+)?)\s*(triệu|tr|m|k)?/i,
   );
 
   const toNumber = (value) => Number(String(value).replace(",", "."));
-  const max = maxMatch ? toNumber(maxMatch[1]) * 1_000_000 : null;
-  const min = minMatch ? toNumber(minMatch[1]) * 1_000_000 : null;
+  const toPrice = (match) => {
+    if (!match) return null;
+    const unit = String(match[2] || "triệu").toLowerCase();
+    const multiplier = unit === "k" ? 1_000 : 1_000_000;
+    return toNumber(match[1]) * multiplier;
+  };
+  const max = toPrice(maxMatch);
+  const min = toPrice(minMatch);
   return { min, max };
 };
 

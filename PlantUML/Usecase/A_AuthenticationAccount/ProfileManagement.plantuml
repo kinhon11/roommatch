@@ -1,4 +1,4 @@
-@startuml
+﻿@startuml
 title Use Case Quản lý hồ sơ cá nhân
 
 left to right direction
@@ -6,10 +6,10 @@ skinparam shadowing false
 actor "Người dùng" as User
 
 rectangle "RoommieMatch" {
-  usecase "Xem hồ sơ cá nhân" as ViewProfile
-  usecase "Cập nhật thông tin cá nhân" as UpdateProfile
-  usecase "Đổi mật khẩu" as ChangePassword
-  usecase "Xem thông báo cá nhân" as ViewNotifications
+  (Xem hồ sơ cá nhân) as ViewProfile
+  (Cập nhật thông tin cá nhân) as UpdateProfile
+  (Đổi mật khẩu) as ChangePassword
+  (Xem thông báo cá nhân) as ViewNotifications
 }
 
 User --> ViewProfile
@@ -21,3 +21,5 @@ UpdateProfile .> ViewProfile : <<include>>
 ChangePassword .> ViewProfile : <<include>>
 
 @enduml
+
+

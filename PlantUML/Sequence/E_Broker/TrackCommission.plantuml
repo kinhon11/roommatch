@@ -1,0 +1,36 @@
+@startuml
+title Sequence Diagram: Broker Commission Tracking Process
+
+actor "Môi giới" as Broker
+boundary "Broker Commissions UI" as UI
+control "Broker Controller" as BrokerCtrl
+database "Broker Commissions Table" as Commissions
+database "Broker Leads Table" as Leads
+database "Rooms Table" as Rooms
+database "Users Table" as Users
+
+Broker -> UI: Mở trang hoa hồng
+UI -> BrokerCtrl: GET /api/broker/commissions
+BrokerCtrl -> Commissions: Lấy hoa hồng theo broker_id
+
+alt Bảng hoa hồng chưa được khởi tạo
+  Commissions --> BrokerCtrl: Table missing / schema cache error
+  BrokerCtrl --> UI: []
+  UI --> Broker: Hiển thị chưa có hoa hồng
+else Truy vấn thất bại
+  Commissions --> BrokerCtrl: Database error
+  BrokerCtrl --> UI: 500 Server Error
+  UI --> Broker: Không thể tải hoa hồng
+else Truy vấn thành công
+  Commissions -> Leads: Lấy thông tin lead liên quan
+  Commissions -> Rooms: Lấy thông tin phòng liên quan
+  Commissions -> Users: Lấy thông tin tenant liên quan
+  Leads --> Commissions: Lead info
+  Rooms --> Commissions: Room info
+  Users --> Commissions: Tenant info
+  Commissions --> BrokerCtrl: Danh sách hoa hồng
+  BrokerCtrl --> UI: Commission list
+  UI --> Broker: Hiển thị trạng thái hoa hồng
+end
+
+@enduml

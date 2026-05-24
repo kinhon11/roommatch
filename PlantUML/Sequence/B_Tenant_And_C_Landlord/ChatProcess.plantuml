@@ -1,4 +1,4 @@
-@startuml
+﻿@startuml
 title Sequence Diagram: Chat Process
 
 actor "Người dùng" as User
@@ -47,3 +47,4 @@ else Hợp lệ
 end
 
 @enduml
+

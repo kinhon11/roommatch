@@ -369,7 +369,7 @@ const updateDepositStatus = async (req, res) => {
       || (status === 'landlord_accepted' && isLandlord && deposit.status === 'admin_confirmed')
       || (status === 'refund_pending' && isLandlord && deposit.status === 'admin_confirmed')
       || (status === 'refunded' && isAdmin && ['refund_pending', 'landlord_accepted', 'paid'].includes(deposit.status))
-      || (status === 'paid' && isAdmin && deposit.status === 'pending_payment');
+      || (status === 'paid' && isAdmin && deposit.status === 'landlord_accepted');
 
     if (!validTransition) {
       return res.status(403).json({ error: 'Trang thai nay khong dung vai tro hoac khong dung buoc xu ly.' });

@@ -1,4 +1,4 @@
-@startuml
+﻿@startuml
 title Activity Diagram: Quy trình đặt lịch xem phòng
 
 skinparam shadowing false
@@ -64,3 +64,4 @@ else (Không)
 endif
 
 @enduml
+

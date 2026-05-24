@@ -1,4 +1,4 @@
-@startuml
+﻿@startuml
 title Sequence Diagram: Profile Update Process
 
 actor "Người dùng" as User
@@ -37,3 +37,4 @@ else Token hợp lệ
 end
 
 @enduml
+

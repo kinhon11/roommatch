@@ -1,4 +1,4 @@
-@startuml
+﻿@startuml
 title Sequence Diagram: Update Deposit Status Process
 
 actor "Người thuê / Chủ trọ / Admin" as User
@@ -37,3 +37,4 @@ else Cập nhật hợp lệ
 end
 
 @enduml
+

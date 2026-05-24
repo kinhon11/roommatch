@@ -1,4 +1,4 @@
-@startuml
+﻿@startuml
 title Sequence Diagram: Create Appointment Process
 
 actor "Người thuê" as Tenant
@@ -44,3 +44,4 @@ else Dữ liệu hợp lệ
 end
 
 @enduml
+

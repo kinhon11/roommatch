@@ -1,4 +1,4 @@
-@startuml
+﻿@startuml
 title Use Case Xử lý yêu cầu ở ghép
 
 left to right direction
@@ -6,12 +6,12 @@ skinparam shadowing false
 actor "Chủ trọ" as Landlord
 
 rectangle "RoommieMatch" {
-  usecase "Xem yêu cầu ở ghép" as ViewRequests
-  usecase "Xem chi tiết yêu cầu" as ViewRequestDetail
-  usecase "Chấp nhận yêu cầu" as AcceptRequest
-  usecase "Từ chối yêu cầu" as RejectRequest
-  usecase "Cập nhật số chỗ còn trống" as UpdateSlots
-  usecase "Thông báo kết quả cho người thuê" as NotifyTenant
+  (Xem yêu cầu ở ghép) as ViewRequests
+  (Xem chi tiết yêu cầu) as ViewRequestDetail
+  (Chấp nhận yêu cầu) as AcceptRequest
+  (Từ chối yêu cầu) as RejectRequest
+  (Cập nhật số chỗ còn trống) as UpdateSlots
+  (Thông báo kết quả cho người thuê) as NotifyTenant
 }
 
 Landlord --> ViewRequests
@@ -24,3 +24,5 @@ AcceptRequest .> NotifyTenant : <<include>>
 RejectRequest .> NotifyTenant : <<include>>
 
 @enduml
+
+

@@ -1,0 +1,39 @@
+@startuml
+title Sequence Diagram: Broker Dashboard Process
+
+actor "Môi giới" as Broker
+boundary "Broker Dashboard UI" as UI
+control "Admin Controller" as AdminCtrl
+database "Rooms Table" as Rooms
+database "Broker Leads Table" as Leads
+database "Roommate Requests Table" as Requests
+database "Appointments Table" as Appointments
+database "Broker Commissions Table" as Commissions
+database "Activity Logs Table" as Logs
+
+Broker -> UI: Mở dashboard môi giới
+UI -> AdminCtrl: GET /api/admin/broker-dashboard
+AdminCtrl -> Rooms: Lấy phòng được phân công theo broker_id
+Rooms --> AdminCtrl: Danh sách phòng
+
+alt Broker chưa được phân công phòng
+  AdminCtrl -> Leads: Lấy lead của broker
+  AdminCtrl -> Commissions: Lấy hoa hồng của broker
+  AdminCtrl --> UI: Dashboard rỗng phòng + lead + hoa hồng
+  UI --> Broker: Hiển thị dashboard
+else Có phòng được phân công
+  AdminCtrl -> Requests: Lấy yêu cầu ở ghép của các phòng
+  AdminCtrl -> Appointments: Lấy lịch hẹn liên quan
+  AdminCtrl -> Leads: Lấy lead đang chăm sóc
+  AdminCtrl -> Commissions: Lấy hoa hồng gần đây
+  AdminCtrl -> Logs: Lấy lịch sử xử lý
+  Requests --> AdminCtrl: Danh sách yêu cầu
+  Appointments --> AdminCtrl: Danh sách lịch hẹn
+  Leads --> AdminCtrl: Danh sách lead
+  Commissions --> AdminCtrl: Danh sách hoa hồng
+  Logs --> AdminCtrl: Lịch sử hoạt động
+  AdminCtrl --> UI: Tổng hợp thống kê dashboard
+  UI --> Broker: Hiển thị phòng, lead, lịch hẹn, hoa hồng
+end
+
+@enduml

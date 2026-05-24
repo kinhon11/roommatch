@@ -1,4 +1,4 @@
-@startuml
+﻿@startuml
 title Activity Diagram: Quy trình gửi yêu cầu ở ghép
 
 skinparam shadowing false
@@ -73,3 +73,4 @@ endif
 stop
 
 @enduml
+

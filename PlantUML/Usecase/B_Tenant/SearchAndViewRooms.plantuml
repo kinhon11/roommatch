@@ -1,4 +1,4 @@
-@startuml
+﻿@startuml
 title Use Case Tìm kiếm & Xem phòng
 
 left to right direction
@@ -6,14 +6,14 @@ skinparam shadowing false
 actor "Người thuê" as Tenant
 
 rectangle "RoommieMatch" {
-  usecase "Tìm kiếm phòng" as SearchRooms
-  usecase "Lọc phòng theo nhu cầu" as FilterRooms
-  usecase "Xem danh sách phòng" as ViewRooms
-  usecase "Xem chi tiết phòng" as ViewRoomDetail
-  usecase "Xem hồ sơ chủ trọ" as ViewLandlord
-  usecase "Lưu phòng yêu thích" as FavoriteRoom
-  usecase "Báo cáo phòng vi phạm" as ReportRoom
-  usecase "Xem gợi ý phòng tương tự" as SimilarRooms
+  (Tìm kiếm phòng) as SearchRooms
+  (Lọc phòng theo nhu cầu) as FilterRooms
+  (Xem danh sách phòng) as ViewRooms
+  (Xem chi tiết phòng) as ViewRoomDetail
+  (Xem hồ sơ chủ trọ) as ViewLandlord
+  (Lưu phòng yêu thích) as FavoriteRoom
+  (Báo cáo phòng vi phạm) as ReportRoom
+  (Xem gợi ý phòng tương tự) as SimilarRooms
 }
 
 Tenant --> SearchRooms
@@ -28,3 +28,5 @@ ViewRoomDetail .> SimilarRooms : <<extend>>
 ViewRoomDetail .> ViewLandlord : <<include>>
 
 @enduml
+
+

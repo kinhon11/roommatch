@@ -1,0 +1,39 @@
+﻿@startuml
+title Use Case Quản lý đặt cọc - Chủ trọ
+
+left to right direction
+skinparam shadowing false
+skinparam defaultFontName "DejaVu Sans"
+skinparam actorStyle awesome
+
+actor "Chủ trọ" as Landlord
+
+rectangle "RoommieMatch" {
+  (Xem yêu cầu đặt cọc của phòng) as ViewDeposits
+  (Xác nhận đã nhận cọc) as MarkPaid
+  (Chuyển sang cọc bảo đảm khi nhận phòng) as MoveIn
+  (Ghi nhận mất cọc) as ForfeitDeposit
+  (Khấu trừ cọc khi trả phòng) as DeductDeposit
+  (Hoàn cọc cho người thuê) as RefundDeposit
+  (Xem lịch sử trạng thái cọc) as ViewTransactions
+  (Thông báo thay đổi cọc) as NotifyDeposit
+}
+
+Landlord --> ViewDeposits
+Landlord --> MarkPaid
+Landlord --> MoveIn
+Landlord --> ForfeitDeposit
+Landlord --> DeductDeposit
+Landlord --> RefundDeposit
+Landlord --> ViewTransactions
+
+MarkPaid .> NotifyDeposit : <<include>>
+MoveIn .> NotifyDeposit : <<include>>
+ForfeitDeposit .> NotifyDeposit : <<include>>
+DeductDeposit .> NotifyDeposit : <<include>>
+RefundDeposit .> NotifyDeposit : <<include>>
+ViewTransactions .> ViewDeposits : <<include>>
+
+@enduml
+
+

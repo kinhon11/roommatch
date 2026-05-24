@@ -1,4 +1,4 @@
-@startuml
+﻿@startuml
 title Use Case Đặt & Quản lý lịch hẹn xem phòng
 
 left to right direction
@@ -6,12 +6,12 @@ skinparam shadowing false
 actor "Người thuê" as Tenant
 
 rectangle "RoommieMatch" {
-  usecase "Đặt lịch xem phòng" as CreateAppointment
-  usecase "Xem lịch hẹn của tôi" as ViewAppointments
-  usecase "Đổi lịch hẹn" as RescheduleAppointment
-  usecase "Hủy lịch hẹn" as CancelAppointment
-  usecase "Theo dõi trạng thái lịch hẹn" as TrackAppointment
-  usecase "Nhận thông báo lịch hẹn" as ReceiveNotification
+  (Đặt lịch xem phòng) as CreateAppointment
+  (Xem lịch hẹn của tôi) as ViewAppointments
+  (Đổi lịch hẹn) as RescheduleAppointment
+  (Hủy lịch hẹn) as CancelAppointment
+  (Theo dõi trạng thái lịch hẹn) as TrackAppointment
+  (Nhận thông báo lịch hẹn) as ReceiveNotification
 }
 
 Tenant --> CreateAppointment
@@ -26,3 +26,5 @@ CancelAppointment .> ViewAppointments : <<include>>
 TrackAppointment .> ReceiveNotification : <<include>>
 
 @enduml
+
+

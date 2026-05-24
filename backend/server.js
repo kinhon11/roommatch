@@ -75,7 +75,11 @@ app.use((req, res) => {
 // ─── Global Error Handler
 app.use((err, req, res, next) => {
   console.error('❌ Server Error:', err.stack);
-  res.status(500).json({ error: 'Internal Server Error', details: err.message });
+  const payload = { error: 'Internal Server Error' };
+  if (process.env.NODE_ENV !== 'production') {
+    payload.details = err.message;
+  }
+  res.status(500).json(payload);
 });
 
 if (require.main === module) {

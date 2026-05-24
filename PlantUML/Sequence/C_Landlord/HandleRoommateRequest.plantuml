@@ -1,4 +1,4 @@
-@startuml
+﻿@startuml
 title Sequence Diagram: Handle Roommate Request Process
 
 actor "Chủ trọ" as Landlord
@@ -45,3 +45,4 @@ else Từ chối yêu cầu
 end
 
 @enduml
+

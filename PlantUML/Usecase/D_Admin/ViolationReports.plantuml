@@ -1,22 +1,19 @@
-@startuml
+﻿@startuml
 title Use Case Xử lý báo cáo vi phạm
 
 left to right direction
 skinparam shadowing false
 actor "Admin" as Admin
-actor "Người dùng" as User
 
 rectangle "RoommieMatch" {
-  usecase "Gửi báo cáo vi phạm" as CreateReport
-  usecase "Xem danh sách báo cáo" as ViewReports
-  usecase "Lọc báo cáo theo trạng thái" as FilterReports
-  usecase "Xem chi tiết báo cáo" as ViewReportDetail
-  usecase "Xử lý báo cáo" as ResolveReport
-  usecase "Bỏ qua báo cáo" as DismissReport
-  usecase "Tự động ẩn phòng khi vượt ngưỡng" as AutoHideRoom
+  (Xem danh sách báo cáo) as ViewReports
+  (Lọc báo cáo theo trạng thái) as FilterReports
+  (Xem chi tiết báo cáo) as ViewReportDetail
+  (Xử lý báo cáo) as ResolveReport
+  (Bỏ qua báo cáo) as DismissReport
+  (Tự động ẩn phòng khi vượt ngưỡng) as AutoHideRoom
 }
 
-User --> CreateReport
 Admin --> ViewReports
 Admin --> FilterReports
 Admin --> ViewReportDetail
@@ -27,3 +24,5 @@ FilterReports .> ViewReports : <<include>>
 ResolveReport .> AutoHideRoom : <<extend>>
 
 @enduml
+
+

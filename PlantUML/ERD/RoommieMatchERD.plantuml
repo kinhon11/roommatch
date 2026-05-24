@@ -1,272 +1,278 @@
 @startuml
-title ERD chính hệ thống RoommieMatch
+title Entity Relationship Diagram (ERD)\nHệ thống RoommieMatch
 
 hide circle
 skinparam linetype ortho
+skinparam ranksep 55
+skinparam nodesep 42
 skinparam shadowing false
 skinparam defaultFontName "DejaVu Sans"
+skinparam ArrowColor #64748B
 skinparam entity {
-  BackgroundColor #F8FAFC
   BorderColor #334155
-  ArrowColor #334155
+  FontSize 12
 }
 
-entity "users" as users {
-  * id : UUID <<PK>>
+' ========== CORE DATA (Xanh lá) ==========
+entity "**users**" as users #E8F5E9 {
+  <color:#b8860b><b>id</b></color> : UUID <<PK>>
   --
   email : TEXT <<UNIQUE>>
   full_name : TEXT
   role : TEXT
   phone : TEXT
-  avatar_url : TEXT
-  is_locked : BOOLEAN
   is_verified : BOOLEAN
-  contact_email : TEXT
-  zalo : TEXT
-  contact_hours : TEXT
+  is_locked : BOOLEAN
 }
 
-entity "rooms" as rooms {
-  * id : UUID <<PK>>
+entity "**rooms**" as rooms #E8F5E9 {
+  <color:#b8860b><b>id</b></color> : UUID <<PK>>
   --
-  host_id : UUID <<FK>>
-  broker_id : UUID <<FK>>
+  <color:#666>host_id</color> : UUID <<FK>>
+  <color:#666>broker_id</color> : UUID <<FK>>
   title : TEXT
-  price : INTEGER
-  deposit_amount : NUMERIC
-  electricity_price : NUMERIC
-  water_price : NUMERIC
-  internet_fee : NUMERIC
-  parking_fee : NUMERIC
-  service_fee : NUMERIC
-  payment_cycle : TEXT
+  price : NUMERIC
   address : TEXT
-  city : TEXT
-  area : NUMERIC
   status : TEXT
   is_available : BOOLEAN
-  is_hidden : BOOLEAN
-  available_slots : INT
-  max_occupants : INT
-  house_rules : TEXT
 }
 
-entity "room_images" as room_images {
-  * id : UUID <<PK>>
+entity "**room_images**" as room_images #E8F5E9 {
+  <color:#b8860b><b>id</b></color> : UUID <<PK>>
   --
-  room_id : UUID <<FK>>
+  <color:#666>room_id</color> : UUID <<FK>>
   image_url : TEXT
   is_primary : BOOLEAN
 }
 
-entity "amenities" as amenities {
-  * id : INT <<PK>>
+entity "**amenities**" as amenities #E8F5E9 {
+  <color:#b8860b><b>id</b></color> : INT <<PK>>
   --
-  name : TEXT <<UNIQUE>>
+  name : TEXT
   icon : TEXT
 }
 
-entity "room_amenities" as room_amenities {
-  * room_id : UUID <<PK, FK>>
-  * amenity_id : INT <<PK, FK>>
+entity "**room_amenities**" as room_amenities #E8F5E9 {
+  <color:#666>room_id</color> : UUID <<PK, FK>>
+  <color:#666>amenity_id</color> : INT <<PK, FK>>
 }
 
-entity "roommate_requests" as roommate_requests {
-  * id : UUID <<PK>>
+' ========== TENANT FLOW (Cam) ==========
+entity "**roommate_requests**" as roommate_requests #FFF3E0 {
+  <color:#b8860b><b>id</b></color> : UUID <<PK>>
   --
-  room_id : UUID <<FK>>
-  tenant_id : UUID <<FK>>
+  <color:#666>room_id</color> : UUID <<FK>>
+  <color:#666>tenant_id</color> : UUID <<FK>>
   status : TEXT
-  message : TEXT
   move_in_date : DATE
-  occupants : INT
-  has_pet : BOOLEAN
-  rejection_reason : TEXT
 }
 
-entity "appointments" as appointments {
-  * id : UUID <<PK>>
+entity "**appointments**" as appointments #FFF3E0 {
+  <color:#b8860b><b>id</b></color> : UUID <<PK>>
   --
-  room_id : UUID <<FK>>
-  tenant_id : UUID <<FK>>
-  landlord_id : UUID <<FK>>
+  <color:#666>room_id</color> : UUID <<FK>>
+  <color:#666>tenant_id</color> : UUID <<FK>>
+  <color:#666>landlord_id</color> : UUID <<FK>>
   scheduled_at : TIMESTAMPTZ
   status : TEXT
-  cancellation_reason : TEXT
 }
 
-entity "room_deposits" as room_deposits {
-  * id : UUID <<PK>>
+entity "**room_deposits**" as room_deposits #FFF3E0 {
+  <color:#b8860b><b>id</b></color> : UUID <<PK>>
   --
-  room_id : UUID <<FK>>
-  tenant_id : UUID <<FK>>
-  landlord_id : UUID <<FK>>
+  <color:#666>room_id</color> : UUID <<FK>>
+  <color:#666>tenant_id</color> : UUID <<FK>>
+  <color:#666>landlord_id</color> : UUID <<FK>>
   amount : NUMERIC
   status : TEXT
-  note : TEXT
-  paid_at : TIMESTAMPTZ
-  refunded_at : TIMESTAMPTZ
 }
 
-entity "broker_leads" as broker_leads {
-  * id : UUID <<PK>>
+' ========== BROKER FLOW (Xanh dương) ==========
+entity "**broker_leads**" as broker_leads #E3F2FD {
+  <color:#b8860b><b>id</b></color> : UUID <<PK>>
   --
-  broker_id : UUID <<FK>>
-  tenant_id : UUID <<FK>>
-  assigned_room_id : UUID <<FK>>
+  <color:#666>broker_id</color> : UUID <<FK>>
+  <color:#666>tenant_id</color> : UUID <<FK>>
+  <color:#666>assigned_room_id</color> : UUID <<FK>>
   full_name : TEXT
   phone : TEXT
-  budget_min : INTEGER
-  budget_max : INTEGER
-  preferred_area : TEXT
-  occupants : INTEGER
-  has_pets : BOOLEAN
   status : TEXT
-  lost_reason : TEXT
 }
 
-entity "broker_lead_rooms" as broker_lead_rooms {
-  * id : UUID <<PK>>
+entity "**broker_lead_rooms**" as broker_lead_rooms #E3F2FD {
+  <color:#b8860b><b>id</b></color> : UUID <<PK>>
   --
-  lead_id : UUID <<FK>>
-  room_id : UUID <<FK>>
-  broker_id : UUID <<FK>>
+  <color:#666>lead_id</color> : UUID <<FK>>
+  <color:#666>room_id</color> : UUID <<FK>>
   match_reason : TEXT
-  tenant_feedback : TEXT
   status : TEXT
 }
 
-entity "broker_commissions" as broker_commissions {
-  * id : UUID <<PK>>
+entity "**broker_commissions**" as broker_commissions #E3F2FD {
+  <color:#b8860b><b>id</b></color> : UUID <<PK>>
   --
-  broker_id : UUID <<FK>>
-  lead_id : UUID <<FK>>
-  room_id : UUID <<FK>>
-  tenant_id : UUID <<FK>>
+  <color:#666>broker_id</color> : UUID <<FK>>
+  <color:#666>lead_id</color> : UUID <<FK>>
+  <color:#666>room_id</color> : UUID <<FK>>
   amount : NUMERIC
-  commission_rate : NUMERIC
-  basis_amount : NUMERIC
   status : TEXT
-  collected_at : TIMESTAMPTZ
-  paid_at : TIMESTAMPTZ
 }
 
-entity "conversations" as conversations {
-  * id : UUID <<PK>>
+' ========== COMMUNICATION & FEEDBACK (Tím) ==========
+entity "**conversations**" as conversations #F3E5F5 {
+  <color:#b8860b><b>id</b></color> : UUID <<PK>>
   --
-  room_id : UUID <<FK>>
-  tenant_id : UUID <<FK>>
-  landlord_id : UUID <<FK>>
+  <color:#666>room_id</color> : UUID <<FK>>
+  <color:#666>tenant_id</color> : UUID <<FK>>
+  <color:#666>landlord_id</color> : UUID <<FK>>
   last_message : TEXT
-  last_message_at : TIMESTAMPTZ
 }
 
-entity "messages" as messages {
-  * id : UUID <<PK>>
+entity "**messages**" as messages #F3E5F5 {
+  <color:#b8860b><b>id</b></color> : UUID <<PK>>
   --
-  conversation_id : UUID <<FK>>
-  sender_id : UUID <<FK>>
+  <color:#666>conversation_id</color> : UUID <<FK>>
+  <color:#666>sender_id</color> : UUID <<FK>>
   content : TEXT
   is_read : BOOLEAN
 }
 
-entity "favorites" as favorites {
-  * id : UUID <<PK>>
+entity "**notifications**" as notifications #F3E5F5 {
+  <color:#b8860b><b>id</b></color> : UUID <<PK>>
   --
-  user_id : UUID <<FK>>
-  room_id : UUID <<FK>>
-}
-
-entity "reviews" as reviews {
-  * id : UUID <<PK>>
-  --
-  room_id : UUID <<FK>>
-  user_id : UUID <<FK>>
-  rating : SMALLINT
-  comment : TEXT
-  is_hidden : BOOLEAN
-  landlord_response : TEXT
-}
-
-entity "reports" as reports {
-  * id : UUID <<PK>>
-  --
-  reporter_id : UUID <<FK>>
-  room_id : UUID <<FK>>
-  reason : TEXT
-  description : TEXT
-  status : TEXT
-}
-
-entity "notifications" as notifications {
-  * id : UUID <<PK>>
-  --
-  user_id : UUID <<FK>>
+  <color:#666>user_id</color> : UUID <<FK>>
   type : TEXT
-  payload : JSONB
   read : BOOLEAN
 }
 
-entity "room_approval_history" as approval_history {
-  * id : UUID <<PK>>
+entity "**favorites**" as favorites #F3E5F5 {
+  <color:#b8860b><b>id</b></color> : UUID <<PK>>
   --
-  room_id : UUID <<FK>>
-  admin_id : UUID <<FK>>
+  <color:#666>user_id</color> : UUID <<FK>>
+  <color:#666>room_id</color> : UUID <<FK>>
+}
+
+entity "**reviews**" as reviews #F3E5F5 {
+  <color:#b8860b><b>id</b></color> : UUID <<PK>>
+  --
+  <color:#666>room_id</color> : UUID <<FK>>
+  <color:#666>user_id</color> : UUID <<FK>>
+  rating : SMALLINT
+  comment : TEXT
+}
+
+entity "**reports**" as reports #F3E5F5 {
+  <color:#b8860b><b>id</b></color> : UUID <<PK>>
+  --
+  <color:#666>reporter_id</color> : UUID <<FK>>
+  <color:#666>room_id</color> : UUID <<FK>>
+  reason : TEXT
+  status : TEXT
+}
+
+' ========== ADMIN & AUDIT (Xám) ==========
+entity "**room_approval_history**" as approval_history #ECEFF1 {
+  <color:#b8860b><b>id</b></color> : UUID <<PK>>
+  --
+  <color:#666>room_id</color> : UUID <<FK>>
+  <color:#666>admin_id</color> : UUID <<FK>>
   status : TEXT
   reason : TEXT
 }
 
-entity "room_activity_logs" as activity_logs {
-  * id : UUID <<PK>>
+entity "**room_activity_logs**" as activity_logs #ECEFF1 {
+  <color:#b8860b><b>id</b></color> : UUID <<PK>>
   --
-  room_id : UUID <<FK>>
-  actor_id : UUID <<FK>>
+  <color:#666>room_id</color> : UUID <<FK>>
+  <color:#666>actor_id</color> : UUID <<FK>>
   action : TEXT
-  metadata : JSONB
 }
 
-users ||--o{ rooms : "host_id"
-users ||--o{ rooms : "broker_id"
-rooms ||--o{ room_images : "room_id"
-rooms ||--o{ room_amenities : "room_id"
-amenities ||--o{ room_amenities : "amenity_id"
+' ========== LAYOUT CONTROL ==========
+' Bố cục dạng ô lưới giống mẫu báo cáo: lõi ở giữa, các phân hệ bao quanh.
 
-users ||--o{ roommate_requests : "tenant_id"
-rooms ||--o{ roommate_requests : "room_id"
-users ||--o{ appointments : "tenant_id"
-users ||--o{ appointments : "landlord_id / responsible_user"
-rooms ||--o{ appointments : "room_id"
-users ||--o{ room_deposits : "tenant_id"
-users ||--o{ room_deposits : "landlord_id"
-rooms ||--o{ room_deposits : "room_id"
+' Hàng trên: tài khoản và quản trị
+notifications -[hidden]right- users
+users -[hidden]right- approval_history
+approval_history -[hidden]right- activity_logs
 
-users ||--o{ broker_leads : "broker_id"
-users ||--o{ broker_leads : "tenant_id"
-rooms ||--o{ broker_leads : "assigned_room_id"
-broker_leads ||--o{ broker_lead_rooms : "lead_id"
-rooms ||--o{ broker_lead_rooms : "room_id"
-users ||--o{ broker_lead_rooms : "broker_id"
-users ||--o{ broker_commissions : "broker_id"
-users ||--o{ broker_commissions : "tenant_id"
-broker_leads ||--o{ broker_commissions : "lead_id"
-rooms ||--o{ broker_commissions : "room_id"
+' Hàng giữa: giao tiếp, phòng, môi giới
+conversations -[hidden]right- messages
+messages -[hidden]right- rooms
+rooms -[hidden]right- broker_leads
 
-users ||--o{ favorites : "user_id"
-rooms ||--o{ favorites : "room_id"
-users ||--o{ reviews : "user_id"
-rooms ||--o{ reviews : "room_id"
-users ||--o{ reports : "reporter_id"
-rooms ||--o{ reports : "room_id"
-users ||--o{ notifications : "user_id"
-users ||--o{ conversations : "tenant_id"
-users ||--o{ conversations : "landlord_id / responsible_user"
-rooms ||--o{ conversations : "room_id"
-conversations ||--o{ messages : "conversation_id"
-users ||--o{ messages : "sender_id"
+' Hàng nghiệp vụ chính
+roommate_requests -[hidden]right- appointments
+appointments -[hidden]right- room_deposits
+room_deposits -[hidden]right- broker_lead_rooms
+broker_lead_rooms -[hidden]right- broker_commissions
 
-rooms ||--o{ approval_history : "room_id"
-users ||--o{ approval_history : "admin_id"
-rooms ||--o{ activity_logs : "room_id"
-users ||--o{ activity_logs : "actor_id"
+' Hàng dữ liệu phụ của phòng và phản hồi
+favorites -[hidden]right- reviews
+reviews -[hidden]right- reports
+reports -[hidden]right- room_images
+room_images -[hidden]right- room_amenities
+room_amenities -[hidden]right- amenities
+
+' Liên kết dọc để giữ hình gần vuông, không kéo dài ngang/dọc.
+users -[hidden]down- rooms
+rooms -[hidden]down- appointments
+appointments -[hidden]down- reviews
+broker_leads -[hidden]down- broker_lead_rooms
+conversations -[hidden]down- roommate_requests
+messages -[hidden]down- appointments
+approval_history -[hidden]down- broker_leads
+activity_logs -[hidden]down- broker_commissions
+
+' ========== RELATIONSHIPS ==========
+' Core
+users ||--o{ rooms : "đăng / phụ trách"
+rooms ||--o{ room_images : "có ảnh"
+rooms ||--o{ room_amenities : "có"
+amenities ||--o{ room_amenities : "tiện ích"
+
+' Tenant flow
+users ||--o{ roommate_requests : "gửi"
+rooms ||--o{ roommate_requests : "nhận yêu cầu"
+rooms ||--o{ appointments : "lịch xem"
+rooms ||--o{ room_deposits : "cọc phòng"
+
+' Broker flow
+users ||--o{ broker_leads : "quản lý lead"
+broker_leads ||--o{ broker_lead_rooms : "gợi ý"
+rooms ||--o{ broker_lead_rooms : "được gợi ý"
+broker_leads ||--o{ broker_commissions : "phát sinh"
+rooms ||--o{ broker_commissions : "tính hoa hồng"
+
+' Communication & feedback
+rooms ||--o{ conversations : "trao đổi"
+conversations ||--o{ messages : "chứa"
+users ||--o{ notifications : "nhận"
+rooms ||--o{ favorites : "được lưu"
+rooms ||--o{ reviews : "đánh giá"
+rooms ||--o{ reports : "báo cáo"
+
+' Admin & audit
+rooms ||--o{ approval_history : "kiểm duyệt"
+rooms ||--o{ activity_logs : "ghi log"
+
+' ========== SYMBOLIC FK LINKS ==========
+' Các đường nét đứt chỉ biểu diễn FK phụ, tránh làm bố cục bị kéo lệch quá nhiều.
+users .. appointments : "FK"
+users .. room_deposits : "FK"
+users .. conversations : "FK"
+users .. messages : "FK"
+users .. favorites : "FK"
+users .. reviews : "FK"
+users .. reports : "FK"
+users .. approval_history : "FK"
+users .. activity_logs : "FK"
+rooms .. broker_leads : "FK"
+users .. broker_commissions : "FK"
+
+' ========== LEGEND ==========
+legend bottom
+  | <#E8F5E9> Dữ liệu lõi | <#FFF3E0> Người thuê | <#E3F2FD> Môi giới | <#F3E5F5> Giao tiếp & Phản hồi | <#ECEFF1> Quản trị / Audit |
+endlegend
 
 @enduml

@@ -1,4 +1,4 @@
-@startuml
+﻿@startuml
 title Sequence Diagram: Update Appointment Status Process
 
 actor "Chủ trọ / Người thuê" as User
@@ -33,3 +33,4 @@ else Cập nhật hợp lệ
 end
 
 @enduml
+

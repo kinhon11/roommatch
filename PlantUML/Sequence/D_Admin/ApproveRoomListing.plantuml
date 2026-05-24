@@ -1,4 +1,4 @@
-@startuml
+﻿@startuml
 title Sequence Diagram: Approve Room Listing Process
 
 actor "Admin" as Admin
@@ -36,3 +36,4 @@ else Duyệt / từ chối hợp lệ
 end
 
 @enduml
+

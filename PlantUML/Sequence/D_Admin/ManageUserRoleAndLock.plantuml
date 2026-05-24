@@ -1,4 +1,4 @@
-@startuml
+﻿@startuml
 title Sequence Diagram: Manage User Role and Lock Process
 
 actor "Admin" as Admin
@@ -43,3 +43,4 @@ else Khóa / mở khóa tài khoản
 end
 
 @enduml
+

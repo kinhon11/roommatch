@@ -4,6 +4,7 @@ const path = require('node:path');
 
 const supabasePath = path.resolve(__dirname, '../config/supabaseClient.js');
 const brokerLeadSyncPath = path.resolve(__dirname, '../utils/brokerLeadSync.js');
+const aiClientPath = path.resolve(__dirname, '../config/aiClient.js');
 
 class QueryBuilder {
   constructor(table, handler) {
@@ -139,6 +140,38 @@ const loadController = (relativePath, handler) => {
   return require(controllerPath);
 };
 
+const loadControllerWithAI = (relativePath, handler, aiClientExports) => {
+  const controllerPath = path.resolve(__dirname, '..', relativePath);
+  delete require.cache[controllerPath];
+  delete require.cache[brokerLeadSyncPath];
+  delete require.cache[aiClientPath];
+  require.cache[supabasePath] = {
+    id: supabasePath,
+    filename: supabasePath,
+    loaded: true,
+    exports: mockSupabase(handler),
+  };
+  require.cache[aiClientPath] = {
+    id: aiClientPath,
+    filename: aiClientPath,
+    loaded: true,
+    exports: aiClientExports,
+  };
+  return require(controllerPath);
+};
+
+const loadModuleWithSupabase = (relativePath, handler) => {
+  const modulePath = path.resolve(__dirname, '..', relativePath);
+  delete require.cache[modulePath];
+  require.cache[supabasePath] = {
+    id: supabasePath,
+    filename: supabasePath,
+    loaded: true,
+    exports: mockSupabase(handler),
+  };
+  return require(modulePath);
+};
+
 const createRes = () => {
   const res = {
     statusCode: 200,
@@ -169,6 +202,7 @@ const callController = async (controller, req = {}) => {
 
 afterEach(() => {
   delete require.cache[supabasePath];
+  delete require.cache[aiClientPath];
 });
 
 test('room CRUD creates pending room with normalized payload and amenities', async () => {
@@ -210,6 +244,37 @@ test('room CRUD creates pending room with normalized payload and amenities', asy
   assert.equal(res.statusCode, 201);
   assert.equal(res.body.room.id, 'room-1');
   assert.equal(writes.filter(w => w.operation === 'insert').length, 2);
+});
+
+test('room listing filters amenities before pagination', async () => {
+  const { getApprovedRooms } = loadController('controllers/roomController.js', (query) => {
+    if (query.table === 'room_amenities' && query.operation === 'select') {
+      return {
+        data: [
+          { room_id: 'room-1', amenities: { name: 'WiFi' } },
+          { room_id: 'room-1', amenities: { name: 'Chỗ để xe' } },
+          { room_id: 'room-2', amenities: { name: 'WiFi' } },
+        ],
+        error: null,
+      };
+    }
+    if (query.table === 'rooms' && query.operation === 'select') {
+      const idFilter = query.filters.find(f => f.method === 'in' && f.column === 'id');
+      const rangeFilter = query.filters.find(f => f.method === 'range');
+      assert.deepEqual(idFilter.value, ['room-1']);
+      assert.deepEqual({ from: rangeFilter.from, to: rangeFilter.to }, { from: 0, to: 11 });
+      return { data: [{ id: 'room-1', title: 'Match' }], count: 1, error: null };
+    }
+    return { data: null, error: null };
+  });
+
+  const res = await callController(getApprovedRooms, {
+    query: { amenities: 'wifi,chỗ để xe', page: 1, limit: 12 },
+  });
+
+  assert.equal(res.statusCode, 200);
+  assert.equal(res.body.total, 1);
+  assert.deepEqual(res.body.rooms, [{ id: 'room-1', title: 'Match' }]);
 });
 
 test('room CRUD protects owner-only updates and validates reopen slots', async () => {
@@ -405,6 +470,60 @@ test('chat sends trimmed messages only for conversation participants', async () 
   assert.equal(res.body.message.sender_id, 'tenant-1');
 });
 
+test('chat syncs broker lead when tenant sends message for broker room', async () => {
+  const leadWrites = [];
+  const roomLinks = [];
+  const { sendMessage } = loadController('controllers/chatController.js', (query) => {
+    if (query.table === 'conversations' && query.operation === 'select') {
+      assert.match(query.columns, /room:rooms/);
+      return {
+        data: {
+          id: 'conv-1',
+          tenant_id: 'tenant-1',
+          landlord_id: 'broker-1',
+          room_id: 'room-1',
+          room: { id: 'room-1', broker_id: 'broker-1', title: 'Broker room' },
+        },
+        error: null,
+      };
+    }
+    if (query.table === 'messages' && query.operation === 'insert') {
+      return { data: { id: 'msg-1', ...query.payload }, error: null };
+    }
+    if (query.table === 'users' && query.operation === 'select') {
+      return { data: { id: 'tenant-1', full_name: 'Tenant A', email: 'tenant@test.com', phone: '0900000000' }, error: null };
+    }
+    if (query.table === 'rooms' && query.operation === 'select') {
+      return { data: { id: 'room-1', title: 'Broker room' }, error: null };
+    }
+    if (query.table === 'broker_leads' && query.operation === 'select') {
+      return { data: null, error: null };
+    }
+    if (query.table === 'broker_leads' && query.operation === 'insert') {
+      leadWrites.push(query.payload);
+      return { data: { id: 'lead-1', ...query.payload }, error: null };
+    }
+    if (query.table === 'broker_lead_rooms' && query.operation === 'upsert') {
+      roomLinks.push(query.payload);
+      return { data: query.payload, error: null };
+    }
+    return { data: query.payload || null, error: null };
+  });
+
+  const res = await callController(sendMessage, {
+    user: { id: 'tenant-1', role: 'tenant', full_name: 'Tenant A' },
+    params: { id: 'conv-1' },
+    body: { content: '  Tôi muốn xem phòng này  ' },
+  });
+
+  assert.equal(res.statusCode, 201);
+  assert.equal(leadWrites[0].broker_id, 'broker-1');
+  assert.equal(leadWrites[0].tenant_id, 'tenant-1');
+  assert.equal(leadWrites[0].assigned_room_id, 'room-1');
+  assert.equal(leadWrites[0].status, 'consulted');
+  assert.equal(roomLinks[0].room_id, 'room-1');
+});
+
 test('favorite only adds public approved rooms and filters stale favorites', async () => {
   const { addFavorite, getFavorites } = loadController('controllers/favoriteController.js', (query) => {
     if (query.table === 'rooms') {
@@ -486,6 +605,50 @@ test('deposit rejects invalid lifecycle changes and hides room after payment', a
   assert.equal(updates.filter(u => u.table === 'room_deposits').at(-1).payload.status, 'landlord_accepted');
   assert.equal(updates.find(u => u.table === 'rooms').payload.is_hidden, true);
   assert.equal(updates.find(u => u.table === 'rooms').payload.is_available, false);
+});
+
+test('deposit only allows admin paid after landlord accepts', async () => {
+  let depositStatus = 'pending_payment';
+  const updates = [];
+  const { updateDepositStatus } = loadController('controllers/depositController.js', (query) => {
+    if (query.table === 'room_deposits' && query.operation === 'select') {
+      return {
+        data: {
+          id: 'dep-1',
+          room_id: 'room-1',
+          tenant_id: 'tenant-1',
+          landlord_id: 'landlord-1',
+          status: depositStatus,
+          amount: 500000,
+          room: { id: 'room-1', title: 'Phòng A', available_slots: 0 },
+        },
+        error: null,
+      };
+    }
+    if (query.operation === 'update') {
+      updates.push({ table: query.table, payload: query.payload });
+      if (query.table === 'room_deposits') depositStatus = query.payload.status;
+      return { data: { id: 'dep-1', ...query.payload }, error: null };
+    }
+    return { data: query.payload || null, error: null };
+  });
+
+  const prematurePaid = await callController(updateDepositStatus, {
+    user: { id: 'admin-1', role: 'admin' },
+    params: { id: 'dep-1' },
+    body: { status: 'paid', note: 'Admin nhận tiền' },
+  });
+  assert.equal(prematurePaid.statusCode, 403);
+
+  depositStatus = 'landlord_accepted';
+  const paid = await callController(updateDepositStatus, {
+    user: { id: 'admin-1', role: 'admin' },
+    params: { id: 'dep-1' },
+    body: { status: 'paid', note: 'Đã đối soát' },
+  });
+
+  assert.equal(paid.statusCode, 200);
+  assert.equal(updates.find(update => update.table === 'room_deposits').payload.status, 'paid');
 });
 
 test('deposit payment for accepted roommate request keeps shared room visible while slots remain', async () => {
@@ -807,4 +970,73 @@ test('assistant tool router runs search, compare, and review summary tools', asy
   assert.equal(result.rooms.length, 1);
   assert.equal(result.toolResults.find(tool => tool.name === 'summarizeReviews').average_rating, 4);
   assert.equal(result.toolResults.find(tool => tool.name === 'compareRooms').comparisons[0].price_delta, -500000);
+});
+
+test('AI room recommendation parses k and million price units correctly', async () => {
+  const { buildSearchCriteria } = loadModuleWithSupabase('services/ai/roomRecommendationService.js', (query) => {
+    if (query.table === 'amenities') return { data: [], error: null };
+    return { data: [], error: null };
+  });
+
+  const under500k = await buildSearchCriteria('Tìm phòng dưới 500k', {}, null, 'search');
+  const from2tr = await buildSearchCriteria('Tìm phòng từ 2tr', {}, null, 'search');
+  const under4 = await buildSearchCriteria('Tìm phòng dưới 4 ở Hà Nội', {}, null, 'search');
+
+  assert.equal(under500k.priceMax, 500000);
+  assert.equal(from2tr.priceMin, 2000000);
+  assert.equal(under4.priceMax, 4000000);
+});
+
+test('AI listing helpers return deterministic fallback when Gemini fails', async () => {
+  const aiFailure = Object.assign(new Error('quota exceeded'), { code: 'AI_PROVIDER_FAILED', status: 502 });
+  const { generateDescription, analyzeListing, summarizeReviews } = loadControllerWithAI(
+    'controllers/aiController.js',
+    () => ({ data: [], error: null }),
+    {
+      generateAIText: async () => { throw aiFailure; },
+    }
+  );
+
+  const description = await callController(generateDescription, {
+    body: {
+      title: 'Phòng studio gần trường',
+      price: 3500000,
+      address: 'Cầu Giấy',
+      city: 'Hà Nội',
+      area: 22,
+      amenities: ['WiFi', 'Máy lạnh'],
+    },
+  });
+  assert.equal(description.statusCode, 200);
+  assert.equal(description.body.provider, 'fallback');
+  assert.match(description.body.description, /Phòng studio/);
+
+  const analysis = await callController(analyzeListing, {
+    body: {
+      title: 'Phòng studio gần trường',
+      price: 3500000,
+      address: 'Cầu Giấy',
+      city: 'Hà Nội',
+      description: 'Phòng sạch, gần trường.',
+      amenities: [],
+      image_count: 1,
+    },
+  });
+  assert.equal(analysis.statusCode, 200);
+  assert.equal(analysis.body.provider, 'fallback');
+  assert.equal(analysis.body.analysis.status, 'needs_work');
+  assert.ok(Array.isArray(analysis.body.analysis.suggestions));
+
+  const reviewSummary = await callController(summarizeReviews, {
+    body: {
+      room_title: 'Phòng A',
+      reviews: [
+        { rating: 5, comment: 'Sạch và yên tĩnh.' },
+        { rating: 3, comment: 'Hơi xa chợ.' },
+      ],
+    },
+  });
+  assert.equal(reviewSummary.statusCode, 200);
+  assert.equal(reviewSummary.body.provider, 'fallback');
+  assert.equal(reviewSummary.body.summary.confidence, 'low');
 });

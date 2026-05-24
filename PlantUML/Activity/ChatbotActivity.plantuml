@@ -1,4 +1,4 @@
-@startuml
+﻿@startuml
 title Activity Diagram: 2.3.8. Quy trình Chatbot
 
 skinparam shadowing false
@@ -93,3 +93,4 @@ else (Kết thúc)
 endif
 
 @enduml
+

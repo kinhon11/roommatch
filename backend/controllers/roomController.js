@@ -35,6 +35,34 @@ const applyRecommendedRoomOrder = (query) => query
   .order('price', { ascending: true })
   .order('created_at', { ascending: true });
 
+const parseAmenityNames = (value) => String(value || '')
+  .split(',')
+  .map(name => name.trim().toLowerCase())
+  .filter(Boolean);
+
+const findRoomIdsWithAmenities = async (amenityFilter) => {
+  const wantedAmenities = parseAmenityNames(amenityFilter);
+  if (!wantedAmenities.length) return null;
+
+  const { data, error } = await supabase
+    .from('room_amenities')
+    .select('room_id, amenities (name)');
+
+  if (error) throw error;
+
+  const roomMatches = new Map();
+  for (const row of data || []) {
+    const name = row.amenities?.name?.toLowerCase();
+    if (!name || !wantedAmenities.includes(name)) continue;
+    if (!roomMatches.has(row.room_id)) roomMatches.set(row.room_id, new Set());
+    roomMatches.get(row.room_id).add(name);
+  }
+
+  return [...roomMatches.entries()]
+    .filter(([, names]) => wantedAmenities.every(name => names.has(name)))
+    .map(([roomId]) => roomId);
+};
+
 const canManageRoom = (user, room) => (
   user?.role === 'admin' || room?.host_id === user?.id || room?.broker_id === user?.id
 );
@@ -110,6 +138,16 @@ const getApprovedRooms = async (req, res) => {
 
     const from = (page - 1) * limit;
     const to   = page * limit - 1;
+    const amenityRoomIds = amenityFilter ? await findRoomIdsWithAmenities(amenityFilter) : null;
+
+    if (amenityRoomIds && amenityRoomIds.length === 0) {
+      return res.status(200).json({
+        rooms: [],
+        total: 0,
+        page: Number(page),
+        limit: Number(limit),
+      });
+    }
 
     let query = supabase
       .from('rooms')
@@ -123,8 +161,7 @@ const getApprovedRooms = async (req, res) => {
       .eq('status', 'approved')
       .eq('is_hidden', false)
       .eq('is_available', true)
-      .gt('available_slots', 0)
-      .range(from, to);
+      .gt('available_slots', 0);
 
     if (sort === 'price_asc') {
       query = query.order('price', { ascending: true });
@@ -147,25 +184,16 @@ const getApprovedRooms = async (req, res) => {
     if (private_hours === 'true') query = query.eq('has_private_hours', true);
     if (allow_pets === 'true') query = query.eq('allow_pets', true);
     if (has_parking === 'true') query = query.eq('has_parking', true);
+    if (amenityRoomIds) query = query.in('id', amenityRoomIds);
+
+    query = query.range(from, to);
 
     const { data, error, count } = await query;
     if (error) return res.status(500).json({ error: error.message });
 
-    // Post-filter by amenities (Supabase doesn't support filtering on nested joins easily)
-    let filteredData = data;
-    if (amenityFilter) {
-      const wantedAmenities = amenityFilter.split(',').map(s => s.trim().toLowerCase());
-      filteredData = data.filter(room => {
-        const roomAmenityNames = (room.room_amenities || [])
-          .map(ra => ra.amenities?.name?.toLowerCase())
-          .filter(Boolean);
-        return wantedAmenities.every(wa => roomAmenityNames.includes(wa));
-      });
-    }
-
     return res.status(200).json({
-      rooms: filteredData,
-      total: amenityFilter ? filteredData.length : (count ?? data.length),
+      rooms: data,
+      total: count ?? data.length,
       page: Number(page),
       limit: Number(limit),
     });

@@ -27,6 +27,14 @@ const buildRuleSummary = (rules = {}) => {
   return items.length ? items.join('; ') : 'chưa cung cấp';
 };
 
+const compactToolResultsForPrompt = (toolResults = []) => toolResults.map((tool) => {
+  const { rooms, comparisons, ...rest } = tool || {};
+  return {
+    ...rest,
+    ...(Array.isArray(comparisons) ? { comparisons: comparisons.slice(0, 3) } : {}),
+  };
+});
+
 const buildDescriptionPrompt = ({ title, numericPrice, area, address, city, amenityList, costs, rules }) => `
 Bạn là chuyên gia viết mô tả bất động sản cho thuê tại Việt Nam.
 Hãy viết một đoạn mô tả phòng trọ hấp dẫn, chân thật bằng tiếng Việt dựa trên thông tin sau:
@@ -161,7 +169,7 @@ Phòng đang gợi ý:
 ${JSON.stringify(summarizeRooms(rooms), null, 2)}
 
 Kết quả tool router:
-${JSON.stringify(toolResults, null, 2)}
+${JSON.stringify(compactToolResultsForPrompt(toolResults), null, 2)}
 
 Ngữ cảnh hội thoại gần đây:
 ${JSON.stringify(conversation.slice(-8), null, 2)}
@@ -176,7 +184,7 @@ Hãy ưu tiên:
 - nếu tool router có compareRooms thì chỉ so sánh theo dữ liệu có thật: giá, diện tích, khu vực, tiện ích;
 - nếu có rooms phù hợp thì mở đầu bằng kết luận ngắn, sau đó liệt kê 2-4 phòng tốt nhất và nêu lý do phù hợp;
 - nếu không có phòng đủ tốt, nói rõ cần nới điều kiện nào.
-Không dùng markdown nặng; chỉ dùng xuống dòng hoặc gạch đầu dòng nhẹ.
+Không dùng markdown nặng, không in đậm, không dùng bảng. Trả lời trọn câu, tối đa 180 từ.
 `.trim();
 
 module.exports = {

@@ -1,4 +1,4 @@
-@startuml
+﻿@startuml
 title Sequence Diagram: Login Process
 
 actor "Người dùng" as User
@@ -42,3 +42,4 @@ else Đủ dữ liệu
 end
 
 @enduml
+

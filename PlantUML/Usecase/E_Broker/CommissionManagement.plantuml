@@ -1,0 +1,32 @@
+﻿@startuml
+title Use Case Theo dõi hoa hồng - Môi giới
+
+left to right direction
+skinparam shadowing false
+skinparam defaultFontName "DejaVu Sans"
+skinparam actorStyle awesome
+
+actor "Môi giới" as Broker
+
+rectangle "RoommieMatch" {
+  (Xem danh sách hoa hồng) as ViewCommissions
+  (Lọc hoa hồng theo trạng thái) as FilterCommissions
+  (Xem chi tiết lead / phòng liên quan) as ViewCommissionDetail
+  (Theo dõi trạng thái thu tiền) as TrackCollection
+  (Theo dõi trạng thái đã trả broker) as TrackPayment
+}
+
+Broker --> ViewCommissions
+Broker --> FilterCommissions
+Broker --> ViewCommissionDetail
+Broker --> TrackCollection
+Broker --> TrackPayment
+
+FilterCommissions .> ViewCommissions : <<include>>
+ViewCommissionDetail .> ViewCommissions : <<include>>
+TrackCollection .> ViewCommissionDetail : <<include>>
+TrackPayment .> ViewCommissionDetail : <<include>>
+
+@enduml
+
+

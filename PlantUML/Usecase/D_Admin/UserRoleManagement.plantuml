@@ -1,4 +1,4 @@
-@startuml
+﻿@startuml
 title Use Case Quản lý Nhân sự & Phân quyền
 
 left to right direction
@@ -6,11 +6,12 @@ skinparam shadowing false
 actor "Admin" as Admin
 
 rectangle "RoommieMatch" {
-  usecase "Xem danh sách người dùng" as ViewUsers
-  usecase "Tìm kiếm / lọc người dùng" as FilterUsers
-  usecase "Cập nhật vai trò" as UpdateRole
-  usecase "Khóa / mở khóa tài khoản" as LockUser
-  usecase "Xem thông tin người dùng" as ViewUserDetail
+  (Xem danh sách người dùng) as ViewUsers
+  (Tìm kiếm / lọc người dùng) as FilterUsers
+  (Cập nhật vai trò) as UpdateRole
+  (Khóa / mở khóa tài khoản) as LockUser
+  (Xem thông tin người dùng) as ViewUserDetail
+  (Phân quyền môi giới) as AssignBrokerRole
 }
 
 Admin --> ViewUsers
@@ -18,8 +19,12 @@ Admin --> FilterUsers
 Admin --> ViewUserDetail
 Admin --> UpdateRole
 Admin --> LockUser
+Admin --> AssignBrokerRole
 
 FilterUsers .> ViewUsers : <<include>>
 ViewUserDetail .> ViewUsers : <<include>>
+AssignBrokerRole .> UpdateRole : <<include>>
 
 @enduml
+
+

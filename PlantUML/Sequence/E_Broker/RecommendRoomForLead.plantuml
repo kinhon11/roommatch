@@ -1,0 +1,38 @@
+@startuml
+title Sequence Diagram: Broker Recommend Room For Lead Process
+
+actor "Môi giới" as Broker
+boundary "Lead Detail UI" as UI
+control "Broker Controller" as BrokerCtrl
+database "Broker Leads Table" as Leads
+database "Rooms Table" as Rooms
+database "Broker Lead Rooms Table" as LeadRooms
+database "Activity Logs Table" as Logs
+
+Broker -> UI: Chọn lead và phòng phù hợp
+Broker -> UI: Nhập lý do gợi ý / phản hồi khách
+UI -> BrokerCtrl: POST /api/broker/leads/{id}/rooms
+
+BrokerCtrl -> Leads: Kiểm tra lead thuộc broker
+alt Lead không tồn tại
+  Leads --> BrokerCtrl: Không có dữ liệu
+  BrokerCtrl --> UI: 404 Not Found
+  UI --> Broker: Lead không tồn tại
+else Lead hợp lệ
+  Leads --> BrokerCtrl: Lead hợp lệ
+  BrokerCtrl -> Rooms: Kiểm tra phòng thuộc broker
+  alt Phòng không được phân công cho broker
+    Rooms --> BrokerCtrl: broker_id không khớp
+    BrokerCtrl --> UI: 400 Bad Request
+    UI --> Broker: Không thể gợi ý phòng này
+  else Phòng hợp lệ
+    Rooms --> BrokerCtrl: Room hợp lệ
+    BrokerCtrl -> LeadRooms: Upsert phòng gợi ý cho lead
+    LeadRooms --> BrokerCtrl: Recommendation
+    BrokerCtrl -> Logs: Ghi log broker_room_recommended
+    BrokerCtrl --> UI: 200 OK
+    UI --> Broker: Gợi ý phòng thành công
+  end
+end
+
+@enduml

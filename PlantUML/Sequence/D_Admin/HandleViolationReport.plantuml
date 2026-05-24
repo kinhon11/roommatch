@@ -1,4 +1,4 @@
-@startuml
+﻿@startuml
 title Sequence Diagram: Handle Violation Report Process
 
 actor "Admin" as Admin
@@ -39,3 +39,4 @@ else Status hợp lệ
 end
 
 @enduml
+

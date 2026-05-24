@@ -1,4 +1,4 @@
-@startuml
+﻿@startuml
 title Sequence Diagram: Register Process
 
 actor "Người dùng" as User
@@ -43,3 +43,4 @@ else Dữ liệu hợp lệ
 end
 
 @enduml
+

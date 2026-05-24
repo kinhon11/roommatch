@@ -1,128 +1,107 @@
-@startuml
-title Biểu đồ Use Case tổng quát hệ thống RoommieMatch
-
+﻿@startuml
 left to right direction
+title General Use Case Diagram - RoommieMatch System
+
 skinparam shadowing false
 skinparam defaultFontName "DejaVu Sans"
 skinparam packageStyle rectangle
 skinparam actorStyle awesome
-skinparam nodesep 45
-skinparam ranksep 55
 skinparam usecase {
-  BackgroundColor #F8FAFC
-  BorderColor #334155
-  ArrowColor #334155
+  BackgroundColor #FFFDEB
+  BorderColor #C2185B
+  ArrowColor #C2185B
 }
 skinparam actor {
-  BackgroundColor #E0F2FE
-  BorderColor #334155
+  BackgroundColor #E3F2FD
+  BorderColor #607D8B
 }
 
-actor "Người thuê" as Tenant
-actor "Chủ trọ" as Landlord
-actor "Môi giới" as Broker
-actor "Admin" as Admin
+' Actors
+actor "Người thuê\n(Tenant)" as Tenant
+actor "Chủ trọ\n(Landlord)" as Landlord
+actor "Môi giới\n(Broker)" as Broker
+actor "Admin\n(Quản trị viên)" as Admin
 
-rectangle "RoommieMatch" {
-  package "Chức năng chung" {
-    usecase "Đăng ký / đăng nhập" as UC_Auth
-    usecase "Quản lý hồ sơ" as UC_Profile
-    usecase "Trò chuyện" as UC_Chat
-    usecase "Thông báo" as UC_Notification
-    usecase "Trợ lý AI" as UC_AI
+rectangle "Hệ thống RoommieMatch (Web App)" {
+
+  ' Shared
+  (Đăng nhập / Đăng xuất) as UC_Login
+  (Quản lý hồ sơ cá nhân) as UC_Profile
+  (Chat & Thông báo) as UC_ChatNotify
+  ' Tenant
+  package "Phân hệ Người thuê" {
+    (Tìm kiếm & Xem phòng) as UC_SearchRoom
+    (Yêu thích / Đánh giá / Báo cáo) as UC_TenantInteract
+    (Đặt lịch xem phòng) as UC_TenantAppointment
+    (Gửi yêu cầu ở ghép / Đặt cọc) as UC_TenantRequestDeposit
   }
 
-  package "Người thuê" {
-    usecase "Tìm kiếm, lọc và xem phòng" as UC_SearchView
-    usecase "Yêu thích phòng" as UC_Favorite
-    usecase "Đặt lịch xem phòng" as UC_Appointment
-    usecase "Gửi yêu cầu ở ghép/thuê phòng" as UC_RoommateRequest
-    usecase "Gửi yêu cầu cọc giữ phòng" as UC_DepositCreate
-    usecase "Theo dõi cọc và lịch hẹn" as UC_TenantTracking
-    usecase "Đánh giá phòng sau tương tác" as UC_Review
-    usecase "Báo cáo vi phạm" as UC_Report
+  ' Landlord
+  package "Phân hệ Chủ trọ" {
+    (Đăng & Cập nhật phòng) as UC_PostRoom
+    (Quản lý phòng và slot) as UC_ManageRoom
+    (Xử lý yêu cầu ở ghép) as UC_HandleRequest
+    (Quản lý lịch hẹn & đặt cọc) as UC_LandlordScheduleDeposit
   }
 
-  package "Chủ trọ" {
-    usecase "Đăng phòng" as UC_CreateRoom
-    usecase "Quản lý phòng, slot và trạng thái ẩn/hiện" as UC_ManageRoom
-    usecase "Quản lý yêu cầu ở ghép/thuê" as UC_ManageRequest
-    usecase "Quản lý lịch xem phòng" as UC_ManageAppointment
-    usecase "Xác nhận / hoàn cọc" as UC_ManageDeposit
-    usecase "Phản hồi đánh giá" as UC_RespondReview
+  ' Broker
+  package "Phân hệ Môi giới" {
+    (Xem phòng được phân công) as UC_AssignedRooms
+    (Quản lý lead khách thuê) as UC_ManageLeads
+    (Tư vấn & Gợi ý phòng) as UC_RecommendRoom
+    (Theo dõi hoa hồng) as UC_BrokerCommission
   }
 
-  package "Môi giới" {
-    usecase "Xem phòng được admin phân công" as UC_BrokerRooms
-    usecase "Quản lý lead khách thuê" as UC_BrokerLeads
-    usecase "Gợi ý phòng phù hợp cho lead" as UC_RecommendRooms
-    usecase "Quản lý lịch xem phòng được giao" as UC_BrokerAppointments
-    usecase "Theo dõi hoa hồng" as UC_BrokerCommissions
-  }
-
-  package "Admin" {
-    usecase "Duyệt / từ chối bài đăng" as UC_AdminRooms
-    usecase "Gán broker phụ trách phòng" as UC_AssignBroker
-    usecase "Quản lý người dùng, role và khóa tài khoản" as UC_ManageUser
-    usecase "Xử lý báo cáo vi phạm" as UC_AdminReport
-    usecase "Theo dõi dashboard hệ thống" as UC_AdminStats
-    usecase "Quản lý thu/trả hoa hồng broker" as UC_AdminCommissions
+  ' Admin
+  package "Phân hệ Quản trị" {
+    (Quản lý người dùng & phân quyền) as UC_ManageUsers
+    (Duyệt bài đăng phòng) as UC_ModerateRoom
+    (Gán môi giới phụ trách phòng) as UC_AssignBroker
+    (Xem báo cáo, thống kê & hoa hồng) as UC_ReportStats
   }
 }
 
-Tenant --> UC_Auth
-Tenant --> UC_Profile
-Tenant --> UC_Chat
-Tenant --> UC_Notification
-Tenant --> UC_AI
-Tenant --> UC_SearchView
-Tenant --> UC_Favorite
-Tenant --> UC_Appointment
-Tenant --> UC_RoommateRequest
-Tenant --> UC_DepositCreate
-Tenant --> UC_TenantTracking
-Tenant --> UC_Review
-Tenant --> UC_Report
+' Shared relationships
+Tenant -- UC_Login
+Landlord -- UC_Login
+Broker -- UC_Login
+Admin -- UC_Login
 
-Landlord --> UC_Auth
-Landlord --> UC_Profile
-Landlord --> UC_Chat
-Landlord --> UC_Notification
-Landlord --> UC_AI
-Landlord --> UC_CreateRoom
+Tenant -- UC_Profile
+Landlord -- UC_Profile
+Broker -- UC_Profile
+Admin -- UC_Profile
+
+Tenant -- UC_ChatNotify
+Landlord -- UC_ChatNotify
+Broker -- UC_ChatNotify
+
+' Tenant logic
+Tenant --> UC_SearchRoom
+Tenant --> UC_TenantInteract
+Tenant --> UC_TenantAppointment
+Tenant --> UC_TenantRequestDeposit
+
+' Landlord logic
+Landlord --> UC_PostRoom
 Landlord --> UC_ManageRoom
-Landlord --> UC_ManageRequest
-Landlord --> UC_ManageAppointment
-Landlord --> UC_ManageDeposit
-Landlord --> UC_RespondReview
+Landlord --> UC_HandleRequest
+Landlord --> UC_LandlordScheduleDeposit
 
-Broker --> UC_Auth
-Broker --> UC_Profile
-Broker --> UC_Chat
-Broker --> UC_Notification
-Broker --> UC_BrokerRooms
-Broker --> UC_BrokerLeads
-Broker --> UC_RecommendRooms
-Broker --> UC_BrokerAppointments
-Broker --> UC_BrokerCommissions
-Broker --> UC_ManageRequest
+' Broker logic
+Broker --> UC_AssignedRooms
+Broker --> UC_ManageLeads
+Broker --> UC_RecommendRoom
+Broker --> UC_BrokerCommission
+Broker --> UC_HandleRequest
+Broker --> UC_LandlordScheduleDeposit
 
-Admin --> UC_Auth
-Admin --> UC_Profile
-Admin --> UC_AdminRooms
+' Admin logic
+Admin --> UC_ManageUsers
+Admin --> UC_ModerateRoom
 Admin --> UC_AssignBroker
-Admin --> UC_ManageUser
-Admin --> UC_AdminReport
-Admin --> UC_AdminStats
-Admin --> UC_AdminCommissions
-
-UC_CreateRoom .> UC_AdminRooms : <<include>>
-UC_AdminRooms .> UC_AssignBroker : <<extend>>
-UC_BrokerLeads .> UC_RecommendRooms : <<include>>
-UC_BrokerLeads .> UC_BrokerCommissions : <<extend>>
-UC_DepositCreate .> UC_ManageDeposit : <<include>>
-UC_Appointment .> UC_Chat : <<extend>>
-UC_SearchView .> UC_AI : <<extend>>
-UC_CreateRoom .> UC_AI : <<extend>>
+Admin --> UC_ReportStats
 
 @enduml
+
+

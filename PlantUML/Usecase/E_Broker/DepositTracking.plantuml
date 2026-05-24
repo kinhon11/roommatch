@@ -1,0 +1,31 @@
+﻿@startuml
+title Use Case Theo dõi đặt cọc - Môi giới
+
+left to right direction
+skinparam shadowing false
+skinparam defaultFontName "DejaVu Sans"
+skinparam actorStyle awesome
+
+actor "Môi giới" as Broker
+
+rectangle "RoommieMatch" {
+  (Xem đặt cọc của phòng được phân công) as ViewDeposits
+  (Theo dõi trạng thái đặt cọc) as TrackDeposit
+  (Xác nhận trạng thái cọc khi được phân quyền) as UpdateDeposit
+  (Xem lịch sử trạng thái cọc) as ViewTransactions
+  (Nhận thông báo đặt cọc) as ReceiveNotification
+}
+
+Broker --> ViewDeposits
+Broker --> TrackDeposit
+Broker --> UpdateDeposit
+Broker --> ViewTransactions
+Broker --> ReceiveNotification
+
+TrackDeposit .> ViewDeposits : <<include>>
+UpdateDeposit .> ReceiveNotification : <<include>>
+ViewTransactions .> ViewDeposits : <<include>>
+
+@enduml
+
+

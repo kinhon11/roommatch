@@ -1,0 +1,38 @@
+﻿@startuml
+title Use Case Quản lý phòng được phân công - Môi giới
+
+left to right direction
+skinparam shadowing false
+skinparam defaultFontName "DejaVu Sans"
+skinparam actorStyle awesome
+
+actor "Môi giới" as Broker
+
+rectangle "RoommieMatch" {
+  (Xem phòng được admin phân công) as ViewAssignedRooms
+  (Xem chi tiết phòng) as ViewRoomDetail
+  (Ẩn / hiện phòng được giao) as ToggleRoom
+  (Cập nhật trạng thái còn chỗ) as UpdateAvailability
+  (Xem yêu cầu ở ghép của phòng) as ViewRequests
+  (Xử lý yêu cầu ở ghép) as HandleRequests
+  (Quản lý lịch hẹn xem phòng) as ManageAppointments
+  (Chat với người thuê) as ChatTenant
+}
+
+Broker --> ViewAssignedRooms
+Broker --> ViewRoomDetail
+Broker --> ToggleRoom
+Broker --> UpdateAvailability
+Broker --> ViewRequests
+Broker --> HandleRequests
+Broker --> ManageAppointments
+Broker --> ChatTenant
+
+ViewRoomDetail .> ViewAssignedRooms : <<include>>
+HandleRequests .> ViewRequests : <<include>>
+HandleRequests .> ChatTenant : <<extend>>
+ManageAppointments .> ChatTenant : <<extend>>
+
+@enduml
+
+

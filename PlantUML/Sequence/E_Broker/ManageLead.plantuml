@@ -1,0 +1,59 @@
+@startuml
+title Sequence Diagram: Broker Lead Management Process
+
+actor "Môi giới" as Broker
+boundary "Broker Leads UI" as UI
+control "Broker Controller" as BrokerCtrl
+database "Broker Leads Table" as Leads
+database "Rooms Table" as Rooms
+database "Activity Logs Table" as Logs
+
+Broker -> UI: Mở trang quản lý lead
+UI -> BrokerCtrl: GET /api/broker/leads
+BrokerCtrl -> Leads: Lấy danh sách lead theo broker_id
+Leads --> BrokerCtrl: Danh sách lead
+BrokerCtrl --> UI: Lead list
+UI --> Broker: Hiển thị danh sách lead
+
+alt Tạo lead mới
+  Broker -> UI: Nhập thông tin khách thuê
+  UI -> BrokerCtrl: POST /api/broker/leads
+  BrokerCtrl -> BrokerCtrl: Kiểm tra tên, số điện thoại, ngân sách
+  alt Dữ liệu không hợp lệ
+    BrokerCtrl --> UI: 400 Bad Request
+    UI --> Broker: Hiển thị lỗi nhập liệu
+  else Dữ liệu hợp lệ
+    opt Có chọn phòng tư vấn
+      BrokerCtrl -> Rooms: Kiểm tra phòng thuộc broker
+      alt Phòng không thuộc broker
+        Rooms --> BrokerCtrl: Không hợp lệ
+        BrokerCtrl --> UI: 400 Bad Request
+        UI --> Broker: Không thể chọn phòng này
+      else Phòng hợp lệ
+        Rooms --> BrokerCtrl: Room hợp lệ
+      end
+    end
+    BrokerCtrl -> Leads: Insert lead
+    Leads --> BrokerCtrl: Lead mới
+    BrokerCtrl -> Logs: Ghi log broker_lead_created
+    BrokerCtrl --> UI: 201 Created
+    UI --> Broker: Tạo lead thành công
+  end
+else Cập nhật lead
+  Broker -> UI: Sửa thông tin / trạng thái lead
+  UI -> BrokerCtrl: PUT /api/broker/leads/{id}
+  BrokerCtrl -> Leads: Kiểm tra lead thuộc broker
+  alt Lead không tồn tại
+    Leads --> BrokerCtrl: Không có dữ liệu
+    BrokerCtrl --> UI: 404 Not Found
+    UI --> Broker: Lead không tồn tại
+  else Lead hợp lệ
+    Leads --> BrokerCtrl: Lead hiện tại
+    BrokerCtrl -> Leads: Update lead
+    BrokerCtrl -> Logs: Ghi log nếu đổi trạng thái
+    BrokerCtrl --> UI: 200 OK
+    UI --> Broker: Cập nhật lead thành công
+  end
+end
+
+@enduml

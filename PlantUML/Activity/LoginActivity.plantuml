@@ -1,4 +1,4 @@
-@startuml
+﻿@startuml
 title Activity Diagram: Đăng nhập hệ thống
 
 skinparam shadowing false
@@ -75,3 +75,4 @@ endif
 stop
 
 @enduml
+

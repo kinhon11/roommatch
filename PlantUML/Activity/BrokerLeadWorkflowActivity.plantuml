@@ -1,4 +1,4 @@
-@startuml
+﻿@startuml
 title Activity Diagram: Quy trình broker tư vấn lead và hoa hồng
 
 skinparam shadowing false
@@ -67,3 +67,4 @@ else (Không)
 endif
 
 @enduml
+
