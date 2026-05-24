@@ -10,7 +10,7 @@ const STATUS_RANK = {
   lost: 0,
 };
 
-const COMMISSION_RATE_DEFAULT = 0.5;
+const BROKER_COMMISSION_RATE_DEFAULT = 0.15;
 
 const isMissingBrokerCommissionsTable = (error) => {
   const message = error?.message || '';
@@ -122,7 +122,7 @@ const createBrokerCommissionFromDeposit = async ({
   if (!brokerId || !tenantId || !roomId || !leadId) return { skipped: true };
 
   const basisAmount = Number(amount || 0);
-  const commissionAmount = Math.round(basisAmount * COMMISSION_RATE_DEFAULT);
+  const commissionAmount = Math.round(basisAmount * BROKER_COMMISSION_RATE_DEFAULT);
   if (!Number.isFinite(commissionAmount) || commissionAmount <= 0) return { skipped: true };
 
   const { data, error } = await supabase
@@ -133,7 +133,7 @@ const createBrokerCommissionFromDeposit = async ({
       room_id: roomId,
       tenant_id: tenantId,
       amount: commissionAmount,
-      commission_rate: COMMISSION_RATE_DEFAULT,
+      commission_rate: BROKER_COMMISSION_RATE_DEFAULT,
       basis_amount: basisAmount,
       status: 'pending_collection',
       note: note || 'Tự tạo khi khách đã cọc phòng.',
@@ -153,4 +153,5 @@ const createBrokerCommissionFromDeposit = async ({
 module.exports = {
   syncBrokerLeadFromTenantAction,
   createBrokerCommissionFromDeposit,
+  BROKER_COMMISSION_RATE_DEFAULT,
 };

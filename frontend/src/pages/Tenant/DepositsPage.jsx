@@ -151,7 +151,8 @@ const DepositsPage = () => {
                 <p className="deposit-amount">{formatCurrency(deposit.amount)}</p>
                 {['landlord', 'admin'].includes(user?.role) && (
                   <div className="deposit-money-summary">
-                    <span>Hoa hồng môi giới: <strong>{formatCurrency(deposit.broker_commission_amount || 0)}</strong></span>
+                    <span>Công ty nhận 35%: <strong>{formatCurrency(deposit.company_commission_amount || 0)}</strong></span>
+                    <span>Môi giới nhận 15%: <strong>{formatCurrency(deposit.broker_commission_amount || 0)}</strong></span>
                     <span>Chủ nhà dự kiến nhận: <strong>{formatCurrency(deposit.landlord_receive_amount ?? deposit.amount)}</strong></span>
                   </div>
                 )}
@@ -247,7 +248,7 @@ const styles = `
   .deposit-card h2 { font-size:18px; font-weight:700; margin:8px 0 4px; }
   .deposit-card h2 a { color:var(--text-primary); }
   .deposit-amount { color:var(--primary); font-size:20px; font-weight:800; margin:8px 0; }
-  .deposit-money-summary { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:8px; margin:10px 0; }
+  .deposit-money-summary { display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:8px; margin:10px 0; }
   .deposit-money-summary span { padding:9px 10px; border:1px solid var(--border); border-radius:var(--radius-sm); background:var(--bg-warm); color:var(--text-secondary); font-size:13px; }
   .deposit-money-summary strong { display:block; color:var(--text-primary); margin-top:2px; }
   .deposit-note { margin-top:6px; color:var(--text-secondary); font-size:13px; }

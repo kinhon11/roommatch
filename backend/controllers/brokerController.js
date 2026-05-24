@@ -13,7 +13,7 @@ const LEAD_SELECT = `
 
 const LEAD_STATUSES = ['new', 'consulted', 'scheduled', 'visited', 'deposit_ready', 'closed', 'lost'];
 const RECOMMENDATION_STATUSES = ['suggested', 'interested', 'visited', 'rejected', 'deposit_ready'];
-const COMMISSION_RATE_DEFAULT = 0.5;
+const COMMISSION_RATE_DEFAULT = 0.15;
 
 const normalizeCommissionAmount = (value) => {
   if (value === '' || value === undefined || value === null) return null;

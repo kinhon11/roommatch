@@ -2,6 +2,7 @@ const supabase = require('../config/supabaseClient');
 const {
   syncBrokerLeadFromTenantAction,
   createBrokerCommissionFromDeposit,
+  BROKER_COMMISSION_RATE_DEFAULT,
 } = require('../utils/brokerLeadSync');
 
 const ACTIVE_DEPOSIT_STATUSES = ['pending_payment', 'admin_confirmed', 'landlord_accepted', 'paid'];
@@ -14,7 +15,8 @@ const DEPOSIT_STATUSES = [
   'cancelled',
   'refunded',
 ];
-const COMMISSION_RATE = 0.5;
+const COMPANY_COMMISSION_RATE = 0.35;
+const BROKER_COMMISSION_RATE = BROKER_COMMISSION_RATE_DEFAULT;
 const DEPOSIT_SCOPES = {
   FULL_ROOM: 'full_room',
   SLOT: 'slot',
@@ -92,19 +94,29 @@ const notifyAdmins = async (type, payload) => {
     .map(admin => createNotification(admin.id, type, payload)));
 };
 
-const getCommissionAmount = (deposit) => {
+const calculateRateAmount = (amount, rate) => {
+  const numericAmount = Number(amount || 0);
+  if (!Number.isFinite(numericAmount) || numericAmount <= 0) return 0;
+  return Math.round(numericAmount * rate);
+};
+
+const getBrokerCommissionAmount = (deposit) => {
   if (!deposit?.room?.broker_id) return 0;
   const amount = Number(deposit.amount || 0);
-  return Number.isFinite(amount) ? Math.round(amount * COMMISSION_RATE) : 0;
+  return calculateRateAmount(amount, BROKER_COMMISSION_RATE);
 };
 
 const attachDepositMoneySummary = (deposit) => {
-  const commissionAmount = getCommissionAmount(deposit);
+  const brokerCommissionAmount = getBrokerCommissionAmount(deposit);
+  const companyCommissionAmount = calculateRateAmount(deposit.amount, COMPANY_COMMISSION_RATE);
   const amount = Number(deposit.amount || 0);
   return {
     ...deposit,
-    broker_commission_amount: commissionAmount,
-    landlord_receive_amount: Math.max(amount - commissionAmount, 0),
+    company_commission_rate: COMPANY_COMMISSION_RATE,
+    company_commission_amount: companyCommissionAmount,
+    broker_commission_rate: deposit?.room?.broker_id ? BROKER_COMMISSION_RATE : 0,
+    broker_commission_amount: brokerCommissionAmount,
+    landlord_receive_amount: Math.max(amount - companyCommissionAmount - brokerCommissionAmount, 0),
   };
 };
 
