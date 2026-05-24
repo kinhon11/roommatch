@@ -10,6 +10,8 @@ const AdminPendingRooms = () => {
   const [loading, setLoading] = useState(true);
   const [actionState, setActionState] = useState({}); // { [id]: { loading, error } }
   const [rejectModal, setRejectModal] = useState(null); // { roomId, reason }
+  const [page, setPage] = useState(1);
+  const pageSize = 10;
 
   const fetchPending = async () => {
     setLoading(true);
@@ -53,8 +55,10 @@ const AdminPendingRooms = () => {
     }
   };
 
-  const primaryImg = (rm) =>
-    rm.room_images?.find(i => i.is_primary)?.image_url || rm.room_images?.[0]?.image_url || null;
+  const totalPages = Math.max(Math.ceil(rooms.length / pageSize), 1);
+  const pagedRooms = rooms.slice((page - 1) * pageSize, page * pageSize);
+  const showingFrom = rooms.length === 0 ? 0 : (page - 1) * pageSize + 1;
+  const showingTo = Math.min(page * pageSize, rooms.length);
 
   return (
     <div className="admin-pending-page">
@@ -98,71 +102,72 @@ const AdminPendingRooms = () => {
           <p>Không có phòng nào chờ duyệt!</p>
         </div>
       ) : (
-        <div className="pending-list">
-          {rooms.map(room => (
-            <div key={room.id} className="pending-card">
-              {/* Image */}
-              <div className="pending-card__img">
-                {primaryImg(room)
-                  ? <img src={primaryImg(room)} alt={room.title} />
-                  : <div className="pending-card__no-img">🏠</div>
-                }
-              </div>
-
-              {/* Content */}
-              <div className="pending-card__body">
-                <h3 className="pending-card__title">{room.title}</h3>
-                <p className="pending-card__meta">
-                  📍 {room.address}, {room.city} &nbsp;|&nbsp;
-                  💰 {formatPrice(room.price)}/tháng
-                  {room.area && <> &nbsp;|&nbsp; 📐 {room.area} m²</>}
-                </p>
-                <p className="pending-card__host">
-                  👤 Chủ nhà: <strong>{room.users?.full_name}</strong>
-                  {room.users?.phone && <> · {room.users.phone}</>}
-                </p>
-                <p className="pending-card__date">📅 Đăng: {formatDate(room.created_at)}</p>
-                {room.description && (
-                  <p className="pending-card__desc">{room.description.slice(0, 150)}{room.description.length > 150 ? '...' : ''}</p>
-                )}
-                {room.room_approval_history?.length > 0 && (
-                  <p className="pending-card__date">
-                    Lan duyet gan nhat: {room.room_approval_history[0].to_status}
-                    {room.room_approval_history[0].reason ? ` - ${room.room_approval_history[0].reason}` : ''}
-                  </p>
-                )}
-                {actionState[room.id]?.error && <p className="form-error">{actionState[room.id].error}</p>}
-              </div>
-
-              {/* Actions */}
-              <div className="pending-card__actions">
-                <Link
-                  to={`/rooms/${room.id}`}
-                  className="btn btn-ghost btn-sm"
-                >
-                  Xem chi tiet
-                </Link>
-                <button
-                  id={`btn-approve-${room.id}`}
-                  className="btn btn-sm"
-                  style={{ background: 'rgba(16,185,129,0.15)', color: 'var(--success)', border: '1px solid rgba(16,185,129,0.3)' }}
-                  disabled={actionState[room.id]?.loading}
-                  onClick={() => handleApprove(room.id)}
-                >
-                  {actionState[room.id]?.loading ? '...' : '✅ Duyệt'}
-                </button>
-                <button
-                  id={`btn-reject-${room.id}`}
-                  className="btn btn-danger btn-sm"
-                  disabled={actionState[room.id]?.loading}
-                  onClick={() => setRejectModal({ roomId: room.id, reason: '' })}
-                >
-                  ❌ Từ chối
-                </button>
-              </div>
+        <>
+          <div className="pending-table-wrap">
+            <table className="pending-table">
+              <thead>
+                <tr>
+                  <th>Phòng</th>
+                  <th>Chủ nhà</th>
+                  <th>Giá / diện tích</th>
+                  <th>Lần duyệt gần nhất</th>
+                  <th>Ngày đăng</th>
+                  <th>Thao tác</th>
+                </tr>
+              </thead>
+              <tbody>
+                {pagedRooms.map(room => (
+                  <tr key={room.id}>
+                    <td className="room-title-cell">
+                      <strong>{room.title}</strong>
+                      <span>{room.address}, {room.city}</span>
+                      {room.description && <small>{room.description.slice(0, 90)}{room.description.length > 90 ? '...' : ''}</small>}
+                    </td>
+                    <td>
+                      <strong className="table-person">{room.users?.full_name || 'Chua cap nhat'}</strong>
+                      <span className="table-muted">{room.users?.email || '-'}</span>
+                    </td>
+                    <td>
+                      <strong>{formatPrice(room.price)}</strong>
+                      <span className="table-muted">{room.area ? `${room.area} m2` : 'Chua cap nhat dien tich'}</span>
+                    </td>
+                    <td>
+                      {room.room_approval_history?.length > 0 ? (
+                        <>
+                          <strong className="table-person">{room.room_approval_history[0].to_status}</strong>
+                          {room.room_approval_history[0].reason && <span className="table-muted">{room.room_approval_history[0].reason}</span>}
+                        </>
+                      ) : (
+                        <span className="table-muted">Chua co</span>
+                      )}
+                    </td>
+                    <td>{formatDate(room.created_at)}</td>
+                    <td>
+                      {actionState[room.id]?.error && <p className="form-error">{actionState[room.id].error}</p>}
+                      <div className="table-actions">
+                        <Link to={`/rooms/${room.id}`} className="btn btn-ghost btn-sm">Xem</Link>
+                        <button id={`btn-approve-${room.id}`} className="btn btn-sm btn-approve-soft" disabled={actionState[room.id]?.loading} onClick={() => handleApprove(room.id)}>
+                          {actionState[room.id]?.loading ? '...' : 'Duyet'}
+                        </button>
+                        <button id={`btn-reject-${room.id}`} className="btn btn-danger btn-sm" disabled={actionState[room.id]?.loading} onClick={() => setRejectModal({ roomId: room.id, reason: '' })}>
+                          Tu choi
+                        </button>
+                      </div>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+          <div className="table-pagination">
+            <span>Hien thi {showingFrom}-{showingTo} / {rooms.length} phong</span>
+            <div>
+              <button className="btn btn-ghost btn-sm" disabled={page <= 1} onClick={() => setPage(p => Math.max(p - 1, 1))}>Truoc</button>
+              <strong>Trang {page}/{totalPages}</strong>
+              <button className="btn btn-ghost btn-sm" disabled={page >= totalPages} onClick={() => setPage(p => Math.min(p + 1, totalPages))}>Sau</button>
             </div>
-          ))}
-        </div>
+          </div>
+        </>
       )}
 
       <style>{styles}</style>
@@ -175,35 +180,21 @@ const styles = `
   .pending-header { display: flex; align-items: center; gap: 12px; margin-bottom: 24px; }
   .pending-header h2 { font-size: 22px; font-weight: 800; color: var(--text-primary); }
 
-  .pending-list { display: flex; flex-direction: column; gap: 16px; }
-  .pending-card {
-    display: flex; gap: 20px; align-items: flex-start;
-    background: var(--bg-card); border: 1px solid var(--border);
-    border-radius: var(--radius-lg); padding: 20px;
-    transition: var(--transition);
-  }
-  .pending-card:hover { border-color: var(--border-hover); }
-
-  .pending-card__img {
-    flex-shrink: 0; width: 140px; height: 110px;
-    border-radius: var(--radius-md); overflow: hidden; background: var(--bg-surface);
-  }
-  .pending-card__img img { width: 100%; height: 100%; object-fit: cover; }
-  .pending-card__no-img { height: 100%; display: flex; align-items: center; justify-content: center; font-size: 40px; color: var(--text-muted); }
-
-  .pending-card__body { flex: 1; display: flex; flex-direction: column; gap: 6px; }
-  .pending-card__title { font-size: 17px; font-weight: 700; color: var(--text-primary); }
-  .pending-card__meta { font-size: 13px; color: var(--text-secondary); }
-  .pending-card__host { font-size: 13px; color: var(--text-secondary); }
-  .pending-card__date { font-size: 12px; color: var(--text-muted); }
-  .pending-card__desc { font-size: 13px; color: var(--text-secondary); line-height: 1.6; margin-top: 4px; }
-
-  .pending-card__actions { display: flex; flex-direction: column; gap: 8px; flex-shrink: 0; }
-  @media(max-width: 700px) {
-    .pending-card { flex-direction: column; }
-    .pending-card__img { width: 100%; height: 180px; }
-    .pending-card__actions { flex-direction: row; }
-  }
+  .pending-table-wrap { width: 100%; overflow-x: auto; border: 1px solid var(--border); border-radius: var(--radius-md); background: var(--bg-card); }
+  .pending-table { width: 100%; min-width: 980px; border-collapse: collapse; }
+  .pending-table th { text-align: left; padding: 11px 14px; background: var(--bg-surface); border-bottom: 1px solid var(--border); color: var(--text-muted); font-size: 11px; font-weight: 800; text-transform: uppercase; letter-spacing: .04em; }
+  .pending-table td { padding: 13px 14px; border-bottom: 1px solid var(--border-subtle); vertical-align: top; color: var(--text-secondary); font-size: 13px; }
+  .pending-table tr:last-child td { border-bottom: 0; }
+  .pending-table tr:hover td { background: var(--bg-hover); }
+  .room-title-cell { min-width: 260px; }
+  .room-title-cell strong, .table-person { display: block; color: var(--text-primary); font-weight: 800; margin-bottom: 4px; }
+  .room-title-cell span, .room-title-cell small, .table-muted { display: block; color: var(--text-muted); font-size: 12px; line-height: 1.45; }
+  .table-actions { display: flex; gap: 6px; flex-wrap: wrap; min-width: 170px; }
+  .btn-approve-soft { background: rgba(16,185,129,.12); color: var(--success); border: 1px solid rgba(16,185,129,.28); }
+  .table-pagination { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 14px 2px 0; color: var(--text-secondary); font-size: 13px; }
+  .table-pagination > div { display: flex; align-items: center; gap: 10px; }
+  .table-pagination strong { color: var(--text-primary); font-size: 13px; }
+  @media(max-width: 700px) { .table-pagination { align-items: flex-start; flex-direction: column; } }
 
   .pending-loading { display: flex; flex-direction: column; gap: 16px; }
   .pending-skeleton {

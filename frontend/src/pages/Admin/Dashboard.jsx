@@ -99,18 +99,20 @@ const AdminDashboard = () => {
 
         <div className="admin-ops-stats animate-fadeIn">
           {[
-            ['Môi giới', stats?.totalBrokers],
-            ['Phòng đã gán môi giới', stats?.brokerAssignedRooms],
-            ['Phòng còn chỗ', stats?.availableRooms],
-            ['Phòng hết chỗ', stats?.fullRooms],
-            ['Yêu cầu thành công', stats?.acceptedRequests],
-            ['Hoa hồng chờ thu', stats?.pendingCommissions],
-            ['Hoa hồng đã thu', stats?.collectedCommissions],
-          ].map(([label, value]) => (
-            <div className="admin-ops-stat" key={label}>
+            { label: 'Môi giới', value: stats?.totalBrokers, to: '/admin/users' },
+            { label: 'Đã gán môi giới', value: stats?.brokerAssignedRooms, to: '/admin/rooms?inventory=broker_assigned' },
+            { label: 'Còn slot', value: stats?.availableRooms, to: '/admin/rooms?status=approved&inventory=available' },
+            { label: 'Đang có người ở', value: stats?.occupiedRooms, to: '/admin/rooms?status=approved&inventory=occupied' },
+            { label: 'Hết chỗ', value: stats?.fullRooms, to: '/admin/rooms?status=approved&inventory=full' },
+            { label: 'Trống hoàn toàn', value: stats?.vacantRooms, to: '/admin/rooms?status=approved&inventory=vacant' },
+            { label: 'Yêu cầu thành công', value: stats?.acceptedRequests, to: '/admin/rooms?status=approved&inventory=occupied' },
+            { label: 'Hoa hồng chờ thu', value: stats?.pendingCommissions, to: '/admin/commissions' },
+            { label: 'Hoa hồng đã thu', value: stats?.collectedCommissions, to: '/admin/commissions' },
+          ].map(({ label, value, to }) => (
+            <Link className="admin-ops-stat" to={to} key={label}>
               <strong>{statsLoading ? '-' : (value ?? 0)}</strong>
               <span>{label}</span>
-            </div>
+            </Link>
           ))}
         </div>
 
@@ -239,8 +241,10 @@ const styles = `
   }
   .admin-ops-stat {
     background: var(--bg-card); border: 1px solid var(--border); border-radius: var(--radius-md);
-    padding: 12px 14px;
+    padding: 12px 14px; text-decoration: none; transition: var(--transition);
   }
+  .admin-ops-stat:hover { border-color: var(--primary); background: var(--primary-50); box-shadow: var(--shadow-xs); transform: translateY(-1px); }
+  .admin-ops-stat:focus-visible { outline: 2px solid var(--primary); outline-offset: 2px; }
   .admin-ops-stat strong { display:block; color: var(--text-primary); font-size: 20px; font-weight: 800; }
   .admin-ops-stat span { color: var(--text-muted); font-size: 12px; }
   @media(max-width:900px){ .admin-ops-stats { grid-template-columns: repeat(2,1fr); } }
