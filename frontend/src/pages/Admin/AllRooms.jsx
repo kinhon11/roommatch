@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { Link } from 'react-router-dom';
 import apiClient from '../../api/apiClient';
 import { roomService } from '../../services/roomService';
 import { formatCurrency, formatDate } from '../../utils/format';
@@ -209,6 +210,9 @@ const AdminAllRooms = () => {
                 )}
               </div>
               <div className="pending-card__actions">
+                <Link to={`/rooms/${room.id}`} className="btn btn-ghost btn-sm">
+                  Xem chi tiet
+                </Link>
                 {room.status !== 'approved' && (
                   <button className="btn btn-sm" style={{ background: 'rgba(16,185,129,0.15)', color: 'var(--success)', border: '1px solid rgba(16,185,129,0.3)' }}
                     disabled={actionState[room.id]?.loading} onClick={() => handleApprove(room.id)}>

@@ -39,6 +39,75 @@ const canManageRoom = (user, room) => (
   user?.role === 'admin' || room?.host_id === user?.id || room?.broker_id === user?.id
 );
 
+const hasRoomRelationship = async (user, roomId) => {
+  if (!user?.id || !roomId) return false;
+
+  const tenantChecks = [];
+  if (user.role === 'tenant') {
+    tenantChecks.push(
+      supabase
+        .from('roommate_requests')
+        .select('id')
+        .eq('room_id', roomId)
+        .eq('tenant_id', user.id)
+        .limit(1)
+        .maybeSingle(),
+      supabase
+        .from('appointments')
+        .select('id')
+        .eq('room_id', roomId)
+        .eq('tenant_id', user.id)
+        .limit(1)
+        .maybeSingle(),
+      supabase
+        .from('room_deposits')
+        .select('id')
+        .eq('room_id', roomId)
+        .eq('tenant_id', user.id)
+        .limit(1)
+        .maybeSingle(),
+      supabase
+        .from('conversations')
+        .select('id')
+        .eq('room_id', roomId)
+        .eq('tenant_id', user.id)
+        .limit(1)
+        .maybeSingle()
+    );
+  }
+
+  if (['landlord', 'broker'].includes(user.role)) {
+    tenantChecks.push(
+      supabase
+        .from('appointments')
+        .select('id')
+        .eq('room_id', roomId)
+        .eq('landlord_id', user.id)
+        .limit(1)
+        .maybeSingle(),
+      supabase
+        .from('room_deposits')
+        .select('id')
+        .eq('room_id', roomId)
+        .eq('landlord_id', user.id)
+        .limit(1)
+        .maybeSingle(),
+      supabase
+        .from('conversations')
+        .select('id')
+        .eq('room_id', roomId)
+        .eq('landlord_id', user.id)
+        .limit(1)
+        .maybeSingle()
+    );
+  }
+
+  if (!tenantChecks.length) return false;
+
+  const results = await Promise.all(tenantChecks);
+  return results.some(result => result.data?.id);
+};
+
 const buildRoomPayload = (body, fallbackSlots = 1) => {
   const slots = normalizeSlots(body.available_slots, fallbackSlots);
   const price = parseNumber(body.price);
@@ -196,7 +265,8 @@ const getRoomById = async (req, res) => {
     if (error) return res.status(404).json({ error: 'Không tìm thấy phòng.' });
     const isPublic = data.status === 'approved' && data.is_hidden !== true;
     const canViewPrivate = req.user && canManageRoom(req.user, data);
-    if (!isPublic && !canViewPrivate) {
+    const canViewRelated = !isPublic && req.user ? await hasRoomRelationship(req.user, data.id) : false;
+    if (!isPublic && !canViewPrivate && !canViewRelated) {
       return res.status(404).json({ error: 'Room not found.' });
     }
 

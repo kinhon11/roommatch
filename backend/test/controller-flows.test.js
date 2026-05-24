@@ -260,6 +260,36 @@ test('room CRUD lets admin delete existing rooms', async () => {
   assert.equal(deletes.length, 1);
 });
 
+test('room detail allows tenants with an existing room relationship to view hidden rooms', async () => {
+  const { getRoomById } = loadController('controllers/roomController.js', (query) => {
+    if (query.table === 'rooms' && query.operation === 'select' && query.resultMode === 'single') {
+      return {
+        data: {
+          id: 'room-1',
+          host_id: 'landlord-1',
+          broker_id: null,
+          status: 'approved',
+          is_hidden: true,
+          reviews: [],
+        },
+        error: null,
+      };
+    }
+    if (query.table === 'roommate_requests') {
+      return { data: { id: 'request-1' }, error: null };
+    }
+    return { data: null, error: null };
+  });
+
+  const res = await callController(getRoomById, {
+    params: { id: 'room-1' },
+    user: { id: 'tenant-1', role: 'tenant' },
+  });
+
+  assert.equal(res.statusCode, 200);
+  assert.equal(res.body.id, 'room-1');
+});
+
 test('chat validates room ownership before creating conversation', async () => {
   const { getOrCreateConversation } = loadController('controllers/chatController.js', (query) => {
     if (query.table === 'rooms') {

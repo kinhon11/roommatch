@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { Link } from 'react-router-dom';
 
 import { roomService } from '../../services/roomService';
 import apiClient from '../../api/apiClient';
@@ -135,6 +136,12 @@ const AdminPendingRooms = () => {
 
               {/* Actions */}
               <div className="pending-card__actions">
+                <Link
+                  to={`/rooms/${room.id}`}
+                  className="btn btn-ghost btn-sm"
+                >
+                  Xem chi tiet
+                </Link>
                 <button
                   id={`btn-approve-${room.id}`}
                   className="btn btn-sm"
