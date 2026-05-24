@@ -10,6 +10,31 @@ const STATUS_MAP = {
   rejected: { label: 'Đã từ chối', cls: 'badge-rejected' },
 };
 
+const REQUESTER_GENDER_LABELS = {
+  male: 'Nam',
+  female: 'Nữ',
+  other: 'Khác',
+  prefer_not_to_say: 'Không muốn nói',
+};
+const PREFERRED_GENDER_LABELS = {
+  any: 'Không yêu cầu',
+  male: 'Nam',
+  female: 'Nữ',
+};
+const SCHEDULE_LABELS = {
+  student: 'Sinh viên',
+  office: 'Giờ hành chính',
+  shift: 'Làm theo ca',
+  night: 'Hay về khuya / ca đêm',
+  flexible: 'Linh hoạt',
+  other: 'Khác',
+};
+const CLEANLINESS_LABELS = {
+  normal: 'Bình thường',
+  tidy: 'Gọn gàng',
+  very_tidy: 'Rất gọn gàng',
+};
+
 const LandlordRequests = () => {
   const navigate = useNavigate();
   const { user } = useAuth();
@@ -184,6 +209,42 @@ const LandlordRequests = () => {
                         <span className="lr-card__detail-label">Thú cưng</span>
                         <p className="lr-card__detail-value">{req.has_pet ? 'Có' : 'Không'}</p>
                       </div>
+                    </div>
+                    <div className="lr-card__detail-row">
+                      <div className="lr-card__detail">
+                        <span className="lr-card__detail-label">Giới tính</span>
+                        <p className="lr-card__detail-value">{REQUESTER_GENDER_LABELS[req.requester_gender] || 'Chưa cập nhật'}</p>
+                      </div>
+                      <div className="lr-card__detail">
+                        <span className="lr-card__detail-label">Muốn ở cùng</span>
+                        <p className="lr-card__detail-value">{PREFERRED_GENDER_LABELS[req.preferred_roommate_gender] || 'Không yêu cầu'}</p>
+                      </div>
+                      <div className="lr-card__detail">
+                        <span className="lr-card__detail-label">Nghề nghiệp</span>
+                        <p className="lr-card__detail-value">{req.occupation || 'Chưa cập nhật'}</p>
+                      </div>
+                      <div className="lr-card__detail">
+                        <span className="lr-card__detail-label">Giờ giấc</span>
+                        <p className="lr-card__detail-value">{SCHEDULE_LABELS[req.schedule_type] || 'Linh hoạt'}</p>
+                      </div>
+                      <div className="lr-card__detail">
+                        <span className="lr-card__detail-label">Gọn gàng</span>
+                        <p className="lr-card__detail-value">{CLEANLINESS_LABELS[req.cleanliness_level] || 'Bình thường'}</p>
+                      </div>
+                      <div className="lr-card__detail">
+                        <span className="lr-card__detail-label">Hút thuốc</span>
+                        <p className="lr-card__detail-value">{req.is_smoker ? 'Có' : 'Không'} / {req.okay_with_smoker ? 'chấp nhận bạn cùng phòng hút thuốc' : 'không muốn ở với người hút thuốc'}</p>
+                      </div>
+                      <div className="lr-card__detail">
+                        <span className="lr-card__detail-label">Ở với thú cưng</span>
+                        <p className="lr-card__detail-value">{req.okay_with_pets ? 'Chấp nhận' : 'Không muốn'}</p>
+                      </div>
+                      {req.roommate_note && (
+                        <div className="lr-card__detail">
+                          <span className="lr-card__detail-label">Ghi chú ở ghép</span>
+                          <p className="lr-card__detail-value">{req.roommate_note}</p>
+                        </div>
+                      )}
                     </div>
                   </div>
 

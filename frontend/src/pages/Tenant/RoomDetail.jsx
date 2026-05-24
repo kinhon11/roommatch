@@ -13,6 +13,31 @@ import { geminiService } from '../../services/geminiService';
 import { useDialog } from '../../context/DialogContext';
 import { useToast } from '../../context/ToastContext';
 
+const GENDER_OPTIONS = [
+  { value: 'prefer_not_to_say', label: 'Không muốn nói' },
+  { value: 'male', label: 'Nam' },
+  { value: 'female', label: 'Nữ' },
+  { value: 'other', label: 'Khác' },
+];
+const PREFERRED_GENDER_OPTIONS = [
+  { value: 'any', label: 'Không yêu cầu' },
+  { value: 'male', label: 'Nam' },
+  { value: 'female', label: 'Nữ' },
+];
+const SCHEDULE_OPTIONS = [
+  { value: 'student', label: 'Sinh viên' },
+  { value: 'office', label: 'Đi làm giờ hành chính' },
+  { value: 'shift', label: 'Đi làm theo ca' },
+  { value: 'night', label: 'Hay về khuya / ca đêm' },
+  { value: 'flexible', label: 'Giờ giấc linh hoạt' },
+  { value: 'other', label: 'Khác' },
+];
+const CLEANLINESS_OPTIONS = [
+  { value: 'normal', label: 'Bình thường' },
+  { value: 'tidy', label: 'Gọn gàng' },
+  { value: 'very_tidy', label: 'Rất gọn gàng' },
+];
+
 const RoomDetail = () => {
   const { id } = useParams();
   const navigate = useNavigate();
@@ -47,7 +72,21 @@ const RoomDetail = () => {
   const [roommateState, setRoommateState] = useState({ loading: false, error: null, success: false, sent: false });
   const [existingRequest, setExistingRequest] = useState(null); // { id, status, rejection_reason }
   const [showRoommateModal, setShowRoommateModal] = useState(false);
-  const [roommateForm, setRoommateForm] = useState({ message: '', move_in_date: '', occupants: 1, has_pet: false });
+  const [roommateForm, setRoommateForm] = useState({
+    message: '',
+    move_in_date: '',
+    occupants: 1,
+    has_pet: false,
+    requester_gender: 'prefer_not_to_say',
+    preferred_roommate_gender: 'any',
+    occupation: '',
+    schedule_type: 'flexible',
+    cleanliness_level: 'normal',
+    is_smoker: false,
+    okay_with_smoker: false,
+    okay_with_pets: true,
+    roommate_note: '',
+  });
 
   // Appointment form state
   const [showAppt, setShowAppt] = useState(false);
@@ -253,6 +292,15 @@ const RoomDetail = () => {
         move_in_date: roommateForm.move_in_date || null,
         occupants: roommateForm.occupants,
         has_pet: roommateForm.has_pet,
+        requester_gender: roommateForm.requester_gender,
+        preferred_roommate_gender: roommateForm.preferred_roommate_gender,
+        occupation: roommateForm.occupation,
+        schedule_type: roommateForm.schedule_type,
+        cleanliness_level: roommateForm.cleanliness_level,
+        is_smoker: roommateForm.is_smoker,
+        okay_with_smoker: roommateForm.okay_with_smoker,
+        okay_with_pets: roommateForm.okay_with_pets,
+        roommate_note: roommateForm.roommate_note,
       });
       setRoommateState({ loading: false, error: null, success: true, sent: true });
       setExistingRequest(res.data?.request || { status: 'pending' });
@@ -788,14 +836,104 @@ const RoomDetail = () => {
                     />
                   </div>
                 </div>
-                <label className="roommate-form__pet">
-                  <input
-                    type="checkbox"
-                    checked={roommateForm.has_pet}
-                    onChange={e => setRoommateForm(f => ({ ...f, has_pet: e.target.checked }))}
-                  />
-                  <span>🐾 Có nuôi thú cưng</span>
-                </label>
+                <div className="roommate-form__row">
+                  <div className="form-group">
+                    <label className="form-label">Giới tính của bạn</label>
+                    <select
+                      className="form-input"
+                      value={roommateForm.requester_gender}
+                      onChange={e => setRoommateForm(f => ({ ...f, requester_gender: e.target.value }))}
+                    >
+                      {GENDER_OPTIONS.map(option => <option key={option.value} value={option.value}>{option.label}</option>)}
+                    </select>
+                  </div>
+                  <div className="form-group">
+                    <label className="form-label">Muốn ở cùng</label>
+                    <select
+                      className="form-input"
+                      value={roommateForm.preferred_roommate_gender}
+                      onChange={e => setRoommateForm(f => ({ ...f, preferred_roommate_gender: e.target.value }))}
+                    >
+                      {PREFERRED_GENDER_OPTIONS.map(option => <option key={option.value} value={option.value}>{option.label}</option>)}
+                    </select>
+                  </div>
+                </div>
+                <div className="roommate-form__row">
+                  <div className="form-group">
+                    <label className="form-label">Nghề nghiệp / trường học</label>
+                    <input
+                      className="form-input"
+                      placeholder="VD: Sinh viên, nhân viên văn phòng..."
+                      value={roommateForm.occupation}
+                      onChange={e => setRoommateForm(f => ({ ...f, occupation: e.target.value }))}
+                    />
+                  </div>
+                  <div className="form-group">
+                    <label className="form-label">Giờ giấc sinh hoạt</label>
+                    <select
+                      className="form-input"
+                      value={roommateForm.schedule_type}
+                      onChange={e => setRoommateForm(f => ({ ...f, schedule_type: e.target.value }))}
+                    >
+                      {SCHEDULE_OPTIONS.map(option => <option key={option.value} value={option.value}>{option.label}</option>)}
+                    </select>
+                  </div>
+                </div>
+                <div className="roommate-form__row">
+                  <div className="form-group">
+                    <label className="form-label">Mức độ gọn gàng</label>
+                    <select
+                      className="form-input"
+                      value={roommateForm.cleanliness_level}
+                      onChange={e => setRoommateForm(f => ({ ...f, cleanliness_level: e.target.value }))}
+                    >
+                      {CLEANLINESS_OPTIONS.map(option => <option key={option.value} value={option.value}>{option.label}</option>)}
+                    </select>
+                  </div>
+                  <div className="form-group">
+                    <label className="form-label">Ghi chú thêm</label>
+                    <input
+                      className="form-input"
+                      placeholder="VD: ưu tiên người yên tĩnh"
+                      value={roommateForm.roommate_note}
+                      onChange={e => setRoommateForm(f => ({ ...f, roommate_note: e.target.value }))}
+                    />
+                  </div>
+                </div>
+                <div className="roommate-form__checks">
+                  <label className="roommate-form__pet">
+                    <input
+                      type="checkbox"
+                      checked={roommateForm.has_pet}
+                      onChange={e => setRoommateForm(f => ({ ...f, has_pet: e.target.checked }))}
+                    />
+                    <span>🐾 Tôi có nuôi thú cưng</span>
+                  </label>
+                  <label className="roommate-form__pet">
+                    <input
+                      type="checkbox"
+                      checked={roommateForm.okay_with_pets}
+                      onChange={e => setRoommateForm(f => ({ ...f, okay_with_pets: e.target.checked }))}
+                    />
+                    <span>Ở được với người có thú cưng</span>
+                  </label>
+                  <label className="roommate-form__pet">
+                    <input
+                      type="checkbox"
+                      checked={roommateForm.is_smoker}
+                      onChange={e => setRoommateForm(f => ({ ...f, is_smoker: e.target.checked }))}
+                    />
+                    <span>Tôi hút thuốc</span>
+                  </label>
+                  <label className="roommate-form__pet">
+                    <input
+                      type="checkbox"
+                      checked={roommateForm.okay_with_smoker}
+                      onChange={e => setRoommateForm(f => ({ ...f, okay_with_smoker: e.target.checked }))}
+                    />
+                    <span>Ở được với người hút thuốc</span>
+                  </label>
+                </div>
                 {roommateState.error && <p className="form-error">{roommateState.error}</p>}
                 <div className="modal-actions">
                   <button type="submit" className="btn btn-primary" disabled={roommateState.loading}>
@@ -1327,6 +1465,8 @@ const styles = `
   .roommate-form { padding: 20px 24px; display: flex; flex-direction: column; gap: 14px; }
   .roommate-form__row { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
   @media(max-width:500px) { .roommate-form__row { grid-template-columns: 1fr; } }
+  .roommate-form__checks { display:grid; grid-template-columns:1fr 1fr; gap:10px 14px; }
+  @media(max-width:500px) { .roommate-form__checks { grid-template-columns: 1fr; } }
   .roommate-form__pet {
     display: flex; align-items: center; gap: 8px;
     font-size: 14px; cursor: pointer; color: var(--text-secondary); font-weight: 500;
