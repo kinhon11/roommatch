@@ -46,6 +46,15 @@ const ROOMMATE_OCCUPATION_LABELS = {
   worker: 'Ưu tiên người đi làm',
   other: 'Khác',
 };
+const summarizeRoommateCounts = (roommates, getLabel) => {
+  const counts = roommates.reduce((acc, roommate) => {
+    const label = getLabel(roommate);
+    if (!label) return acc;
+    acc[label] = (acc[label] || 0) + (Number(roommate.occupants) || 1);
+    return acc;
+  }, {});
+  return Object.entries(counts).map(([label, count]) => `${count} ${label.toLowerCase()}`);
+};
 
 const RoomDetail = () => {
   const { id } = useParams();
@@ -456,6 +465,25 @@ const RoomDetail = () => {
     roomCapacity,
     Math.max(acceptedOccupantCount, roomCapacity - availableSlotCount)
   );
+  const occupantGenderSummary = summarizeRoommateCounts(
+    acceptedRoommates,
+    (item) => item.requester_gender && item.requester_gender !== 'prefer_not_to_say'
+      ? labelFrom(GENDER_OPTIONS, item.requester_gender, '')
+      : ''
+  );
+  const occupantScheduleSummary = summarizeRoommateCounts(
+    acceptedRoommates,
+    (item) => labelFrom(SCHEDULE_OPTIONS, item.schedule_type, '')
+  );
+  const occupantLifestyleSummary = [
+    ...summarizeRoommateCounts(acceptedRoommates, (item) => item.is_smoker ? 'có hút thuốc' : 'không hút thuốc'),
+    ...summarizeRoommateCounts(acceptedRoommates, (item) => item.has_pet ? 'có thú cưng' : 'không thú cưng'),
+  ];
+  const occupantSummaryChips = [
+    ...occupantGenderSummary,
+    ...occupantScheduleSummary.slice(0, 2),
+    ...occupantLifestyleSummary.slice(0, 2),
+  ];
   const roommateCriteriaRows = [
     ['Kiểu phòng', labelFrom(PREFERRED_GENDER_OPTIONS, room.roommate_gender_preference, 'Không yêu cầu')],
     ['Đối tượng phù hợp', ROOMMATE_OCCUPATION_LABELS[room.roommate_occupation_preference] || 'Không yêu cầu'],
@@ -726,12 +754,27 @@ const RoomDetail = () => {
                 <div>
                   <span className="roommate-criteria__label">Tình trạng ở ghép</span>
                   <strong>Hiện có {currentOccupantCount}/{roomCapacity} người, còn {availableSlotCount} slot</strong>
+                  {occupantSummaryChips.length > 0 && (
+                    <div className="roommate-criteria__chips">
+                      {occupantSummaryChips.map((chip) => <span key={chip}>{chip}</span>)}
+                    </div>
+                  )}
                 </div>
                 <p>
                   Thông tin này giúp người thuê sau biết trước phòng/người đang ở có phù hợp không.
-                  Nếu cần hỏi kỹ hơn, hãy nhắn tin người phụ trách để được kết nối trao đổi trước khi cọc.
+                  Nếu cần hỏi kỹ hơn, có thể nhắn tin trực tiếp người đang ở nhưng hệ thống vẫn ẩn SĐT/email.
                 </p>
               </div>
+              {acceptedRoommates.length > 0 && (
+                <div className="roommate-occupant-overview">
+                  <span>Người đang ở hiện tại</span>
+                  <strong>
+                    {occupantGenderSummary.length > 0 ? occupantGenderSummary.join(', ') : `${currentOccupantCount} người`}
+                    {occupantScheduleSummary.length > 0 ? ` • ${occupantScheduleSummary.join(', ')}` : ''}
+                  </strong>
+                  <p>{occupantLifestyleSummary.slice(0, 4).join(' • ')}</p>
+                </div>
+              )}
               <div className="roommate-criteria__grid">
                 {roommateCriteriaRows.map(([label, value]) => (
                   <div key={label} className="roommate-criteria__item">
@@ -750,16 +793,18 @@ const RoomDetail = () => {
                 <div className="roommate-occupants">
                   <h3>Người đã được chấp nhận ở ghép</h3>
                   <div className="roommate-occupants__list">
-                    {acceptedRoommates.map((person) => (
+                    {acceptedRoommates.map((person, index) => (
                       <div key={person.id} className="roommate-occupant">
                         {person.avatar_url
                           ? <img src={person.avatar_url} alt="" />
                           : <div className="roommate-occupant__avatar">{(person.display_name || 'N')[0]}</div>}
-                        <div>
-                          <strong>{person.display_name}</strong>
+                        <div className="roommate-occupant__body">
+                          <div className="roommate-occupant__head">
+                            <strong>Người đang ở #{index + 1}</strong>
+                            <span>{labelFrom(GENDER_OPTIONS, person.requester_gender)}</span>
+                          </div>
                           <p>
-                            {labelFrom(GENDER_OPTIONS, person.requester_gender)}
-                            {person.occupation ? ` • ${person.occupation}` : ''}
+                            {person.occupation || 'Chưa cập nhật nghề nghiệp'}
                             {` • ${labelFrom(SCHEDULE_OPTIONS, person.schedule_type, 'Linh hoạt')}`}
                           </p>
                           <p>
@@ -767,6 +812,11 @@ const RoomDetail = () => {
                             {person.is_smoker ? ' • Có hút thuốc' : ' • Không hút thuốc'}
                             {person.has_pet ? ' • Có pet' : ' • Không pet'}
                           </p>
+                          {person.chat_user_id && (
+                            <Link className="roommate-occupant__chat" to={`/chat?occupant=${person.chat_user_id}&room=${room.id}`}>
+                              Nhắn tin trao đổi
+                            </Link>
+                          )}
                         </div>
                       </div>
                     ))}
@@ -1584,9 +1634,15 @@ const styles = `
   .roommate-criteria__summary { display:flex;justify-content:space-between;gap:16px;flex-wrap:wrap;background:var(--bg-surface);border-radius:var(--radius-md);padding:14px 16px; }
   .roommate-criteria__summary strong { display:block;font-size:17px;color:var(--text-primary);margin-top:3px; }
   .roommate-criteria__summary p { max-width:520px;color:var(--text-secondary);font-size:13px;line-height:1.6; }
+  .roommate-criteria__chips { display:flex;gap:8px;flex-wrap:wrap;margin-top:10px; }
+  .roommate-criteria__chips span { padding:5px 9px;border-radius:999px;background:rgba(20,184,166,.12);color:var(--primary-dark);font-size:12px;font-weight:700; }
   .roommate-criteria__label,
   .roommate-criteria__item span,
   .roommate-criteria__note span { font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.04em;color:var(--text-muted); }
+  .roommate-occupant-overview { padding:14px 16px;border:1px solid rgba(20,184,166,.28);background:rgba(20,184,166,.07);border-radius:var(--radius-md); }
+  .roommate-occupant-overview span { display:block;font-size:11px;font-weight:800;text-transform:uppercase;color:var(--primary-dark);letter-spacing:.04em;margin-bottom:4px; }
+  .roommate-occupant-overview strong { display:block;color:var(--text-primary);font-size:16px; }
+  .roommate-occupant-overview p { color:var(--text-secondary);font-size:13px;margin-top:4px; }
   .roommate-criteria__grid { display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px; }
   @media(max-width:720px){.roommate-criteria__grid{grid-template-columns:1fr 1fr}}
   @media(max-width:480px){.roommate-criteria__grid{grid-template-columns:1fr}}
@@ -1600,8 +1656,13 @@ const styles = `
   .roommate-occupant { display:flex;gap:12px;padding:12px;border:1px solid var(--border-subtle);border-radius:var(--radius-md);background:var(--bg-surface); }
   .roommate-occupant img,
   .roommate-occupant__avatar { width:42px;height:42px;border-radius:50%;object-fit:cover;flex-shrink:0;background:var(--primary);color:white;display:flex;align-items:center;justify-content:center;font-weight:700; }
+  .roommate-occupant__body { flex:1;min-width:0; }
+  .roommate-occupant__head { display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:2px; }
+  .roommate-occupant__head span { padding:3px 8px;border-radius:999px;background:var(--primary-light);color:var(--primary-dark);font-size:11px;font-weight:800;white-space:nowrap; }
   .roommate-occupant strong { color:var(--text-primary);font-size:14px; }
   .roommate-occupant p { color:var(--text-secondary);font-size:12px;line-height:1.5;margin-top:2px; }
+  .roommate-occupant__chat { display:inline-flex;margin-top:8px;font-size:12px;font-weight:800;color:var(--primary);text-decoration:none; }
+  .roommate-occupant__chat:hover { text-decoration:underline; }
   .room-ai-hint { margin-bottom:16px;font-size:13px;color:var(--text-secondary);line-height:1.6; }
   .ai-review-summary { background:var(--bg-surface);border:1px solid var(--border);border-radius:var(--radius-lg);padding:20px;display:flex;flex-direction:column;gap:16px;box-shadow:var(--shadow-sm); }
   .ai-review-summary__top { display:flex;align-items:flex-start;justify-content:space-between;gap:12px; }
