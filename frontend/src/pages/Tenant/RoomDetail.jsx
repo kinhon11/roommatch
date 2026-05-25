@@ -444,6 +444,7 @@ const RoomDetail = () => {
   const reviews = room.reviews || [];
   const contactUser = room.broker || room.users;
   const contactLabel = room.broker ? 'Moi gioi phu trach' : 'Chu nha';
+  const contactHumanLabel = room.broker ? 'người môi giới phụ trách' : 'chủ nhà';
   const contactProfilePath = `/landlords/${room.users?.id}`;
   const paymentCycleLabel = {
     monthly: 'Hàng tháng',
@@ -484,6 +485,9 @@ const RoomDetail = () => {
     ...occupantScheduleSummary.slice(0, 2),
     ...occupantLifestyleSummary.slice(0, 2),
   ];
+  const canAskResponsibleToConnectOccupants = user?.role === 'tenant' && contactUser?.id && contactUser.id !== user?.id && currentOccupantCount > 0;
+  const occupantIntroMessage = `Chào ${contactHumanLabel}, em muốn hỏi thêm về người đang ở ghép hiện tại của phòng "${room.title}" và nhờ anh/chị kết nối trao đổi trước khi gửi yêu cầu/cọc.`;
+  const occupantIntroChatUrl = `/chat?landlord=${contactUser?.id}&room=${room.id}&prefill=${encodeURIComponent(occupantIntroMessage)}`;
   const roommateCriteriaRows = [
     ['Kiểu phòng', labelFrom(PREFERRED_GENDER_OPTIONS, room.roommate_gender_preference, 'Không yêu cầu')],
     ['Đối tượng phù hợp', ROOMMATE_OCCUPATION_LABELS[room.roommate_occupation_preference] || 'Không yêu cầu'],
@@ -762,7 +766,7 @@ const RoomDetail = () => {
                 </div>
                 <p>
                   Thông tin này giúp người thuê sau biết trước phòng/người đang ở có phù hợp không.
-                  Nếu cần hỏi kỹ hơn, có thể nhắn tin trực tiếp người đang ở nhưng hệ thống vẫn ẩn SĐT/email.
+                  Nếu chưa có hồ sơ người đang ở cụ thể, hãy nhờ người phụ trách kết nối để giữ riêng tư.
                 </p>
               </div>
               {acceptedRoommates.length > 0 && (
@@ -787,6 +791,20 @@ const RoomDetail = () => {
                 <div className="roommate-criteria__note">
                   <span>Ghi chú người đang ở / tiêu chí thêm</span>
                   <p>{room.current_roommate_summary}</p>
+                </div>
+              )}
+              {canAskResponsibleToConnectOccupants && (
+                <div className="roommate-connect-request">
+                  <div>
+                    <span>Trao đổi với người đang ở</span>
+                    <strong>{acceptedRoommates.length > 0 ? 'Nhờ người phụ trách xác nhận/kết nối' : 'Chưa có hồ sơ người đang ở cụ thể'}</strong>
+                    <p>
+                      Người thuê sau sẽ nhắn cho {contactHumanLabel} trước. Chủ nhà/broker duyệt rồi mới kết nối với người đang ở nếu phù hợp.
+                    </p>
+                  </div>
+                  <Link className="roommate-connect-request__btn" to={occupantIntroChatUrl}>
+                    Nhờ kết nối người đang ở
+                  </Link>
                 </div>
               )}
               {acceptedRoommates.length > 0 && (
@@ -1650,6 +1668,13 @@ const styles = `
   .roommate-criteria__item strong { display:block;margin-top:4px;color:var(--text-primary);font-size:14px; }
   .roommate-criteria__note { padding:14px 16px;border-left:3px solid var(--primary);background:rgba(20,184,166,.06);border-radius:var(--radius-md); }
   .roommate-criteria__note p { margin-top:4px;color:var(--text-primary);line-height:1.6; }
+  .roommate-connect-request { display:flex;align-items:center;justify-content:space-between;gap:16px;padding:16px;border:1px solid rgba(245,158,11,.28);background:rgba(245,158,11,.08);border-radius:var(--radius-md); }
+  .roommate-connect-request span { display:block;font-size:11px;font-weight:800;text-transform:uppercase;color:#92400e;letter-spacing:.04em;margin-bottom:4px; }
+  .roommate-connect-request strong { display:block;color:var(--text-primary);font-size:15px; }
+  .roommate-connect-request p { color:var(--text-secondary);font-size:13px;line-height:1.5;margin-top:4px; }
+  .roommate-connect-request__btn { flex-shrink:0;padding:10px 14px;border-radius:var(--radius-md);background:var(--primary);color:#fff;text-decoration:none;font-weight:800;font-size:13px;box-shadow:var(--shadow-sm); }
+  .roommate-connect-request__btn:hover { transform:translateY(-1px);box-shadow:var(--shadow-md); }
+  @media(max-width:720px){.roommate-connect-request{align-items:stretch;flex-direction:column}.roommate-connect-request__btn{text-align:center}}
   .roommate-occupants h3 { font-size:15px;font-weight:700;color:var(--text-primary);margin-bottom:10px; }
   .roommate-occupants__list { display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px; }
   @media(max-width:640px){.roommate-occupants__list{grid-template-columns:1fr}}

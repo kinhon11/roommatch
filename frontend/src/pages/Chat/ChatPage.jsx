@@ -76,15 +76,21 @@ const ChatPage = () => {
     const occupantId = searchParams.get('occupant');
     const tenantId = searchParams.get('tenant');
     const roomId     = searchParams.get('room');
+    const prefill = searchParams.get('prefill');
     if ((landlordId || occupantId || tenantId) && isAuthenticated) {
       chatService.getOrCreate({ landlordId, occupantId, tenantId, roomId }).then(res => {
         const conv = res.conversation;
         loadConversations();
-        navigate(`/chat/${conv.id}`, { replace: true });
+        navigate(`/chat/${conv.id}${prefill ? `?prefill=${encodeURIComponent(prefill)}` : ''}`, { replace: true });
       }).catch(() => {});
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [searchParams, isAuthenticated]);
+
+  useEffect(() => {
+    const prefill = searchParams.get('prefill');
+    if (convId && prefill && !input.trim()) setInput(prefill);
+  }, [convId, searchParams, input]);
 
   /* ── Load messages khi chọn conversation ── */
   const loadMessages = useCallback(async (id) => {
