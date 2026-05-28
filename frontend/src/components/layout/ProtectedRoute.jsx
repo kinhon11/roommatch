@@ -41,6 +41,7 @@ const ProtectedRoute = ({ children, allowedRoles = [], redirectPath }) => {
 const getRoleFallback = (role) => {
   switch (role) {
     case 'admin':    return '/admin/dashboard';
+    case 'broker':   return '/broker/dashboard';
     case 'landlord': return '/landlord/dashboard';
     case 'tenant':   return '/';
     default:         return '/';

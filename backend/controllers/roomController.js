@@ -51,6 +51,13 @@ const applyRecommendedRoomOrder = (query) => query
   .order('price', { ascending: true })
   .order('created_at', { ascending: true });
 
+const getRoomImageStoragePath = (imageUrl = '') => {
+  const marker = '/room-images/';
+  const markerIndex = String(imageUrl).indexOf(marker);
+  if (markerIndex === -1) return null;
+  return decodeURIComponent(String(imageUrl).slice(markerIndex + marker.length));
+};
+
 const canManageRoom = (user, room) => (
   user?.role === 'admin' || room?.host_id === user?.id || room?.broker_id === user?.id
 );
@@ -215,8 +222,7 @@ const getApprovedRooms = async (req, res) => {
       .eq('status', 'approved')
       .eq('is_hidden', false)
       .eq('is_available', true)
-      .gt('available_slots', 0)
-      .range(from, to);
+      .gt('available_slots', 0);
 
     if (sort === 'price_asc') {
       query = query.order('price', { ascending: true });
@@ -239,6 +245,7 @@ const getApprovedRooms = async (req, res) => {
     if (private_hours === 'true') query = query.eq('has_private_hours', true);
     if (allow_pets === 'true') query = query.eq('allow_pets', true);
     if (has_parking === 'true') query = query.eq('has_parking', true);
+    if (!amenityFilter) query = query.range(from, to);
 
     const { data, error, count } = await query;
     if (error) return res.status(500).json({ error: error.message });
@@ -254,9 +261,10 @@ const getApprovedRooms = async (req, res) => {
         return wantedAmenities.every(wa => roomAmenityNames.includes(wa));
       });
     }
+    const pagedData = amenityFilter ? filteredData.slice(from, to + 1) : filteredData;
 
     return res.status(200).json({
-      rooms: filteredData,
+      rooms: pagedData,
       total: amenityFilter ? filteredData.length : (count ?? data.length),
       page: Number(page),
       limit: Number(limit),
@@ -1081,7 +1089,7 @@ const deleteRoomImage = async (req, res) => {
 
     const { data: image, error: imageError } = await supabase
       .from('room_images')
-      .select('id, is_primary')
+      .select('id, image_url, is_primary')
       .eq('id', imageId)
       .eq('room_id', roomId)
       .single();
@@ -1097,6 +1105,11 @@ const deleteRoomImage = async (req, res) => {
       .eq('room_id', roomId);
 
     if (error) return res.status(400).json({ error: error.message });
+    const storagePath = getRoomImageStoragePath(image.image_url);
+    if (storagePath) {
+      const { error: removeError } = await supabase.storage.from('room-images').remove([storagePath]);
+      if (removeError) console.warn('Failed to remove room image from storage:', removeError.message);
+    }
     if (image.is_primary) {
       const { data: nextImage } = await supabase
         .from('room_images')

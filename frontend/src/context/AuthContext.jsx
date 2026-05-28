@@ -1,5 +1,6 @@
-import { createContext, useContext, useState, useCallback } from 'react';
+import { createContext, useContext, useEffect, useState, useCallback } from 'react';
 import { authService } from '../services/authService';
+import { profileService } from '../services/profileService';
 
 const AuthContext = createContext(null);
 
@@ -22,7 +23,49 @@ export const AuthProvider = ({ children }) => {
       return null;
     }
   });
-  const [loading] = useState(false);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    let isMounted = true;
+
+    const verifySession = async () => {
+      let storedSession = null;
+      try {
+        storedSession = JSON.parse(localStorage.getItem('roommie-session') || 'null');
+      } catch {
+        storedSession = null;
+      }
+      if (!storedSession?.access_token) {
+        localStorage.removeItem('roommie-session');
+        localStorage.removeItem('roommie-user');
+        if (isMounted) {
+          setUser(null);
+          setSession(null);
+          setLoading(false);
+        }
+        return;
+      }
+
+      try {
+        const freshUser = await profileService.getProfile();
+        if (!isMounted) return;
+        setSession(storedSession);
+        setUser(freshUser);
+        localStorage.setItem('roommie-user', JSON.stringify(freshUser));
+      } catch {
+        localStorage.removeItem('roommie-session');
+        localStorage.removeItem('roommie-user');
+        if (!isMounted) return;
+        setUser(null);
+        setSession(null);
+      } finally {
+        if (isMounted) setLoading(false);
+      }
+    };
+
+    verifySession();
+    return () => { isMounted = false; };
+  }, []);
 
   const login = useCallback(async (credentials) => {
     const response = await authService.login(credentials);
@@ -70,7 +113,7 @@ export const AuthProvider = ({ children }) => {
     register,
     logout,
     updateUser,
-    isAuthenticated: !!user,
+    isAuthenticated: !!user && !!session?.access_token,
     isAdmin,
     isLandlord,
     isBroker,

@@ -11,14 +11,42 @@ const createReport = async (req, res) => {
     const { room_id, reason, description } = req.body;
 
     if (!reason || reason.trim().length < 5) {
-      return res.status(400).json({ error: 'Lý do báo cáo phải có ít nhất 5 ký tự.' });
+      return res.status(400).json({ error: 'Ly do bao cao phai co it nhat 5 ky tu.' });
+    }
+    if (!room_id) {
+      return res.status(400).json({ error: 'room_id is required.' });
+    }
+
+    const { data: room, error: roomError } = await supabase
+      .from('rooms')
+      .select('id, host_id, broker_id, is_hidden')
+      .eq('id', room_id)
+      .maybeSingle();
+
+    if (roomError) return res.status(400).json({ error: roomError.message });
+    if (!room) return res.status(404).json({ error: 'Phong khong ton tai.' });
+    if (room.host_id === req.user.id || room.broker_id === req.user.id) {
+      return res.status(400).json({ error: 'Ban khong the bao cao phong do minh quan ly.' });
+    }
+
+    const { data: existingReport, error: existingError } = await supabase
+      .from('reports')
+      .select('id')
+      .eq('reporter_id', req.user.id)
+      .eq('room_id', room_id)
+      .in('status', ['pending', 'resolved'])
+      .maybeSingle();
+
+    if (existingError) return res.status(400).json({ error: existingError.message });
+    if (existingReport) {
+      return res.status(409).json({ error: 'Ban da gui bao cao cho phong nay roi.' });
     }
 
     const { data, error } = await supabase
       .from('reports')
       .insert({
         reporter_id: req.user.id,
-        room_id: room_id || null,
+        room_id,
         reason: reason.trim(),
         description: description?.trim() || null,
         status: 'pending',
@@ -28,26 +56,25 @@ const createReport = async (req, res) => {
 
     if (error) return res.status(400).json({ error: error.message });
 
-    if (room_id) {
-      const { count } = await supabase
-        .from('reports')
-        .select('*', { count: 'exact', head: true })
-        .eq('room_id', room_id);
+    const { count } = await supabase
+      .from('reports')
+      .select('*', { count: 'exact', head: true })
+      .eq('room_id', room_id)
+      .eq('status', 'pending');
 
-      if ((count || 0) >= AUTO_HIDE_REPORT_THRESHOLD) {
-        await supabase
-          .from('rooms')
-          .update({
-            is_hidden: true,
-            auto_hidden_reason: `Tu dong an do co ${count} bao cao vi pham.`,
-            hidden_by_report_count: count,
-            hidden_at: new Date().toISOString(),
-          })
-          .eq('id', room_id);
-      }
+    if ((count || 0) >= AUTO_HIDE_REPORT_THRESHOLD && room.is_hidden !== true) {
+      await supabase
+        .from('rooms')
+        .update({
+          is_hidden: true,
+          auto_hidden_reason: `Tu dong an do co ${count} bao cao vi pham dang cho xu ly.`,
+          hidden_by_report_count: count,
+          hidden_at: new Date().toISOString(),
+        })
+        .eq('id', room_id);
     }
 
-    return res.status(201).json({ message: 'Báo cáo đã được gửi. Chúng tôi sẽ xem xét sớm nhất!', report: data });
+    return res.status(201).json({ message: 'Bao cao da duoc gui. Chung toi se xem xet som nhat!', report: data });
   } catch (err) {
     return res.status(500).json({ error: err.message });
   }
