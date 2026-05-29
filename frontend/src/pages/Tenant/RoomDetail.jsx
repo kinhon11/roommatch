@@ -113,8 +113,9 @@ const RoomDetail = () => {
 
   // Deposit form state
   const [showDeposit, setShowDeposit] = useState(false);
-  const [depositForm, setDepositForm] = useState({ amount: '', note: '', deposit_scope: 'full_room' });
+  const [depositForm, setDepositForm] = useState({ amount: '', note: '', deposit_scope: '' });
   const [depositState, setDepositState] = useState({ loading: false, error: null, success: false });
+  const [hasDepositAppointment, setHasDepositAppointment] = useState(false);
 
   // Similar rooms
   const [similarRooms, setSimilarRooms] = useState([]);
@@ -158,6 +159,19 @@ const RoomDetail = () => {
           if (res.data?.request) setExistingRequest(res.data.request);
         })
         .catch(() => {});
+    }
+  }, [isAuthenticated, user?.role, id]);
+
+  useEffect(() => {
+    if (isAuthenticated && user?.role === 'tenant' && id) {
+      appointmentService.list()
+        .then(res => {
+          const appointments = Array.isArray(res.data) ? res.data : [];
+          setHasDepositAppointment(appointments.some(item =>
+            item.room_id === id && ['confirmed', 'completed'].includes(item.status)
+          ));
+        })
+        .catch(() => setHasDepositAppointment(false));
     }
   }, [isAuthenticated, user?.role, id]);
 
@@ -345,6 +359,10 @@ const RoomDetail = () => {
   const handleDepositSubmit = async (e) => {
     e.preventDefault();
     if (!isAuthenticated) { navigate('/login'); return; }
+    if (!depositForm.deposit_scope) {
+      setDepositState({ loading: false, error: 'Vui long chon loai coc hop le truoc khi gui.', success: false });
+      return;
+    }
     const baseDeposit = Number(room?.deposit_amount || room?.price || depositForm.amount || 0);
     const maxOccupants = Math.max(Number(room?.max_occupants) || Number(room?.available_slots) || 1, 1);
     const requestedSlots = Math.max(Number(existingRequest?.occupants) || 1, 1);
@@ -362,7 +380,7 @@ const RoomDetail = () => {
       setDepositState({ loading: false, error: null, success: true });
       setTimeout(() => {
         setShowDeposit(false);
-        setDepositForm({ amount: '', note: '', deposit_scope: existingRequest?.status === 'accepted' ? 'slot' : 'full_room' });
+        setDepositForm({ amount: '', note: '', deposit_scope: '' });
         setDepositState({ loading: false, error: null, success: false });
       }, 1800);
     } catch (err) {
@@ -457,6 +475,8 @@ const RoomDetail = () => {
   const slotDepositAmount = depositAmount ? Math.ceil((Number(depositAmount) / maxDepositOccupants) * depositSlots) : '';
   const selectedDepositAmount = depositForm.deposit_scope === 'slot' ? slotDepositAmount : depositAmount;
   const hasAcceptedRoommateRequest = existingRequest?.status === 'accepted';
+  const canDepositSlot = hasAcceptedRoommateRequest;
+  const canDepositFullRoom = hasDepositAppointment;
   const acceptedRoommates = room.accepted_roommates || [];
   const acceptedOccupantCount = acceptedRoommates.reduce((sum, item) => sum + (Number(item.occupants) || 1), 0);
   const availableSlotCount = Math.max(Number(room.available_slots) || 0, 0);
@@ -1149,10 +1169,11 @@ const RoomDetail = () => {
               </div>
               {!showDeposit ? (
                 <button className="btn btn-primary" onClick={() => {
+                  const nextScope = canDepositSlot ? 'slot' : (canDepositFullRoom ? 'full_room' : '');
                   setDepositForm(f => ({
                     ...f,
-                    deposit_scope: hasAcceptedRoommateRequest ? 'slot' : 'full_room',
-                    amount: hasAcceptedRoommateRequest ? slotDepositAmount : depositAmount,
+                    deposit_scope: nextScope,
+                    amount: nextScope === 'slot' ? slotDepositAmount : (nextScope === 'full_room' ? depositAmount : ''),
                   }));
                   setShowDeposit(true);
                 }}>
@@ -1161,23 +1182,24 @@ const RoomDetail = () => {
               ) : (
                 <form className="deposit-inline-form" onSubmit={handleDepositSubmit}>
                   <div className="deposit-scope">
-                    <label className={`deposit-scope__option ${depositForm.deposit_scope === 'full_room' ? 'deposit-scope__option--active' : ''}`}>
+                    <label className={`deposit-scope__option ${depositForm.deposit_scope === 'full_room' ? 'deposit-scope__option--active' : ''} ${!canDepositFullRoom ? 'deposit-scope__option--disabled' : ''}`}>
                       <input
                         type="radio"
                         name="deposit_scope"
                         value="full_room"
                         checked={depositForm.deposit_scope === 'full_room'}
+                        disabled={!canDepositFullRoom}
                         onChange={e => setDepositForm(f => ({ ...f, deposit_scope: e.target.value, amount: depositAmount || '' }))}
                       />
                       <span>Cọc nguyên căn</span>
                     </label>
-                    <label className={`deposit-scope__option ${depositForm.deposit_scope === 'slot' ? 'deposit-scope__option--active' : ''} ${!hasAcceptedRoommateRequest ? 'deposit-scope__option--disabled' : ''}`}>
+                    <label className={`deposit-scope__option ${depositForm.deposit_scope === 'slot' ? 'deposit-scope__option--active' : ''} ${!canDepositSlot ? 'deposit-scope__option--disabled' : ''}`}>
                       <input
                         type="radio"
                         name="deposit_scope"
                         value="slot"
                         checked={depositForm.deposit_scope === 'slot'}
-                        disabled={!hasAcceptedRoommateRequest}
+                        disabled={!canDepositSlot}
                         onChange={e => setDepositForm(f => ({ ...f, deposit_scope: e.target.value, amount: slotDepositAmount || '' }))}
                       />
                       <span>Cọc slot ở ghép</span>
@@ -1187,7 +1209,7 @@ const RoomDetail = () => {
                     type="number"
                     className="form-input"
                     min={1}
-                    value={selectedDepositAmount || depositForm.amount}
+                    value={depositForm.deposit_scope ? (selectedDepositAmount || depositForm.amount) : ''}
                     readOnly
                     required
                     placeholder="Số tiền cọc"
@@ -1202,11 +1224,13 @@ const RoomDetail = () => {
                   <p className="deposit-scope__hint">
                     {depositForm.deposit_scope === 'slot'
                       ? 'Cọc slot chỉ giữ phần chỗ ở ghép đã được chủ nhà chấp nhận.'
-                      : 'Cọc nguyên căn sẽ giữ toàn bộ phòng sau khi chủ nhà xác nhận.'}
+                      : depositForm.deposit_scope === 'full_room'
+                        ? 'Cọc nguyên căn cần có lịch hẹn đã xác nhận hoặc hoàn thành.'
+                        : 'Cọc slot cần yêu cầu ở ghép đã được chấp nhận. Cọc nguyên căn cần lịch hẹn đã xác nhận hoặc hoàn thành.'}
                   </p>
                   {depositState.success && <p style={{color:'var(--success)', fontSize:14}}>Đã gửi yêu cầu cọc phòng.</p>}
                   <div style={{display:'flex', gap:8}}>
-                    <button type="submit" className="btn btn-primary btn-sm" disabled={depositState.loading}>
+                    <button type="submit" className="btn btn-primary btn-sm" disabled={depositState.loading || !depositForm.deposit_scope}>
                       {depositState.loading ? 'Đang gửi...' : 'Gửi cọc'}
                     </button>
                     <button type="button" className="btn btn-ghost btn-sm" onClick={() => setShowDeposit(false)}>Hủy</button>

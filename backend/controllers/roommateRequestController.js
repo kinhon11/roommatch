@@ -389,10 +389,11 @@ const checkRequestStatus = async (req, res) => {
       .eq('room_id', req.params.roomId)
       .eq('tenant_id', req.user.id)
       .order('created_at', { ascending: false })
-      .limit(1)
-      .maybeSingle();
+      .limit(10);
 
-    return res.status(200).json({ request: data || null });
+    const requests = Array.isArray(data) ? data : [];
+    const acceptedRequest = requests.find(request => request.status === 'accepted');
+    return res.status(200).json({ request: acceptedRequest || requests[0] || null });
   } catch (err) {
     return res.status(500).json({ error: err.message });
   }
