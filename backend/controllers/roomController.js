@@ -169,6 +169,36 @@ const buildRoomPayload = (body, fallbackSlots = 1) => {
   };
 };
 
+const getMissingSchemaColumn = (error) => {
+  const message = error?.message || '';
+  const match = message.match(/Could not find the '([^']+)' column/);
+  return match?.[1] || null;
+};
+
+const runRoomMutationWithSchemaFallback = async (payload, runMutation) => {
+  const sanitizedPayload = { ...payload };
+  const omittedColumns = [];
+
+  for (let attempt = 0; attempt < 12; attempt += 1) {
+    const result = await runMutation(sanitizedPayload);
+    const missingColumn = getMissingSchemaColumn(result.error);
+
+    if (!missingColumn || !(missingColumn in sanitizedPayload)) {
+      return { ...result, omittedColumns };
+    }
+
+    omittedColumns.push(missingColumn);
+    delete sanitizedPayload[missingColumn];
+    console.warn(`Supabase schema is missing rooms.${missingColumn}; retrying room mutation without that field.`);
+  }
+
+  return {
+    data: null,
+    error: new Error('Supabase schema is missing too many rooms columns. Please update the database schema.'),
+    omittedColumns,
+  };
+};
+
 const validateRoomPayload = (payload) => {
   if (!payload.title) return 'Tiêu đề phòng là bắt buộc.';
   if (!payload.address) return 'Địa chỉ phòng là bắt buộc.';
@@ -393,15 +423,18 @@ const createRoom = async (req, res) => {
     const validationError = validateRoomPayload(roomPayload);
     if (validationError) return res.status(400).json({ error: validationError });
 
-    const { data: room, error } = await supabase
-      .from('rooms')
-      .insert({
+    const { data: room, error } = await runRoomMutationWithSchemaFallback(
+      {
         host_id: req.user.id,
         ...roomPayload,
-        status: 'pending', // Default: cần Admin duyệt
-      })
-      .select()
-      .single();
+        status: 'pending',
+      },
+      (payload) => supabase
+        .from('rooms')
+        .insert(payload)
+        .select()
+        .single()
+    );
 
     if (error) return res.status(400).json({ error: error.message });
 
@@ -438,12 +471,15 @@ const updateRoom = async (req, res) => {
     const validationError = validateRoomPayload(roomFields);
     if (validationError) return res.status(400).json({ error: validationError });
 
-    const { data, error } = await supabase
-      .from('rooms')
-      .update({ ...roomFields, status: 'pending', updated_at: new Date() })
-      .eq('id', req.params.id)
-      .select()
-      .single();
+    const { data, error } = await runRoomMutationWithSchemaFallback(
+      { ...roomFields, status: 'pending', updated_at: new Date() },
+      (payload) => supabase
+        .from('rooms')
+        .update(payload)
+        .eq('id', req.params.id)
+        .select()
+        .single()
+    );
 
     if (error) return res.status(400).json({ error: error.message });
 
